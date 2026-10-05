@@ -1,0 +1,13 @@
+# credenciais — nunca versionadas
+.env
+.env.*
+!.env.example
+
+# dependências e build
+node_modules/
+.vercel/
+*.log
+
+# sistema
+.DS_Store
+Thumbs.db

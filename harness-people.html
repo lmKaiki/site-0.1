@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Harness de teste do módulo People (perfil, cartão de membro e controles de DM) do Nexo." />
+  <title>Nexo · People (harness)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230E1517'/%3E%3Cpath d='M18 45V19l28 26V19' stroke='%2335E0A8' stroke-width='6.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/chatmedia.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/permui.css" />
+  <link rel="stylesheet" href="css/people.css" />
+  <link rel="stylesheet" href="css/extras.css" />
+  <style>
+    /* ---- estilos só do harness (não fazem parte do protótipo) ---- */
+    #pph {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: var(--bg-body);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pph-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-sidebar);
+      flex-wrap: wrap;
+    }
+
+    .pph-brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-weight: 800;
+      color: var(--text-strong);
+      letter-spacing: -0.02em;
+    }
+
+    .pph-brand span {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .pph-dm {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1 1 auto;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .pph-dm__label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .pph-dm__strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      background: var(--bg-elev);
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 100%;
+    }
+
+    .pph-dm__strip b {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .pph-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pph-status {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pph-status.is-err {
+      color: var(--danger);
+    }
+
+    .pph-stage {
+      flex: 1 1 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      padding: 16px 18px 24px;
+      overflow: auto;
+      align-items: start;
+    }
+
+    .pph-col {
+      min-width: 0;
+    }
+
+    .pph-col > h2 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pph-col > h2::after {
+      content: "";
+      flex: 1 1 auto;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .pph-pane {
+      min-height: 120px;
+    }
+
+    @media (max-width: 1080px) {
+      .pph-stage {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="pph-route" style="position:fixed;top:4px;left:4px;z-index:9999;background:#ffd400;color:#111;font:800 17px/1.1 system-ui,-apple-system,sans-serif;padding:7px 11px;border-radius:7px;letter-spacing:.05em;box-shadow:0 2px 10px rgba(0,0,0,.5)">ROTA: …</div>
+  <pre id="pph-audit" style="position:fixed;right:6px;bottom:6px;z-index:9999;margin:0;max-width:60vw;max-height:44vh;overflow:hidden;background:rgba(0,0,0,.82);color:#7CFFD4;font:600 12px/1.45 ui-monospace,Consolas,monospace;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word"></pre>
+  <!-- Landing page pública (deslogado) -->
+  <section id="screen-landing" class="screen screen--landing" hidden></section>
+
+  <!-- Tela inicial / autenticação -->
+  <section id="screen-auth" class="screen screen--auth" hidden></section>
+
+  <!-- Página de convite -->
+  <section id="screen-invite" class="screen screen--invite" hidden></section>
+
+  <!-- Configurações do usuário (camada sobre o app) -->
+  <section id="screen-settings" class="screen screen--settings" hidden></section>
+
+  <!-- Aplicação principal -->
+  <div id="screen-app" class="app-shell" hidden>
+    <nav id="rail" class="rail" aria-label="Servidores"></nav>
+    <aside id="sidebar" class="sidebar" aria-label="Canais do servidor"></aside>
+    <main id="main" class="main">
+      <header id="channel-header" class="channel-header"></header>
+      <div id="main-content" class="main-content"></div>
+      <footer id="composer" class="composer" hidden></footer>
+    </main>
+    <aside id="members" class="members" aria-label="Membros"></aside>
+    <div id="scrim" class="scrim" hidden></div>
+  </div>
+
+  <!-- Camadas de UI -->
+  <div id="modal-root"></div>
+  <div id="popout-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <!-- Palco do harness (fica abaixo de modal/popout/toast) -->
+  <div id="pph" hidden>
+    <header class="pph-bar">
+      <div class="pph-brand">Nexo · People <span>perfil · membros · DM</span></div>
+      <div class="pph-dm">
+        <span class="pph-dm__label">DM</span>
+        <div class="pph-dm__strip" id="pph-dm-normal"></div>
+        <div class="pph-dm__strip" id="pph-dm-blocked"></div>
+      </div>
+      <div class="pph-actions">
+        <button class="btn btn--soft btn--sm" id="pph-card" type="button">Cartão de membro</button>
+        <button class="btn btn--primary btn--sm" id="pph-edit" type="button">Editar perfil</button>
+        <span class="pph-status" id="pph-status">…</span>
+      </div>
+    </header>
+    <main class="pph-stage">
+      <section class="pph-col">
+        <h2>Perfil · você (demo)</h2>
+        <div class="pph-pane" id="pph-me"></div>
+      </section>
+      <section class="pph-col">
+        <h2>Perfil · outro membro</h2>
+        <div class="pph-pane" id="pph-other"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/modals.js"></script>
+  <!-- módulos auto-contidos (registram ações com prefixo próprio) -->
+  <script src="js/landing.js"></script>
+  <script src="js/chatmedia.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/permui.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    (function () {
+      "use strict";
+      var NX = window.NX;
+
+      /* sessão demo antes do bootstrap do app */
+      try {
+        NX.store.load();
+        NX.seed();
+        if (!NX.selectors.me()) {
+          var demo = Object.values(NX.store.db.users).filter(function (x) { return x.demo; })[0];
+          if (demo) NX.session.set(demo.id, true);
+        }
+      } catch (e) {
+        console.error("[harness:prime]", e);
+      }
+
+      function status(msg, isErr) {
+        var el = document.getElementById("pph-status");
+        if (!el) return;
+        el.textContent = msg;
+        el.className = "pph-status" + (isErr ? " is-err" : "");
+      }
+
+      window.addEventListener("error", function (e) {
+        status("ERRO: " + (e.message || "desconhecido"), true);
+      });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        try {
+          var S = NX.selectors;
+          var me = S.me();
+          if (!me) throw new Error("sem sessão (conta demo)");
+
+          /* outro membro: alguém de um servidor que vocês compartilham */
+          var other = null;
+          S.sharedServers(me.id, me.id).forEach(function (s) {
+            if (other) return;
+            S.membersOf(s.id).forEach(function (row) {
+              if (!other && row.user.id !== me.id) other = row.user;
+            });
+          });
+          if (!other) {
+            S.membershipsOf(me.id).forEach(function (m) {
+              if (other) return;
+              S.membersOf(m.serverId).forEach(function (row) {
+                if (!other && row.user.id !== me.id) other = row.user;
+              });
+            });
+          }
+          if (!other) other = Object.values(NX.store.db.users).filter(function (x) { return x.id !== me.id; })[0];
+          if (!other) throw new Error("sem outro usuário no seed");
+
+          /* perfis */
+          var paneMe = document.getElementById("pph-me");
+          paneMe.innerHTML = NX.people.profilePage(me.id);
+          NX.people.profilePageAfter(paneMe, me.id);
+
+          var paneOther = document.getElementById("pph-other");
+          paneOther.innerHTML = NX.people.profilePage(other.id);
+          NX.people.profilePageAfter(paneOther, other.id);
+
+          /* controles de DM: normal + estado bloqueado (simulado, sem persistir) */
+          var dmId = S.dmId(me.id, other.id);
+          document.getElementById("pph-dm-normal").innerHTML =
+            "<b>" + NX.util.h(other.displayName) + "</b>" + NX.people.dmHeaderControls(dmId, other.id);
+
+          var had = (me.blocks || []).indexOf(other.id) !== -1;
+          if (!had) me.blocks = (me.blocks || []).concat([other.id]);
+          document.getElementById("pph-dm-blocked").innerHTML =
+            "<b>" + NX.util.h(other.displayName) + "</b>" + NX.people.dmHeaderControls(dmId, other.id);
+          if (!had) me.blocks = (me.blocks || []).filter(function (x) { return x !== other.id; });
+
+          /* botões do harness */
+          document.getElementById("pph-edit").addEventListener("click", function () {
+            NX.people.editProfileModal();
+          });
+          document.getElementById("pph-card").addEventListener("click", function (e) {
+            var serverId = null;
+            S.sharedServers(me.id, other.id).forEach(function (s) { if (!serverId) serverId = s.id; });
+            if (!serverId) {
+              var m = S.membershipsOf(other.id)[0];
+              serverId = m ? m.serverId : null;
+            }
+            if (!serverId) { status("sem servidor comum", true); return; }
+            NX.people.memberCard(e.currentTarget, serverId, other.id);
+          });
+
+          document.getElementById("pph").hidden = false;
+
+          /* rotas opcionais do harness */
+          var hash = (location.hash || "").replace("#", "");
+          var rb = document.getElementById("pph-route");
+          if (rb) rb.textContent = "ROTA: " + (hash || "(base)");
+          function later(fn, ms) { setTimeout(fn, ms); }
+          function openEdit(tab) {
+            NX.people.editProfileModal();
+            if (tab) later(function () {
+              var b = document.querySelector('.pp-tab[data-pptab="' + tab + '"]');
+              if (b) b.click();
+            }, 60);
+          }
+          function clickMenu(label) {
+            var els = Array.prototype.slice.call(document.querySelectorAll(".menu__item"));
+            for (var i = 0; i < els.length; i++) {
+              if ((els[i].textContent || "").indexOf(label) !== -1) { els[i].click(); return true; }
+            }
+            return false;
+          }
+          function audit() {
+            var out = [];
+            var de = document.documentElement;
+            out.push("overflowX=" + (de.scrollWidth - de.clientWidth));
+            var vw = window.innerWidth, vh = window.innerHeight;
+            var wide = [];
+            Array.prototype.forEach.call(
+              document.querySelectorAll("#pph *, .modal *, .menu *, .popout *"),
+              function (el) {
+                var b = el.getBoundingClientRect();
+                if (!b.width || !b.height) return;
+                if (b.right > vw + 2 || b.left < -2) wide.push((el.className || el.tagName).toString().slice(0, 40));
+              }
+            );
+            out.push("foraDaViewport=" + (wide.length ? wide.slice(0, 8).join("|") : "nenhum"));
+            var m = document.querySelector(".modal");
+            if (m) {
+              var mb = m.getBoundingClientRect();
+              out.push("modal=top" + Math.round(mb.top) + ",bottom" + Math.round(mb.bottom) + ",vh" + vh +
+                ",cabemNoViewport=" + (mb.bottom <= vh + 1 && mb.top >= -1));
+            }
+            var po = document.querySelector(".popout");
+            if (po) {
+              var pb = po.getBoundingClientRect();
+              out.push("popout=right" + Math.round(pb.right) + ",bottom" + Math.round(pb.bottom) + ",vw" + vw +
+                ",cabem=" + (pb.right <= vw + 1 && pb.bottom <= vh + 1));
+            }
+            var items = Array.prototype.map.call(document.querySelectorAll(".menu__item"), function (b) {
+              return (b.textContent || "").trim();
+            });
+            if (items.length) out.push("menuItens=" + items.join(" / "));
+            var mt = document.querySelector(".modal__title");
+            if (mt) out.push("modalTitulo=" + (mt.textContent || "").trim());
+            var acts = Array.prototype.map.call(document.querySelectorAll(".modal__actions .btn, .modal__foot .btn"), function (b) {
+              return (b.textContent || "").trim();
+            });
+            if (acts.length) out.push("modalAcoes=" + acts.join(" / "));
+            out.push("tema=" + (document.documentElement.getAttribute("data-theme") || document.documentElement.className || "?"));
+            out.push("bgCorpo=" + getComputedStyle(document.body).backgroundColor);
+            out.push("focus=" + (document.activeElement ? (document.activeElement.className || document.activeElement.tagName) : "-"));
+            out.push("abasAtiva=" + (document.querySelector(".pp-tab.is-on") ? document.querySelector(".pp-tab.is-on").textContent.trim() : "-"));
+            var res = out.join(" ;; ");
+            var box = document.getElementById("pph-audit");
+            if (box) box.textContent = res;
+            status("audit ok");
+            return res;
+          }
+          function auditLater(fn, ms) { later(function () { if (fn) fn(); audit(); }, ms || 400); }
+          var routes = {
+            "edit": function () { openEdit(); },
+            "banner": function () { openEdit("banner"); },
+            "info": function () { openEdit("info"); },
+            "status": function () { openEdit("status"); },
+            "theme": function () { openEdit("theme"); },
+            "card": function () { document.getElementById("pph-card").click(); },
+            "profile-menu": function () { document.querySelector('[data-action="pp-profile-menu"]').click(); },
+            "dm-menu": function () { document.querySelector('[data-action="pp-dm-menu"]').click(); },
+            "member-menu": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click(); else status("menu do membro não encontrado", true);
+              }, 160);
+            },
+            "report": function () {
+              document.querySelector('[data-action="pp-profile-menu"]').click();
+              later(function () { if (!clickMenu("Denunciar")) status("item Denunciar não encontrado", true); }, 120);
+            },
+            "block": function () {
+              document.querySelector('[data-action="pp-profile-menu"]').click();
+              later(function () { if (!clickMenu("Bloquear")) status("item Bloquear não encontrado", true); }, 120);
+            },
+            "kick": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click();
+                later(function () { if (!clickMenu("Expulsar")) status("item Expulsar não encontrado", true); }, 120);
+              }, 160);
+            },
+            "ban": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click();
+                later(function () { if (!clickMenu("Banir")) status("item Banir não encontrado", true); }, 120);
+              }, 160);
+            },
+            "role": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click();
+                later(function () { if (!clickMenu("cargo")) status("item de cargo não encontrado", true); }, 120);
+              }, 160);
+            },
+            "light": function () { NX.applyTheme("light"); },
+            "light-edit": function () { NX.applyTheme("light"); openEdit("info"); },
+            "light-card": function () { NX.applyTheme("light"); document.getElementById("pph-card").click(); },
+            "audit": function () { auditLater(null, 500); },
+            "audit-light": function () { NX.applyTheme("light"); auditLater(null, 500); },
+            "audit-card": function () { document.getElementById("pph-card").click(); auditLater(null, 500); },
+            "audit-modal": function () { NX.people.editProfileModal(); auditLater(null, 500); },
+            "audit-modal-info": function () { openEdit("info"); auditLater(null, 600); },
+            "audit-dm": function () {
+              var b = document.querySelector('[data-action="pp-dm-menu"]');
+              if (b) b.click(); else status("botão dm não encontrado", true);
+              auditLater(null, 500);
+            },
+            "audit-profile-menu": function () {
+              document.querySelector('[data-action="pp-profile-menu"]').click();
+              auditLater(null, 500);
+            },
+            "audit-member-menu": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click();
+              }, 160);
+              auditLater(null, 700);
+            },
+            "audit-report": function () {
+              document.querySelector('[data-action="pp-profile-menu"]').click();
+              later(function () { clickMenu("Denunciar"); }, 120);
+              auditLater(null, 600);
+            },
+            "audit-block": function () {
+              document.querySelector('[data-action="pp-profile-menu"]').click();
+              later(function () { clickMenu("Bloquear"); }, 120);
+              auditLater(null, 600);
+            },
+            "audit-ban": function () {
+              document.getElementById("pph-card").click();
+              later(function () {
+                var b = document.querySelector('[data-action="pp-member-menu"]');
+                if (b) b.click();
+                later(function () { clickMenu("Banir"); }, 120);
+              }, 160);
+              auditLater(null, 800);
+            },
+            "audit-crop": function () {
+              NX.people.editProfileModal();
+              later(function () {
+                try {
+                  var c = document.createElement("canvas");
+                  c.width = 320; c.height = 320;
+                  var g = c.getContext("2d");
+                  g.fillStyle = "#35e0a8"; g.fillRect(0, 0, 320, 320);
+                  g.fillStyle = "#8f83ff"; g.fillRect(0, 160, 320, 160);
+                  g.fillStyle = "#101418"; g.fillRect(120, 120, 80, 80);
+                  c.toBlob(function (blob) {
+                    var box = document.getElementById("pph-audit");
+                    var input = document.querySelector('input[data-ppfile="avatar"]');
+                    if (!blob || !input) {
+                      if (box) box.textContent = "cropERRO blob=" + !!blob + " input=" + !!input;
+                      status("crop falhou", true);
+                      return;
+                    }
+                    var dt = new DataTransfer();
+                    dt.items.add(new File([blob], "avatar-teste.png", { type: "image/png" }));
+                    input.files = dt.files;
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    later(function () {
+                      var crop = document.querySelector(".pp-crop--avatar") || document.querySelector(".pp-crop");
+                      var img = document.querySelector("[data-cropimg]") || (crop ? crop.querySelector("img") : null);
+                      var sliders = Array.prototype.map.call(
+                        (crop || document).querySelectorAll('input[type="range"]'),
+                        function (r) { return r.className || r.type; }
+                      );
+                      var err = document.querySelector("[data-error]");
+                      var res = "cropPresente=" + !!crop +
+                        " ;; imgCarregada=" + (img ? (img.naturalWidth + "x" + img.naturalHeight) : "-") +
+                        " ;; sliders=" + (sliders.length ? sliders.join(",") : "nenhum") +
+                        " ;; erro=" + (err && !err.hidden ? err.textContent.trim() : "nenhum");
+                      if (box) box.textContent = res;
+                      status("crop ok");
+                    }, 600);
+                  }, "image/png");
+                } catch (e) {
+                  var box2 = document.getElementById("pph-audit");
+                  if (box2) box2.textContent = "cropEXCECAO " + e.message;
+                  status("crop erro: " + e.message, true);
+                }
+              }, 250);
+            },
+            "audit-save": function () {
+              NX.people.editProfileModal();
+              later(function () {
+                var input = document.querySelector('[data-ppfield="displayName"]');
+                if (!input) { status("campo displayName não encontrado", true); audit(); return; }
+                input.value = "Perfil Teste NX";
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                var save = document.querySelector("[data-pp-save]");
+                if (save) save.click();
+                later(function () {
+                  var me = S.me ? S.me() : null;
+                  var box = document.getElementById("pph-audit");
+                  var toasts = Array.prototype.map.call(document.querySelectorAll(".toast"), function (t) {
+                    return t.textContent.trim();
+                  });
+                  var nameEl = document.querySelector("#pph-me .pp-name");
+                  var res = "nomeSalvo=" + (me ? me.displayName : "?") +
+                    " ;; modalAberto=" + !!document.querySelector(".modal") +
+                    " ;; toast=" + (toasts.length ? toasts.join(" | ") : "nenhum") +
+                    " ;; paginaMostra=" + (nameEl ? nameEl.textContent.trim() : "-");
+                  if (box) box.textContent = res;
+                  status("save ok");
+                }, 1200);
+              }, 250);
+            }
+          };
+          if (routes[hash]) later(routes[hash], 80);
+
+          status("ok · " + me.username + " × " + other.username);
+        } catch (e) {
+          console.error("[harness]", e);
+          status("ERRO: " + e.message, true);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
