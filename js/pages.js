@@ -43,6 +43,18 @@ window.NX = window.NX || {};
   let resendUntil = 0;
   let resendPurpose = "";
   let cdTimer = null;
+  /* aviso devolvido pela API de envio (nunca afirmamos mais que o
+     provedor confirmou) — sobrevive a F5 junto com o fluxo */
+  let authNotice = null;
+
+  function setNotice(message, sent, kind) {
+    authNotice = {
+      type: sent ? "ok" : kind === "info" ? "info" : "warn",
+      text: message || "",
+    };
+    if (!authNotice.text) authNotice = null;
+    return authNotice;
+  }
 
   function saveRec() {
     try {
@@ -54,6 +66,7 @@ window.NX = window.NX || {};
           token: forgotToken,
           until: resendUntil,
           purpose: resendPurpose,
+          notice: authNotice,
         })
       );
     } catch (e) {}
@@ -61,13 +74,24 @@ window.NX = window.NX || {};
   function loadRec() {
     try {
       const raw = sessionStorage.getItem(REC_KEY);
-      if (!raw) return;
+      if (!raw) {
+        /* sem estado salvo: recomeça do passo 1 (nunca herda um passo
+           antigo que ficou só na memória) */
+        forgotStep = 1;
+        forgotEmail = "";
+        forgotToken = "";
+        resendUntil = 0;
+        resendPurpose = "";
+        authNotice = null;
+        return;
+      }
       const s = JSON.parse(raw) || {};
       forgotStep = s.step || 1;
       forgotEmail = s.email || "";
       forgotToken = s.token || "";
       resendUntil = s.until || 0;
       resendPurpose = s.purpose || "";
+      authNotice = s.notice && s.notice.text ? s.notice : null;
     } catch (e) {}
   }
   function clearRec() {
@@ -76,6 +100,7 @@ window.NX = window.NX || {};
     forgotToken = "";
     resendUntil = 0;
     resendPurpose = "";
+    authNotice = null;
     try {
       sessionStorage.removeItem(REC_KEY);
     } catch (e) {}
@@ -113,19 +138,31 @@ window.NX = window.NX || {};
     if (resendUntil > Date.now()) cdTimer = setInterval(paint, 1000);
   }
 
-  /* aviso honesto sobre o provedor de e-mail */
+  /* aviso sobre o envio — a mensagem vem SEMPRE da API:
+     só afirmamos o envio quando o provedor respondeu {ok:true} */
   function providerNotice() {
-    if (NX.email.isConfigured()) {
+    if (authNotice && authNotice.text) {
+      const mod = authNotice.type === "ok" ? "--ok" : authNotice.type === "warn" ? "--warn" : "";
       return (
-        '<div class="auth__notice auth__notice--ok">' +
-        NX.icon("check", "", 17) +
-        "<span>Código enviado! Verifique seu e-mail.</span></div>"
+        '<div class="auth__notice' + (mod ? " auth__notice" + mod : "") + '">' +
+        NX.icon(authNotice.type === "warn" ? "alert" : "check", "", 17) +
+        "<span>" + u().h(authNotice.text) + "</span></div>"
+      );
+    }
+    /* sem tentativa nesta sessão: só orientamos, sem prometer envio */
+    const status = NX.email && NX.email.status ? NX.email.status() : "unknown";
+    if (status === "not-configured") {
+      return (
+        '<div class="auth__notice auth__notice--warn">' +
+        NX.icon("alert", "", 17) +
+        "<span>" + u().h(NX.email.NOT_CONFIGURED_MSG) + "</span></div>"
       );
     }
     return (
-      '<div class="auth__notice auth__notice--warn">' +
-      NX.icon("alert", "", 17) +
-      "<span>" + u().h(NX.email.NOT_CONFIGURED_MSG) + "</span></div>"
+      '<div class="auth__notice">' +
+      NX.icon("mail", "", 17) +
+      "<span>Confira a caixa de entrada e, se não encontrar, " +
+      "verifique também Spam ou outras pastas.</span></div>"
     );
   }
 
@@ -470,6 +507,7 @@ window.NX = window.NX || {};
                 resendUntil = res.resendAt || 0;
                 resendPurpose = "recover";
                 forgotStep = 2;
+                setNotice(res.message, res.sent, res.noAccount ? "info" : "");
                 saveRec();
                 pages.renderAuth();
               })
@@ -570,6 +608,8 @@ window.NX = window.NX || {};
               clearRec();
               resendUntil = res.resendAt || 0;
               resendPurpose = "verify";
+              setNotice(res.emailNotice, res.sent, "");
+              saveRec();
               NX.ui.toast(res.message || "Sua conta foi criada com sucesso.", "success");
               NX.app.go("#/verificar");
             })
@@ -613,6 +653,7 @@ window.NX = window.NX || {};
             .then((res) => {
               resendUntil = res.resendAt || 0;
               resendPurpose = purpose;
+              setNotice(res.message, res.sent, "");
               saveRec();
               pages.renderAuth();
               NX.ui.toast(res.message, res.sent ? "success" : "info");

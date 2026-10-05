@@ -75,8 +75,7 @@ window.NX = window.NX || {};
      ATENÇÃO: nunca prometemos "caixa de entrada"/entrega — só o
      provedor sabe o que aconteceu depois de aceitar a mensagem.
      Em caso de sucesso, orientamos a conferir as outras pastas. */
-  email.FOLDER_HINT =
-    "Se não encontrar, confira as pastas Spam, Promoções e outras.";
+  email.FOLDER_HINT = "Verifique também Spam ou outras pastas.";
   email.SENT_RESET_MSG =
     "Enviamos um código de verificação para seu e-mail. " + email.FOLDER_HINT;
   email.SENT_RESEND_MSG =
@@ -224,6 +223,7 @@ window.NX = window.NX || {};
       /* rede/endpoint inexistente: nunca é sucesso */
       email.state.configured = null;
       const out = { sent: false, reason: "network", detail: e.message };
+      email.state.last = out;
       email.lastStatus = out;
       console.error("[email] falha ao chamar a API de envio (" + endpoint + "):", e.message);
       return out;
@@ -237,8 +237,10 @@ window.NX = window.NX || {};
     }
 
     if (res.ok && data && data.ok === true) {
+      /* accepted pelo provedor — nunca "entregue" */
       email.state.configured = true;
-      email.lastStatus = { sent: true };
+      email.state.last = { sent: true, accepted: true, delivered: false };
+      email.lastStatus = email.state.last;
       return { sent: true };
     }
 
@@ -254,6 +256,7 @@ window.NX = window.NX || {};
       status: res.status,
       detail: (data && (data.detail || data.error)) || "",
     };
+    email.state.last = out;
     email.lastStatus = out;
 
     /* log técnico em desenvolvimento: status/erro, SEM código e
