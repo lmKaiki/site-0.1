@@ -49,6 +49,15 @@ window.NX = window.NX || {};
         '<span class="rail__label">Mensagens</span>',
     });
 
+    html += item({
+      action: "nav-feed",
+      tooltip: "Feed",
+      active: route.name === "feed",
+      inner:
+        '<span class="rail__bubble">' + NX.icon("heart", "", 21) + "</span>" +
+        '<span class="rail__label">Feed</span>',
+    });
+
     html += '<div class="rail__divider"></div>';
 
     servers.forEach((s) => {
@@ -267,7 +276,13 @@ window.NX = window.NX || {};
 
     if (!servers.length) {
       html +=
-        '<p class="side-note">Você ainda não participa de nenhum servidor. Crie o seu ou entre por um convite.</p>';
+        '<p class="side-note">Você ainda não está em nenhum servidor.</p>' +
+        '<div class="side-cta">' +
+        '<button class="btn btn--soft btn--sm btn--block" data-action="create-server">' +
+        NX.icon("plus", "", 16) + " Criar servidor</button>" +
+        '<button class="btn btn--soft btn--sm btn--block" data-action="nav-explore">' +
+        NX.icon("search", "", 16) + " Explorar servidores</button>" +
+        "</div>";
     } else {
       html += '<div class="side-servers">';
       servers.forEach((s) => {
@@ -608,10 +623,15 @@ window.NX = window.NX || {};
     return (
       '<div class="chat-empty">' +
       '<span class="chat-empty__icon">' + NX.icon(isVoice ? "voice" : "hash", "", 30) + "</span>" +
-      "<h3>" + (isVoice ? u().h(channel.name) : "Bem-vindo ao #" + u().h(channel.name)) + "</h3>" +
-      "<p>" +
-      u().h(channel.topic || (isVoice ? "Ninguém está na sala agora. Entre para começar." : "Este é o começo do canal. Envie a primeira mensagem!")) +
-      "</p></div>"
+      "<h3>" +
+      (isVoice ? u().h(channel.name) : "Este é o começo de #" + u().h(channel.name)) +
+      "</h3>" +
+      (channel.topic
+        ? "<p>" + u().h(channel.topic) + "</p>"
+        : isVoice
+          ? "<p>Ninguém está na sala agora. Entre para começar.</p>"
+          : "") +
+      "</div>"
     );
   }
 
@@ -626,7 +646,7 @@ window.NX = window.NX || {};
 
     if (isVoice) return "";
 
-    const members = S().membersOf(channel.serverId);
+    const members = S().visibleMembersOf(channel.serverId);
     const usernames = members.map((m) => m.user.username);
     const roleOf = (uid) => {
       const found = members.find((m) => m.user.id === uid);
@@ -915,9 +935,10 @@ window.NX = window.NX || {};
     }
     el.classList.remove("is-empty");
 
-    const members = S().membersOf(server.id);
-    const online = members.filter((m) => m.user.status !== "offline");
-    const offline = members.filter((m) => m.user.status === "offline");
+    const members = S().visibleMembersOf(server.id);
+    const others = members.filter((m) => m.user.id !== me.id);
+    const online = others.filter((m) => m.user.status !== "offline");
+    const offline = others.filter((m) => m.user.status === "offline");
     const isOwner = (uid) => server.ownerId === uid;
 
     const row = (m) => {
@@ -946,6 +967,12 @@ window.NX = window.NX || {};
       '<div class="members__head"><span>Membros — ' + members.length + "</span>" +
       '<span class="members__online-dot">' + online.length + " online</span></div>";
     html += '<div class="members__scroll">';
+
+    if (!others.length) {
+      html += '<p class="members__empty">Não há outros membros neste servidor.</p></div>';
+      el.innerHTML = html;
+      return;
+    }
 
     html += '<div class="members__group members__group--online">● Online — ' + online.length + "</div>";
     if (online.length) html += online.map(row).join("");

@@ -325,6 +325,115 @@ window.NX = window.NX || {};
     return out.slice(0, 5).join("");
   }
 
+  /* ---- botão de amizade (estado lido do store, nunca chutado) ---- */
+  function friendBtnHTML(user, isMe) {
+    if (isMe || !user) return "";
+    const me = S().me();
+    if (!me) return "";
+    const st = S().friendState(me.id, user.id);
+    const id = h(user.id);
+    if (st === "self") return "";
+    if (st === "friends") {
+      return (
+        '<button class="btn btn--soft" data-action="pp-remove-friend" data-id="' + id +
+        '" title="Remover dos amigos">' + NX.icon("check", "", 16) +
+        "<span>Amigos</span></button>"
+      );
+    }
+    if (st === "sent") {
+      return (
+        '<button class="btn btn--soft" data-action="pp-cancel-friend" data-id="' + id +
+        '" title="Cancelar solicitação de amizade">' + NX.icon("clock", "", 16) +
+        "<span>Solicitação enviada</span></button>"
+      );
+    }
+    if (st === "received") {
+      return (
+        '<button class="btn btn--primary" data-action="pp-accept-friend" data-id="' + id + '">' +
+        NX.icon("userPlus", "", 16) +
+        "<span>Aceitar solicitação</span></button>"
+      );
+    }
+    return (
+      '<button class="btn btn--soft" data-action="pp-add-friend" data-id="' + id + '">' +
+      NX.icon("userPlus", "", 16) +
+      "<span>Adicionar amigo</span></button>"
+    );
+  }
+
+  /* ---- botão de seguir (mesmas ações do feed: sx-follow / sx-unfollow) ---- */
+  function followBtnHTML(user, isMe) {
+    if (isMe || !user) return "";
+    const me = S().me();
+    if (!me) return "";
+    let st = { can: true, state: null };
+    try {
+      st = api().followStatus(user.id) || st;
+    } catch (e) {
+      st = { can: true, state: null };
+    }
+    const id = h(user.id);
+    if (st.state === "self") return "";
+    if (st.state === "following") {
+      return (
+        '<button class="btn btn--soft" data-action="sx-unfollow" data-id="' + id +
+        '" title="Deixar de seguir">' + NX.icon("check", "", 16) +
+        "<span>Seguindo</span></button>"
+      );
+    }
+    if (st.state === "pending") {
+      return (
+        '<button class="btn btn--soft" data-action="sx-unfollow" data-id="' + id +
+        '" title="Cancelar solicitação de seguimento">' + NX.icon("clock", "", 16) +
+        "<span>Solicitado</span></button>"
+      );
+    }
+    return (
+      '<button class="btn btn--soft" data-action="sx-follow" data-id="' + id + '">' +
+      NX.icon("userPlus", "", 16) +
+      "<span>" + (st.state === "request" ? "Solicitar" : "Seguir") + "</span></button>"
+    );
+  }
+
+  /* ---- estatísticas públicas do perfil (❤️ e 👥) ----
+     Nada aqui é número fixo: tudo vem das coleções follows/likes. */
+  function statsRowHTML(user) {
+    const me = S().me();
+    const viewerId = me ? me.id : null;
+    const canF = S().canViewFollowersOf(viewerId, user.id);
+    const canL = S().canViewLikesOf(viewerId, user.id);
+
+    const chip = (o) =>
+      '<button type="button" class="pp-stat' + (o.visible ? "" : " is-locked") +
+      '" data-action="' + o.action + '" data-id="' + h(user.id) +
+      '" title="' + h(o.title) + '">' +
+      '<span class="pp-stat__ico">' + (o.visible ? o.ico : NX.icon("lock", "", 15)) + "</span>" +
+      '<span class="pp-stat__txt"><strong>' +
+      (o.visible ? o.value : "Privado") +
+      "</strong><span>" + o.label + "</span></span></button>";
+
+    return (
+      '<div class="pp-stats">' +
+      chip({
+        visible: canF,
+        action: "pp-followers",
+        ico: "👥",
+        value: u().num(S().followerCount(user.id)),
+        label: "Seguidores",
+        title: canF ? "Ver a lista de seguidores" : "A lista de seguidores está privada",
+      }) +
+      chip({
+        visible: canL,
+        action: "pp-likes",
+        ico: "❤️",
+        value: u().num(S().likesReceivedOf(user.id)),
+        label: "Curtidas",
+        title: canL ? "Ver as publicações curtidas" : "As curtidas estão privadas",
+      }) +
+      "</div>"
+    );
+  }
+
   people.profilePage = function (userId) {
     const me = S().me();
     const user = (userId ? S().user(userId) : null) || me;
@@ -350,6 +459,7 @@ window.NX = window.NX || {};
     const badges = badgeList(user, servers);
 
     /* ---- ações ---- */
+    const hideSocial = iBlocked || theyBlocked;
     const actions = isMe
       ? '<button class="btn btn--primary" data-action="pp-edit-profile">' +
         NX.icon("pencil", "", 16) +
@@ -357,7 +467,8 @@ window.NX = window.NX || {};
         '<button class="btn btn--soft" data-action="open-settings">' +
         NX.icon("settings", "", 16) +
         "<span>Configurações</span></button>"
-      : '<button class="btn btn--primary" data-action="pp-message" data-id="' +
+      : (hideSocial ? "" : friendBtnHTML(user, isMe) + followBtnHTML(user, isMe)) +
+        '<button class="btn btn--primary" data-action="pp-message" data-id="' +
         h(user.id) +
         '">' +
         NX.icon("chat", "", 16) +
@@ -448,6 +559,7 @@ window.NX = window.NX || {};
       "</div>" +
       "</div>" +
       notice +
+      statsRowHTML(user) +
       '<div class="pp-card__grid">' +
       '<section class="pp-block">' +
       '<h4 class="pp-block__h">' +
@@ -1661,6 +1773,100 @@ window.NX = window.NX || {};
   PP["pp-message"] = (el) => startDM(el.getAttribute("data-id"));
   PP["pp-view-profile"] = (el) => go("#/perfil/" + el.getAttribute("data-id"));
   PP["pp-edit-profile"] = () => people.editProfileModal();
+
+  /* ---- estatísticas do perfil (👥 seguidores / ❤️ curtidas) ---- */
+  PP["pp-followers"] = (el) => {
+    const id = el.getAttribute("data-id");
+    const me = S().me();
+    if (!S().canViewFollowersOf(me ? me.id : null, id)) {
+      ui().error("Esta pessoa mantém a lista de seguidores dela privada.");
+      return;
+    }
+    if (NX.social && typeof NX.social.openFollowers === "function") {
+      NX.social.openFollowers(id, "followers");
+    }
+  };
+
+  PP["pp-likes"] = (el) => {
+    const id = el.getAttribute("data-id");
+    const me = S().me();
+    if (!S().canViewLikesOf(me ? me.id : null, id)) {
+      ui().error("Esta pessoa mantém as curtidas dela privadas.");
+      return;
+    }
+    if (NX.social && typeof NX.social.openLikes === "function") NX.social.openLikes(id);
+  };
+
+  /* ---- amizade ---- */
+  function pendingRequestWith(otherId) {
+    const me = S().me();
+    return me ? S().friendRequestBetween(me.id, otherId) : null;
+  }
+
+  const friendFail = (e) => ui().error((e && e.message) || "Não foi possível concluir.");
+
+  PP["pp-add-friend"] = (el) => {
+    api()
+      .sendFriendRequest(el.getAttribute("data-id"))
+      .then(() => ui().toast("Solicitação de amizade enviada.", "success"))
+      .catch(friendFail);
+  };
+
+  PP["pp-accept-friend"] = (el) => {
+    const id = el.getAttribute("data-id");
+    const req = pendingRequestWith(id);
+    if (!req) {
+      ui().error("Esta solicitação de amizade não existe mais.");
+      return;
+    }
+    api()
+      .acceptFriendRequest(req.id)
+      .then((res) => {
+        const who = (res && res.user) || S().user(id);
+        ui().toast(
+          "🎉 Agora você e @" + (who ? who.username : "essa pessoa") + " são amigos!",
+          "success"
+        );
+      })
+      .catch(friendFail);
+  };
+
+  PP["pp-reject-friend"] = (el) => {
+    const req = pendingRequestWith(el.getAttribute("data-id"));
+    if (!req) return;
+    api()
+      .rejectFriendRequest(req.id)
+      .then(() => ui().toast("Solicitação recusada.", "info"))
+      .catch(friendFail);
+  };
+
+  PP["pp-cancel-friend"] = (el) => {
+    const id = el.getAttribute("data-id");
+    const other = S().user(id);
+    const req = pendingRequestWith(id);
+    if (!req) return;
+    api()
+      .cancelFriendRequest(req.id)
+      .then(() => ui().toast("Solicitação cancelada" + (other ? " para @" + other.username : "") + ".", "info"))
+      .catch(friendFail);
+  };
+
+  PP["pp-remove-friend"] = async (el) => {
+    const id = el.getAttribute("data-id");
+    const other = S().user(id);
+    if (!other) return;
+    const ok = await ui().confirm({
+      title: "Remover amigo",
+      message: "Tem certeza que deseja remover @" + other.username + " dos seus amigos?",
+      confirmLabel: "Remover",
+      icon: "alert",
+    });
+    if (!ok) return;
+    api()
+      .removeFriend(id)
+      .then(() => ui().toast("@" + other.username + " não é mais seu amigo.", "info"))
+      .catch(friendFail);
+  };
 
   PP["pp-block"] = (el) => {
     const user = S().user(el.getAttribute("data-id"));

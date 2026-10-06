@@ -105,32 +105,23 @@ window.NX = window.NX || {};
   /* =========================================================
      AUTENTICAÇÃO — camada "backend"
      -------------------------------------------------------
-     • identificador único: e-mail OU nome de usuário (também
-       aceita @usuario e nome de exibimento quando é único);
+     • login SOMENTE por nome de usuário + senha (sem e-mail,
+       sem código de verificação, sem recuperação por e-mail);
      • senha guardada apenas como hash com salt (nx2$…),
        nunca em texto puro — hashes antigos nx1$ são
        atualizados sozinhos no primeiro login certo;
-     • códigos de 6 dígitos: aleatórios, temporários (10 min),
-       com hash no banco, uso único e limite de tentativas;
-     • limite de tentativas de login e de reenvio de código;
+     • limite de tentativas de login (anti força bruta);
      • toda gravação é verificada: se o navegador não salvar,
        a operação falha em voz alta em vez de fingir sucesso.
      ========================================================= */
 
-  const CODE_TTL = 10 * 60 * 1000; /* código expira em 10 min */
-  const RESEND_COOLDOWN = 30 * 1000; /* novo envio a cada 30 s */
-  const CODE_MAX_ATTEMPTS = 5;
   const LOGIN_MAX_FAILS = 8;
   const LOGIN_FAIL_WINDOW = 15 * 60 * 1000;
-  const RESET_MAX_REQ = 4;
-  const RESET_REQ_WINDOW = 15 * 60 * 1000;
 
   function authDB() {
     db().auth = db().auth || {};
     const a = db().auth;
     a.attempts = a.attempts || {};
-    a.codes = a.codes || {};
-    a.pending = a.pending || {};
     return a;
   }
 
@@ -181,25 +172,18 @@ window.NX = window.NX || {};
     }
   }
 
-  /* encontra a conta por e-mail, @usuário, usuário ou nome único */
+  /* encontra a conta APENAS pelo nome de usuário (o login da Nexo
+     não usa e-mail). Cadastro e login passam por ESTA função e usam
+     a MESMA normalização — não existe lista paralela de contas:
+     a fonte única é NX.store.db.users, a mesma que o cadastro grava. */
   function findAccount(rawIdent) {
-    const ident = u().normalizeIdentifier(rawIdent);
-    if (!ident) return null;
-    const lower = ident.toLowerCase();
-    const bare = lower.replace(/^@/, "");
+    const bare = u().normalizeUsername(rawIdent).replace(/^@/, "");
+    if (!bare) return null;
     const users = Object.values(db().users || {});
-
-    let hit = users.find((x) => x.email && x.email.toLowerCase() === lower);
-    if (hit) return hit;
-    hit = users.find((x) => x.username && x.username.toLowerCase() === bare);
-    if (hit) return hit;
-    hit = users.find((x) => x.username && x.username.toLowerCase() === lower);
-    if (hit) return hit;
-    const byName = users.filter(
-      (x) => x.displayName && x.displayName.toLowerCase() === lower
+    const hit = users.find(
+      (x) => x && x.username && u().normalizeUsername(x.username) === bare
     );
-    if (byName.length === 1) return byName[0];
-    return null;
+    return hit || null;
   }
 
   /* grava e, se o navegador não aceitar, desfaz o que foi criado */
@@ -211,96 +195,6 @@ window.NX = window.NX || {};
         "Libere o armazenamento do site e tente novamente."
     );
     return false;
-  }
-
-  /* gera + grava o código (hash) e pede o envio à API do servidor.
-     O número em si NUNCA volta para a interface: vai direto para
-     a API, que monta o e-mail e fala com o provedor. */
-  async function issueAndSendCode(user, purpose) {
-    const a = authDB();
-    const code = u().randCode(6);
-    const salt = u().makeSalt();
-    const key = purpose + ":" + user.id;
-    const now = Date.now();
-    const prevRec = a.codes[key];
-    const prevPend = a.pending[purpose];
-
-    a.codes[key] = {
-      purpose: purpose,
-      userId: user.id,
-      hash: u().hashPassword(code, salt),
-      createdAt: now,
-      expiresAt: now + CODE_TTL,
-      resendAt: now + RESEND_COOLDOWN,
-      attempts: 0,
-      maxAttempts: CODE_MAX_ATTEMPTS,
-      usedAt: null,
-    };
-    a.pending[purpose] = { userId: user.id, at: now, expiresAt: now + CODE_TTL };
-
-    const res = await NX.email.send({
-      to: user.email,
-      name: user.displayName || user.username,
-      code: code,
-      purpose: purpose,
-    });
-    NX.email.lastStatus = res;
-
-    /* envio recusado de verdade (provedor/resposta com erro):
-       devolvemos o código anterior para não deixar ninguém trancado
-       e NUNCA marcamos isso como enviado. */
-    if (!res.sent && res.reason !== "not-configured") {
-      if (prevRec) a.codes[key] = prevRec;
-      else delete a.codes[key];
-      if (prevPend) a.pending[purpose] = prevPend;
-      else delete a.pending[purpose];
-      NX.store.persist();
-      return {
-        sent: false,
-        reason: res.reason,
-        resendAt: Date.now() + RESEND_COOLDOWN,
-        expiresAt: null,
-      };
-    }
-
-    NX.store.persist();
-    return { sent: res.sent, reason: res.reason, resendAt: a.codes[key].resendAt, expiresAt: a.codes[key].expiresAt };
-  }
-
-  /* valida o código digitado (mensagens exigidas pela especificação) */
-  function checkCode(user, purpose, typed) {
-    const a = authDB();
-    const key = purpose + ":" + user.id;
-    const rec = a.codes[key];
-    const now = Date.now();
-
-    if (!rec || rec.usedAt) fail("Esse código expirou. Solicite um novo código.");
-    if (now > rec.expiresAt) {
-      rec.usedAt = now;
-      NX.store.persist();
-      fail("Esse código expirou. Solicite um novo código.");
-    }
-    if (rec.attempts >= rec.maxAttempts) {
-      rec.usedAt = now;
-      NX.store.persist();
-      fail("Muitas tentativas com este código. Solicite um novo código.");
-    }
-
-    const clean = String(typed || "").replace(/\s+/g, "");
-    rec.attempts += 1;
-    if (!/^\d{6}$/.test(clean)) {
-      NX.store.persist();
-      fail("O código informado está incorreto.");
-    }
-    if (!u().verifyPassword(clean, rec.hash)) {
-      NX.store.persist();
-      fail("O código informado está incorreto.");
-    }
-
-    rec.usedAt = now;
-    delete a.pending[purpose];
-    NX.store.persist();
-    return rec;
   }
 
   function uniqueUsername(base) {
@@ -328,7 +222,6 @@ window.NX = window.NX || {};
     return {
       id: id,
       username: o.username,
-      email: String(o.email || "").toLowerCase(),
       password: o.password ? u().hashPassword(o.password, salt) : null,
       displayName: String(o.displayName || o.username).trim().slice(0, 32),
       avatar: {
@@ -346,55 +239,44 @@ window.NX = window.NX || {};
       status: "online",
       statusText: "",
       blocks: [],
-      emailVerified: !!o.emailVerified,
-      emailVerifiedAt: o.emailVerified ? Date.now() : null,
-      googleId: o.googleId || null,
       createdAt: Date.now(),
     };
   }
 
+  /* ===== CADASTRO =====
+     Usuário + senha (sem e-mail, sem código de verificação).
+     Depois de criada, a conta entra automaticamente. */
   api.signup = async function (data) {
     await delay();
-    const username = String(data.username || "").trim();
-    const emailAddr = String(data.email || "").trim().toLowerCase();
+    /* MESMA normalização usada no login (util.normalizeUsername) */
+    const username = u().normalizeUsername(data.username);
     const policy = u().passwordPolicy(data.password);
 
+    if (!username) fail("Digite um nome de usuário.");
     if (!u().usernameOk(username))
-      fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e sublinhado).");
-    if (!u().isEmail(emailAddr)) fail("Digite um endereço de e-mail válido.");
+      fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e sublinhado), sem espaços.");
+    if (!data.password) fail("Digite uma senha.");
     if (!policy.ok) fail(policy.message);
     if (String(data.password) !== String(data.confirm)) fail("As senhas não conferem.");
-    const age = u().ageFrom(data.birth);
-    if (age === null) fail("Informe sua data de nascimento.");
-    if (age < 13) fail("Você precisa ter pelo menos 13 anos para criar uma conta.");
-    if (age > 120) fail("Data de nascimento inválida.");
 
-    assertNotBlocked("signup", emailAddr, 5, LOGIN_FAIL_WINDOW);
+    const key = username;
+    assertNotBlocked("signup", key, 5, LOGIN_FAIL_WINDOW);
 
+    /* unicidade já em forma canônica: teste123 e TESTE123 são o mesmo nome */
     const dupeName = Object.values(db().users).some(
-      (x) => x.username.toLowerCase() === username.toLowerCase()
+      (x) => x && x.username && u().normalizeUsername(x.username) === key
     );
     if (dupeName) {
-      countFail("signup", emailAddr, 5, LOGIN_FAIL_WINDOW);
+      countFail("signup", key, 5, LOGIN_FAIL_WINDOW);
       fail("Esse nome de usuário já está em uso. Tente outro.");
-    }
-    const dupeMail = Object.values(db().users).some(
-      (x) => x.email && x.email.toLowerCase() === emailAddr
-    );
-    if (dupeMail) {
-      countFail("signup", emailAddr, 5, LOGIN_FAIL_WINDOW);
-      fail("Já existe uma conta com esse e-mail. Faça login.");
     }
 
     const user = makeUser({
-      username: username,
-      email: emailAddr,
+      username: username, /* canônico (minúsculo) — o mesmo que o login procura */
       password: data.password,
-      displayName: data.displayName || username,
-      birth: data.birth,
+      displayName: String(data.username || "").trim() || username,
       emoji: data.emoji,
       color: data.color,
-      emailVerified: false,
     });
 
     db().users[user.id] = user;
@@ -406,37 +288,33 @@ window.NX = window.NX || {};
       delete db().presence[user.id];
     });
 
-    clearFails("signup", emailAddr);
-    notify(user.id, "system", "Bem-vindo à Nexo! Confirme seu e-mail quando puder.");
+    clearFails("signup", key);
+    notify(user.id, "system", "Bem-vindo à Nexo!");
 
-    const sent = await issueAndSendCode(user, "verify");
+    /* acesso automático: nenhuma etapa de e-mail/código */
+    user.status = "online";
+    NX.session.set(user.id, true);
     NX.store.commit(["session", "servers", "profile", "presence"]);
 
-    return {
-      user: user,
-      sent: sent.sent,
-      resendAt: sent.resendAt,
-      expiresAt: sent.expiresAt,
-      message: "Sua conta foi criada com sucesso.",
-      emailNotice: NX.email.verifyMessage(sent.sent),
-    };
+    return { user: user, message: "Sua conta foi criada com sucesso." };
   };
 
+  /* ===== LOGIN ===== (nome de usuário + senha) */
   api.login = async function (data) {
     await delay();
+    /* mesma normalização do cadastro: OSAK = osak = @Osak */
     const ident = u().normalizeIdentifier(data.identifier);
-    if (!ident) fail("Digite seu e-mail ou nome de usuário.");
+    if (!ident) fail("Digite seu nome de usuário.");
     if (!data.password) fail("Digite sua senha.");
-    if (ident.indexOf("@") > -1 && !u().isEmail(ident))
-      fail("Digite um endereço de e-mail válido.");
 
-    const key = ident.toLowerCase();
+    const key = ident;
     assertNotBlocked("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
 
+    /* procura na MESMA fonte em que o cadastro gravou: db.users */
     const found = findAccount(ident);
     if (!found) {
       countFail("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
-      fail("Não encontramos uma conta com esse e-mail ou nome de usuário.");
+      fail("Não encontramos uma conta com esse nome de usuário.");
     }
     if (!u().verifyPassword(String(data.password), found.password || "")) {
       countFail("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
@@ -469,175 +347,6 @@ window.NX = window.NX || {};
     NX.store.commit(["session", "presence", "voice"]);
   };
 
-  /* -------- verificação de e-mail -------- */
-  api.resendCode = async function (purpose) {
-    await delay();
-    const a = authDB();
-    const pend = a.pending[purpose];
-    const user = pend ? db().users[pend.userId] : null;
-    if (!user) fail("Solicite um novo código de verificação.");
-
-    const key = purpose + ":" + user.id;
-    const rec = a.codes[key];
-    if (rec && rec.resendAt > Date.now()) {
-      const secs = Math.ceil((rec.resendAt - Date.now()) / 1000);
-      fail("Aguarde " + waitLabel(secs) + " para solicitar um novo código.");
-    }
-
-    const res = await issueAndSendCode(user, purpose);
-    return {
-      sent: res.sent,
-      reason: res.reason,
-      resendAt: res.resendAt,
-      expiresAt: res.expiresAt,
-      /* reenvio: "Novo código enviado." só com confirmação da API */
-      message: NX.email.sentMessage(res.sent, "resend"),
-    };
-  };
-
-  api.verifyEmail = async function (data) {
-    await delay();
-    const a = authDB();
-    const pend = a.pending.verify;
-    const user = pend ? db().users[pend.userId] : null;
-    if (!user) fail("Esse código expirou. Solicite um novo código.");
-    if (pend.expiresAt && Date.now() > pend.expiresAt)
-      fail("Esse código expirou. Solicite um novo código.");
-
-    checkCode(user, "verify", data && data.code);
-
-    user.emailVerified = true;
-    user.emailVerifiedAt = Date.now();
-    NX.store.persist();
-
-    NX.session.set(user.id, true);
-    db().presence[user.id] = "online";
-    NX.store.commit(["session", "profile", "presence"]);
-    return user;
-  };
-
-  /* não deixa a tela de verificação travar o usuário enquanto o
-     provedor de e-mail ainda não estiver conectado */
-  api.skipEmailVerification = async function () {
-    await delay();
-    const a = authDB();
-    const pend = a.pending.verify;
-    const user = pend ? db().users[pend.userId] : null;
-    if (!user) fail("Sua sessão expirou. Entre novamente.");
-    NX.session.set(user.id, true);
-    db().presence[user.id] = "online";
-    NX.store.commit(["session", "profile", "presence"]);
-    return user;
-  };
-
-  /* -------- recuperação de senha -------- */
-  api.requestReset = async function (identifier) {
-    await delay();
-    const ident = u().normalizeIdentifier(identifier);
-    if (!ident) fail("Digite um endereço de e-mail válido.");
-    if (ident.indexOf("@") > -1 && !u().isEmail(ident))
-      fail("Digite um endereço de e-mail válido.");
-
-    const key = ident.toLowerCase();
-    assertNotBlocked("reset", key, RESET_MAX_REQ, RESET_REQ_WINDOW);
-    countFail("reset", key, RESET_MAX_REQ, RESET_REQ_WINDOW);
-
-    const found = findAccount(ident);
-    /* resposta genérica exista ou não a conta: evita que qualquer
-       pessoa descubra quem tem cadastro no Nexo. */
-    if (!found) {
-      return {
-        ok: true,
-        sent: false,
-        generic: true,
-        noAccount: true,
-        resendAt: Date.now() + RESEND_COOLDOWN,
-        message: "Se existir uma conta associada a este endereço, enviaremos um código para recuperação.",
-      };
-    }
-
-    const res = await issueAndSendCode(found, "recover");
-    return {
-      ok: true,
-      sent: res.sent,
-      reason: res.reason,
-      generic: true,
-      resendAt: res.resendAt,
-      expiresAt: res.expiresAt,
-      /* só afirma envio quando a API confirmou {ok:true} */
-      message: NX.email.sentMessage(res.sent, "reset"),
-    };
-  };
-
-  /* passo 2: valida o código (uso único) e abre um token de
-     recuperação curto — guardamos só o hash dele, nunca o valor. */
-  api.confirmResetCode = async function (data) {
-    await delay();
-    data = data || {};
-    const a = authDB();
-    const pend = a.pending.recover;
-    const user = pend ? db().users[pend.userId] : null;
-    if (!user) fail("Esse código expirou. Solicite um novo código.");
-    if (pend.expiresAt && Date.now() > pend.expiresAt)
-      fail("Esse código expirou. Solicite um novo código.");
-
-    checkCode(user, "recover", data.code); /* consome o código */
-
-    const token = u().makeSalt() + u().makeSalt();
-    const salt = u().makeSalt();
-    a.recovery = {
-      userId: user.id,
-      tokenHash: u().hashPassword(token, salt),
-      createdAt: Date.now(),
-      expiresAt: Date.now() + CODE_TTL,
-      usedAt: null,
-    };
-    NX.store.persist();
-    return { token: token, expiresAt: a.recovery.expiresAt };
-  };
-
-  /* passo 3: troca a senha com salt novo e derruba o que era antigo */
-  api.resetPassword = async function (data) {
-    await delay();
-    data = data || {};
-    const a = authDB();
-    const rec = a.recovery;
-    const user = rec ? db().users[rec.userId] : null;
-    if (!user || !data.token) fail("Solicite um novo código de verificação.");
-    if (rec.usedAt) fail("Esse código expirou. Solicite um novo código.");
-    if (Date.now() > rec.expiresAt) {
-      rec.usedAt = Date.now();
-      NX.store.persist();
-      fail("Esse código expirou. Solicite um novo código.");
-    }
-    if (!u().verifyPassword(String(data.token), rec.tokenHash))
-      fail("Solicite um novo código de verificação.");
-
-    const policy = u().passwordPolicy(data.password);
-    if (!policy.ok) fail(policy.message);
-    if (String(data.password) !== String(data.confirm)) fail("As senhas não conferem.");
-
-    /* senha: salt novo + hash PBKDF2 novo (nunca texto puro) */
-    user.password = u().hashPassword(String(data.password), u().makeSalt());
-    user.pwChangedAt = Date.now();
-
-    /* invalida o token, o código e qualquer pendency anterior */
-    rec.usedAt = Date.now();
-    delete a.pending.recover;
-    delete a.codes["recover:" + user.id];
-    persistOrFail();
-
-    /* invalida sessões/recuperações antigas deste usuário */
-    const sess = NX.session.get();
-    if (sess && sess.userId === user.id) NX.session.clear();
-    db().prefs = db().prefs || {};
-    db().prefs.pwChangedAt = user.pwChangedAt;
-    notify(user.id, "system", "Sua senha foi alterada. Se não foi você, revise sua segurança.");
-    NX.store.persist();
-
-    return { ok: true, email: user.email };
-  };
-
   /* troca de senha com sessão ativa (Configurações → Minha conta) */
   api.changePassword = async function (data) {
     await delay();
@@ -660,65 +369,19 @@ window.NX = window.NX || {};
     return { ok: true };
   };
 
-  /* -------- acesso com Google -------- */
-  api.googleSignIn = async function (profile) {
-    await delay();
-    if (!profile || !u().isEmail(profile.email))
-      fail("Não foi possível concluir o acesso com o Google.");
-
-    const mailAddr = String(profile.email).trim().toLowerCase();
-    assertNotBlocked("google", mailAddr, 5, LOGIN_FAIL_WINDOW);
-
-    let found = findAccount(mailAddr);
-    let created = false;
-
-    if (!found) {
-      /* primeiro acesso: cria a conta automaticamente… */
-      found = makeUser({
-        username: uniqueUsername(mailAddr.split("@")[0]),
-        email: mailAddr,
-        password: null,
-        displayName: profile.name || mailAddr.split("@")[0],
-        emailVerified: !!profile.email_verified,
-        googleId: profile.sub || null,
-      });
-      db().users[found.id] = found;
-      db().presence[found.id] = "online";
-      persistOrFail(() => {
-        delete db().users[found.id];
-        delete db().presence[found.id];
-      });
-      created = true;
-      notify(found.id, "system", "Bem-vindo à Nexo! Conta criada com o Google.");
-    } else {
-      /* …senão entra na conta existente, sem duplicar nada */
-      if (!found.googleId) found.googleId = profile.sub || null;
-      if (!found.emailVerified && profile.email_verified) {
-        found.emailVerified = true;
-        found.emailVerifiedAt = Date.now();
-      }
-      db().presence[found.id] = "online";
-      persistOrFail();
-    }
-
-    clearFails("google", mailAddr);
-    found.status = "online";
-    NX.session.set(found.id, true);
-    NX.store.commit(["session", "servers", "profile", "presence"]);
-    return { user: found, created: created };
-  };
-
   api.updateProfile = async function (patch) {
     await delay();
     const me = S().me();
     if (!me) fail("Sua sessão expirou. Entre novamente.");
 
     if (patch.username !== undefined) {
-      const username = String(patch.username).trim();
+      /* mesma regra do cadastro/login: canônico, único e sem espaços */
+      const username = u().normalizeUsername(patch.username);
+      if (!username) fail("Digite um nome de usuário.");
       if (!u().usernameOk(username))
-        fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, . e _).");
+        fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, . e _), sem espaços.");
       const dupe = Object.values(db().users).some(
-        (x) => x.id !== me.id && x.username.toLowerCase() === username.toLowerCase()
+        (x) => x.id !== me.id && x.username && u().normalizeUsername(x.username) === username
       );
       if (dupe) fail("Esse nome de usuário já está em uso.");
       me.username = username;
@@ -750,15 +413,6 @@ window.NX = window.NX || {};
       db().presence[me.id] = patch.status;
     }
     if (patch.statusText !== undefined) me.statusText = String(patch.statusText).slice(0, 60);
-    if (patch.email !== undefined) {
-      const email = String(patch.email).trim().toLowerCase();
-      if (!u().isEmail(email)) fail("Digite um e-mail válido.");
-      const dupe = Object.values(db().users).some(
-        (x) => x.id !== me.id && x.email === email
-      );
-      if (dupe) fail("Já existe uma conta com esse e-mail.");
-      me.email = email;
-    }
     NX.store.commit(["profile", "presence"]);
     return me;
   };
@@ -1676,6 +1330,8 @@ window.NX = window.NX || {};
       fail(
         mode === "none"
           ? "Esta pessoa não recebe mensagens diretas."
+          : mode === "friends"
+          ? "Esta pessoa só aceita mensagens de amigos."
           : "Esta pessoa só aceita mensagens de quem a segue."
       );
     }
@@ -1856,9 +1512,12 @@ window.NX = window.NX || {};
     const p = (usr && usr.privacy) || {};
     return {
       follow: p.follow === "approved" ? "approved" : "all",
-      dm: ["all", "followers", "none"].indexOf(p.dm) > -1 ? p.dm : "all",
+      dm: ["all", "friends", "followers", "none"].indexOf(p.dm) > -1 ? p.dm : "all",
       followers: ["all", "followers", "self"].indexOf(p.followers) > -1 ? p.followers : "all",
+      likes: ["all", "followers", "self"].indexOf(p.likes) > -1 ? p.likes : "all",
       posts: ["public", "followers", "self"].indexOf(p.posts) > -1 ? p.posts : "public",
+      friendRequests:
+        ["all", "common", "none"].indexOf(p.friendRequests) > -1 ? p.friendRequests : "all",
     };
   }
 
@@ -1869,6 +1528,7 @@ window.NX = window.NX || {};
     usr.followersCount = S().followerCount(userId);
     usr.followingCount = S().followingCount(userId);
     usr.likesReceived = S().likesReceivedOf(userId);
+    usr.friendsCount = S().friendCount(userId);
   }
 
   function hrefForPost(postId) {
@@ -1923,6 +1583,7 @@ window.NX = window.NX || {};
 
     if (allowAll) {
       recount(target.id);
+      recount(me.id);
       socialNotify(target.id, "follow", "@" + me.username + " começou a seguir você.", "#/perfil/" + me.username);
       NX.store.commit(SOCIAL_SCOPES);
       return { state: "active", followers: target.followersCount };
@@ -1934,6 +1595,7 @@ window.NX = window.NX || {};
       "@" + me.username + " solicitou seguir você.",
       "#/perfil/" + me.username
     );
+    recount(me.id);
     NX.store.commit(SOCIAL_SCOPES);
     return { state: "pending", followers: target.followersCount };
   };
@@ -2229,9 +1891,11 @@ window.NX = window.NX || {};
     const me = requireMe();
     const VALID = {
       follow: ["all", "approved"],
-      dm: ["all", "followers", "none"],
+      dm: ["all", "friends", "followers", "none"],
       followers: ["all", "followers", "self"],
+      likes: ["all", "followers", "self"],
       posts: ["public", "followers", "self"],
+      friendRequests: ["all", "common", "none"],
     };
     const current = privacyOf(me);
     Object.keys(VALID).forEach((k) => {
@@ -2258,6 +1922,219 @@ window.NX = window.NX || {};
     if (!S().canViewFollowersOf(me ? me.id : null, owner.id))
       fail("Esta pessoa mantém sua lista de seguidores privada.");
     return kind === "following" ? S().followingOf(owner.id) : S().followersOf(owner.id);
+  };
+
+  /* ❤️ resumo de curtidas de um perfil — a privacidade do dono manda */
+  api.listLikes = async function (userId) {
+    await delay();
+    const me = S().me();
+    const owner = requireUser(userId);
+    if (!S().canViewLikesOf(me ? me.id : null, owner.id))
+      fail("Esta pessoa mantém as curtidas dela privadas.");
+
+    const posts = S()
+      .postsBy(owner.id)
+      .filter((p) => S().likeCount("post", p.id) > 0)
+      .map((p) => ({ post: p, likes: S().likeCount("post", p.id) }));
+
+    return { total: S().likesReceivedOf(owner.id), posts: posts };
+  };
+
+  /* =========================================================
+     AMIZADES — sistema GLOBAL (não depende de servidor)
+     ========================================================= */
+  function findUserByIdOrName(v) {
+    const raw = String(v || "").trim().replace(/^@/, "");
+    if (!raw) return null;
+    return S().user(raw) || S().userByUsername(raw) || null;
+  }
+
+  function friendshipCount(userId) {
+    const u = S().user(userId);
+    if (u) u.friendsCount = S().friendCount(userId);
+  }
+
+  /* 1) enviar solicitação (não a si mesmo, sem duplicatas) */
+  api.sendFriendRequest = async function (userIdOrName) {
+    await delay();
+    const me = requireMe();
+    const other = findUserByIdOrName(userIdOrName);
+    if (!other || !S().isRealPerson(other.id)) fail("Não encontramos ninguém com esse @username.");
+    const check = S().canSendFriendRequest(me.id, other.id);
+    if (!check.ok) fail(check.reason);
+
+    const req = {
+      id: u().uid("frq"),
+      senderId: me.id,
+      receiverId: other.id,
+      status: "pending",
+      createdAt: Date.now(),
+    };
+    db().friendRequests[req.id] = req;
+    NX.store.persist();
+
+    notify(other.id, "friend", "@" + me.username + " enviou uma solicitação de amizade.", {
+      href: "#/amigos/recebidas",
+      actorId: me.id,
+      requestId: req.id,
+    });
+    NX.store.commit(["profile", "notifications", "members"]);
+    return req;
+  };
+
+  /* 2) aceitar — vira amizade real para os DOIS lados */
+  api.acceptFriendRequest = async function (requestId) {
+    await delay();
+    const me = requireMe();
+    const req = S().friendRequest(requestId);
+    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
+    if (req.receiverId !== me.id) fail("Esta solicitação não é para você.");
+
+    const key = S().friendKey(req.senderId, req.receiverId);
+    if (!db().friendships[key]) {
+      db().friendships[key] = {
+        id: key,
+        userAId: req.senderId,
+        userBId: req.receiverId,
+        createdAt: Date.now(),
+      };
+      req.status = "accepted";
+      req.acceptedAt = Date.now();
+    }
+    NX.store.persist();
+    friendshipCount(req.senderId);
+    friendshipCount(req.receiverId);
+
+    const other = S().user(req.senderId);
+    notify(
+      req.senderId,
+      "friend",
+      "🎉 Agora você e @" + me.username + " são amigos!",
+      { href: "#/amigos", actorId: me.id }
+    );
+    NX.store.commit(SOCIAL_SCOPES);
+    return { friendship: db().friendships[key], user: other || null };
+  };
+
+  /* 3) recusar (quem recebe) */
+  api.rejectFriendRequest = async function (requestId) {
+    await delay();
+    const me = requireMe();
+    const req = S().friendRequest(requestId);
+    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
+    if (req.receiverId !== me.id) fail("Esta solicitação não é para você.");
+    req.status = "rejected";
+    req.rejectedAt = Date.now();
+    NX.store.persist();
+    NX.store.commit(["profile", "notifications"]);
+    return true;
+  };
+
+  /* 4) cancelar (quem enviou) */
+  api.cancelFriendRequest = async function (requestId) {
+    await delay();
+    const me = requireMe();
+    const req = S().friendRequest(requestId);
+    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
+    if (req.senderId !== me.id) fail("Você não pode cancelar esta solicitação.");
+    delete db().friendRequests[requestId];
+    NX.store.persist();
+    NX.store.commit(["profile"]);
+    return true;
+  };
+
+  /* 5) remover amizade — funciona para os DOIS lados */
+  api.removeFriend = async function (userId) {
+    await delay();
+    const me = requireMe();
+    const other = requireUser(userId);
+    const key = S().friendKey(me.id, other.id);
+    if (!db().friendships[key]) fail("Vocês não são amigos.");
+    delete db().friendships[key];
+    NX.store.persist();
+    friendshipCount(me.id);
+    friendshipCount(other.id);
+    NX.store.commit(SOCIAL_SCOPES);
+    return true;
+  };
+
+  /* 6) estado do relacionamento (para o botão do perfil) */
+  api.friendState = async function (userId) {
+    await delay();
+    const me = S().me();
+    if (!me) return "none";
+    return S().friendState(me.id, userId);
+  };
+
+  /* 7) listas */
+  api.listFriends = async function (userId) {
+    await delay();
+    const me = requireMe();
+    const owner = userId ? requireUser(userId) : me;
+    if (owner.id !== me.id && !S().isFriend(me.id, owner.id)) {
+      /* quem não é amigo vê apenas os amigos em comum —
+         a lista completa não é exposta sem amizade */
+      return S().friendsOf(owner.id).filter((f) => S().isFriend(me.id, f.id));
+    }
+    return S().friendsOf(owner.id);
+  };
+
+  api.listFriendRequests = async function (kind) {
+    await delay();
+    const me = requireMe();
+    if (kind === "sent") {
+      return S().sentFriendRequestsOf(me.id).map((r) => ({ request: r, user: S().user(r.receiverId) }));
+    }
+    return S().friendRequestsOf(me.id).map((r) => ({ request: r, user: S().user(r.senderId) }));
+  };
+
+  /* 8) convidar amiga(o) para um servidor (sem convite duplicado) */
+  api.inviteFriendToServer = async function (serverId, friendId) {
+    await delay();
+    const me = requireMe();
+    const server = S().server(serverId);
+    if (!server) fail("Este servidor não existe mais.");
+    const friend = requireUser(friendId);
+    if (!S().isFriend(me.id, friend.id)) fail("Esta pessoa não é sua amiga.");
+    requirePerm(serverId, "createInvite", "Você não tem permissão para criar convites.");
+    if (S().membership(serverId, friend.id)) fail("Esta pessoa já participa do servidor.");
+
+    const mapKey = serverId + ":" + friend.id;
+    const existing = (db().friendInvites || {})[mapKey];
+    if (existing && db().invites[existing.code]) {
+      fail("Você já enviou um convite para esta pessoa.");
+    }
+
+    const code = newInviteCode();
+    db().invites[code] = {
+      code: code,
+      serverId: serverId,
+      creatorId: me.id,
+      createdAt: Date.now(),
+      uses: 0,
+      maxUses: 0,
+      expiresAt: null,
+    };
+    db().friendInvites = db().friendInvites || {};
+    const inv = {
+      id: u().uid("finv"),
+      serverId: serverId,
+      friendId: friend.id,
+      byId: me.id,
+      code: code,
+      createdAt: Date.now(),
+    };
+    db().friendInvites[mapKey] = inv;
+    NX.store.persist();
+
+    notify(
+      friend.id,
+      "invite",
+      "@" + me.username + " te convidou para entrar em " + server.name + ".",
+      { href: "#/convite/" + code, actorId: me.id, serverId: serverId }
+    );
+    NX.store.commit(["invites", "notifications"]);
+    return inv;
   };
 
   NX.api = api;

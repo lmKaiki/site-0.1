@@ -1007,17 +1007,22 @@
 .pw-rules li.is-ok { color: var(--accent); }
 .pw-rules li.is-ok svg { opacity: 1; }
 
-/* botão do Google */
-.btn--google {
-  justify-content: center;
-  gap: 10px;
+/* recado fixo sob o formulário de acesso
+   (esqueci a senha / conta ativada na hora) */
+.auth__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
   background: var(--bg-elev);
-  color: var(--text);
-  border-color: var(--border-strong);
-  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
-.btn--google:hover { background: var(--bg-elev-2); border-color: var(--border-strong); }
-.btn--google svg { flex: 0 0 auto; }
+.auth__note svg { flex: 0 0 auto; opacity: 0.8; margin-top: 1px; }
 
 /* avatar picker */
 .avatar-picker {

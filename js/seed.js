@@ -15,6 +15,13 @@ window.NX = window.NX || {};
   const DAY = 24 * HOUR;
 
   function seed() {
+    /* ===== PRODUÇÃO · DEMO_MODE=false =====
+       O seed só existe em modo demonstração explícito. Com o padrão
+       (DEMO_MODE=false) nada é criado: banco vazio = servidor vazio,
+       sem usuários, mensagens, amigos, seguidores ou curtidas
+       fictícios. Os dados reais nunca são alterados aqui. */
+    if (!NX.demoMode()) return false;
+
     const db = NX.store.db;
     if (Object.keys(db.users).length > 0) return false;
 
@@ -27,7 +34,6 @@ window.NX = window.NX || {};
       db.users[id] = {
         id: id,
         username: o.username,
-        email: o.email || o.username + "@nexo.chat",
         password: NX.util.hashPassword(o.password || "nexo123", NX.util.makeSalt()),
         displayName: o.displayName || o.username,
         avatar: { emoji: o.emoji || null, color: o.color || NX.util.colorFor(id), image: null },
@@ -41,10 +47,9 @@ window.NX = window.NX || {};
         status: o.status || "offline",
         statusText: o.statusText || "",
         blocks: [],
-        demo: !!o.demo,
-        emailVerified: true,
-        emailVerifiedAt: o.createdAt || now - 30 * DAY,
-        googleId: null,
+        /* TODA conta criada pelo seed é marcada como fictícia —
+           assim nenhuma delas passa por usuário real depois. */
+        demo: true,
         createdAt: o.createdAt || now - 30 * DAY,
       };
       db.presence[id] = o.status || "offline";
@@ -469,10 +474,149 @@ window.NX = window.NX || {};
     seedNotify(demo.id, "system", "Novo canal criado: #novidades em Estúdio Criativo.", 4 * HOUR, true);
     seedNotify(demo.id, "server", "Você foi banido de nada — apenas um teste do sistema. 😅", 6 * HOUR, true);
 
+    /* ---------- rede social (demonstração) ----------
+       Seguidores, publicações, curtidas e comentários.
+       Tudo é marcado com demo:true para identificação fácil e nada
+       substitui dados reais: este bloco só roda com o banco vazio. */
+    function socialFollow(follower, target, ago) {
+      const id = follower.id + ">" + target.id;
+      if (db.follows[id]) return;
+      db.follows[id] = {
+        id: id, followerId: follower.id, followingId: target.id,
+        state: "active", createdAt: now - ago, demo: true,
+      };
+    }
+    function socialPost(author, content, ago, media) {
+      const id = uid("po");
+      db.posts[id] = {
+        id: id, authorId: author.id, content: content, media: media || [],
+        createdAt: now - ago, likesCount: 0, commentsCount: 0, demo: true,
+      };
+      return db.posts[id];
+    }
+    function socialComment(post, author, content, ago, parentId) {
+      const id = uid("cm");
+      db.comments[id] = {
+        id: id, postId: post.id, parentId: parentId || null, authorId: author.id,
+        content: content, createdAt: now - ago, likesCount: 0, demo: true,
+      };
+      return db.comments[id];
+    }
+    function socialLike(user, type, target, ago) {
+      const id = [type, target.id, user.id].join(":");
+      db.likes[id] = {
+        id: id, userId: user.id, targetType: type, targetId: target.id,
+        createdAt: now - ago, demo: true,
+      };
+    }
+    /* imagem embutida (data URI) — o upload real usa o mesmo formato */
+    function socialArt(label, c1, c2) {
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">' +
+        '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/>' +
+        "</linearGradient></defs>" +
+        '<rect width="800" height="450" fill="url(#g)"/>' +
+        '<circle cx="660" cy="110" r="70" fill="rgba(255,255,255,.18)"/>' +
+        '<text x="56" y="384" font-family="Segoe UI,Arial" font-size="44" font-weight="700" fill="#06231a">' +
+        label + "</text></svg>";
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
+    /* quem segue quem */
+    [luna, kai, maya, bruno].forEach((u, i) => socialFollow(demo, u, (i + 1) * DAY));
+    [luna, kai, ana, sofia].forEach((u, i) => socialFollow(u, demo, (i + 1) * 6 * HOUR));
+    socialFollow(kai, luna, 9 * DAY);
+    socialFollow(maya, luna, 8 * DAY);
+    socialFollow(bruno, kai, 7 * DAY);
+    socialFollow(teo, maya, 6 * DAY);
+    socialFollow(ana, luna, 5 * DAY);
+
+    /* publicações */
+    const pLuna = socialPost(
+      luna,
+      "Campanha de RPG nova começando sábado. Quem topa jogar? 🎲",
+      2 * HOUR
+    );
+    const pKai = socialPost(
+      kai,
+      "Terminei o painel de membros hoje: cargos, permissões e busca em um lugar só. Ficou clean.",
+      5 * HOUR,
+      [{ kind: "image", url: socialArt("Painel de membros", "#35e0a8", "#8f83ff") }]
+    );
+    const pMaya = socialPost(
+      maya,
+      "Nova ilustração pra galeria do servidor 🐙",
+      1 * DAY,
+      [{ kind: "image", url: socialArt("Galeria Nexo", "#ff7ab6", "#ffc857") }]
+    );
+    const pDemo = socialPost(demo, "Olá pessoal! Testando o feed da Nexo por aqui.", 3 * HOUR);
+    const pBruno = socialPost(bruno, "Playlist nova no #música 🎧 sobe hoje à noite.", 2 * DAY);
+
+    /* comentários (inclusive resposta) */
+    const cKai1 = socialComment(pLuna, kai, "Conto comigo! Levo os dados da campanha.", 100 * MIN);
+    const cDemo1 = socialComment(pLuna, demo, "Fechado — me entram na lista.", 90 * MIN);
+    const cLuna1 = socialComment(pKai, luna, "Ficou ótimo, o guia ficou muito mais rápido.", 4 * HOUR);
+    const cDemo2 = socialComment(pMaya, demo, "Ficou incrível! Amei as cores.", 20 * HOUR);
+    const cKai2 = socialComment(pMaya, kai, "Concordo — a paleta ficou perfeita.", 19 * HOUR, cDemo2.id);
+    const cMaya1 = socialComment(pDemo, maya, "Bem-vinda ao feed! 👋", 2 * HOUR);
+
+    /* curtidas (uma por pessoa por conteúdo) */
+    socialLike(demo, "post", pLuna, 110 * MIN);
+    socialLike(kai, "post", pLuna, 105 * MIN);
+    socialLike(maya, "post", pLuna, 100 * MIN);
+    socialLike(luna, "post", pKai, 4 * HOUR);
+    socialLike(demo, "post", pKai, 3 * HOUR);
+    socialLike(bruno, "post", pKai, 3 * HOUR);
+    socialLike(demo, "post", pMaya, 22 * HOUR);
+    socialLike(luna, "post", pMaya, 21 * HOUR);
+    socialLike(kai, "post", pMaya, 20 * HOUR);
+    socialLike(ana, "post", pMaya, 20 * HOUR);
+    socialLike(bruno, "post", pMaya, 19 * HOUR);
+    socialLike(luna, "post", pDemo, 2 * HOUR);
+    socialLike(kai, "post", pDemo, 100 * MIN);
+    socialLike(kai, "post", pBruno, 1 * DAY);
+    socialLike(bruno, "comment", cKai1, 80 * MIN);
+    socialLike(demo, "comment", cLuna1, 3 * HOUR);
+    socialLike(maya, "comment", cDemo2, 18 * HOUR);
+
+    /* contadores derivados (a fonte da verdade são as coleções) */
+    Object.keys(db.posts).forEach((pid) => {
+      db.posts[pid].likesCount = Object.keys(db.likes).filter(
+        (k) => db.likes[k].targetType === "post" && db.likes[k].targetId === pid
+      ).length;
+      db.posts[pid].commentsCount = Object.keys(db.comments).filter(
+        (c) => db.comments[c].postId === pid
+      ).length;
+    });
+    Object.keys(db.comments).forEach((cid) => {
+      db.comments[cid].likesCount = Object.keys(db.likes).filter(
+        (k) => db.likes[k].targetType === "comment" && db.likes[k].targetId === cid
+      ).length;
+    });
+
+    /* notificações sociais da conta demo — ao clicar, abrem o conteúdo */
+    function socialNotify(userId, type, text, href, ago, actorId) {
+      db.notifications.push({
+        id: uid("nt"), userId: userId, type: type, text: text,
+        at: now - ago, read: false, demo: true,
+        meta: { href: href, actorId: actorId },
+      });
+    }
+    socialNotify(demo.id, "like", "@luna curtiu sua publicação.", "#/feed/" + pDemo.id, 2 * HOUR, luna.id);
+    socialNotify(demo.id, "follow", "@kai começou a seguir você.", "#/perfil/kai", 3 * HOUR, kai.id);
+    socialNotify(demo.id, "comment", "@maya comentou sua publicação.", "#/feed/" + pDemo.id, 2 * HOUR, maya.id);
+    socialNotify(demo.id, "reply", "@kai respondeu seu comentário.", "#/feed/" + pMaya.id, 19 * HOUR, kai.id);
+    db.notifications.reverse();
+
     /* ---------- presença ---------- */
     Object.keys(db.users).forEach((id) => {
       db.presence[id] = db.users[id].status || "offline";
     });
+
+    /* privacidade padrão + contadores recalculados a partir das
+       coleções (o perfil nunca confia em número salvo sozinho) */
+    NX.store.migrateSocial();
 
     NX.store.persist();
     return true;

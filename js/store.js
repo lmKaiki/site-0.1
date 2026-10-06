@@ -35,13 +35,17 @@ window.NX = window.NX || {};
     reports: [],
     prefs: {},
     /* autenticação (camada backend): tentativas, códigos e caixa de saída */
-    auth: { attempts: {}, codes: {}, pending: {} },
-    outbox: [],
+    /* autenticação: limite de tentativas de login */
+    auth: { attempts: {} },
     /* rede social — fonte de verdade dos contadores do perfil */
     follows: {},   /* "<de>><para>" → {id, followerId, followingId, state, createdAt} */
     posts: {},     /* id → {id, authorId, content, media[], createdAt, likesCount, commentsCount} */
     likes: {},     /* id → {id, userId, targetType, targetId, createdAt} */
     comments: {},  /* id → {id, postId, parentId, authorId, content, createdAt, likesCount} */
+    /* amizades — GLOBAL (independem do servidor) */
+    friendRequests: {}, /* id → {id, senderId, receiverId, status:"pending"|"accepted"|"rejected", createdAt} */
+    friendships: {},    /* "<menor>:<maior>" → {id, userAId, userBId, createdAt} */
+    friendInvites: {},  /* "<server>:<user>" → {id, serverId, friendId, byId, code, createdAt} */
   });
 
   const store = {
@@ -57,36 +61,63 @@ window.NX = window.NX || {};
      migramos a que tiver mais dados e só zeramos se não houver nada. */
   const LEGACY_KEYS = ["nexo.db.v3", "nexo.db.v2", "nexo.db.v1", "nexo.db"];
 
+  /* funde um banco lido de uma chave ANTIGA no banco atual.
+     Regra de ouro: NUNCA descartar conta — as coleções são unidas
+     por id e o que já está no banco atual (chave principal) ganha. */
+  function mergeInto(target, src) {
+    if (!src || typeof src !== "object") return target;
+    Object.keys(src).forEach((k) => {
+      const sv = src[k];
+      if (sv === undefined || sv === null) return;
+
+      if (Array.isArray(sv)) {
+        const cur = Array.isArray(target[k]) ? target[k] : [];
+        const have = {};
+        cur.forEach((it, i) => {
+          have[it && it.id !== undefined ? "id:" + it.id : "raw:" + i + ":" + JSON.stringify(it)] = true;
+        });
+        sv.forEach((it, i) => {
+          const key = it && it.id !== undefined ? "id:" + it.id : "raw:" + i + ":" + JSON.stringify(it);
+          if (have[key]) return;
+          have[key] = true;
+          cur.push(it);
+        });
+        target[k] = cur;
+      } else if (typeof sv === "object") {
+        /* objeto (users, servers, posts…) — o atual já gravado vence */
+        target[k] = Object.assign({}, sv, target[k]);
+      } else if (target[k] === undefined) {
+        target[k] = sv;
+      }
+    });
+    return target;
+  }
+
   store.load = function () {
-    let best = null;
-    let bestKey = null;
+    /* 1 · lê TODAS as chaves conhecidas e funde — assim nenhuma conta
+           criada numa chave antiga (ou na principal) se perde. */
+    const merged = emptyDB();
+    let found = false;
+    let hasLegacy = false;
 
     LEGACY_KEYS.forEach((key) => {
       const raw = NX.storage.get(key, null);
       if (!raw || typeof raw !== "object" || !raw.users) return;
-      const count = Object.keys(raw.users || {}).length;
-      if (!best || count > best.__count) {
-        best = raw;
-        best.__count = count;
-        bestKey = key;
-      }
+      found = true;
+      if (key !== DB_KEY) hasLegacy = true;
+      mergeInto(merged, raw);
     });
 
-    if (best) {
-      const count = best.__count;
-      delete best.__count;
-      this.db = Object.assign(emptyDB(), best);
+    if (found) {
+      this.db = merged;
       this.db.version = 1;
-      this.db.auth = this.db.auth || { attempts: {}, codes: {}, pending: {} };
+      this.db.auth = this.db.auth || { attempts: {} };
       this.db.auth.attempts = this.db.auth.attempts || {};
-      this.db.auth.codes = this.db.auth.codes || {};
-      this.db.auth.pending = this.db.auth.pending || {};
-      this.db.outbox = this.db.outbox || [];
-      this.migratedFrom = bestKey && bestKey !== DB_KEY ? bestKey : null;
-      this.loadedUsers = count;
-      if (this.migratedFrom) {
+      this.migratedFrom = hasLegacy ? "chaves antigas fundidas" : null;
+      this.loadedUsers = Object.keys(this.db.users || {}).length;
+      if (hasLegacy) {
+        /* grava a fusão e só apaga as chaves antigas DEPOIS de salva */
         const saved = NX.storage.set(DB_KEY, this.db);
-        /* só apaga as chaves antigas depois que a nova estiver gravada */
         if (saved) LEGACY_KEYS.filter((k) => k !== DB_KEY).forEach((k) => NX.storage.remove(k));
       }
     } else {
@@ -99,7 +130,32 @@ window.NX = window.NX || {};
     if (ui) this.ui = Object.assign(this.ui, ui);
 
     this.migrateSocial();
+    /* PRODUÇÃO (DEMO_MODE=false): apaga dados de demonstração de
+       versões antigas do protótipo — contas/servidores REAIS ficam. */
+    try {
+      this.purgeDemo();
+    } catch (err) {
+      console.warn("[store] purgeDemo:", err);
+    }
     this.ready = true;
+    this.watchStorage();
+  };
+
+  /* outra aba gravou o banco → recarrega antes de escrever por cima
+     (evita que uma aba velha apague a conta criada em outra aba). */
+  let watchingStorage = false;
+  store.watchStorage = function () {
+    if (watchingStorage || typeof window === "undefined" || !window.addEventListener) return;
+    watchingStorage = true;
+    window.addEventListener("storage", (e) => {
+      if (!e || e.key !== DB_KEY) return;
+      try {
+        store.load();
+        store.commit(["all"], { persist: false });
+      } catch (err) {
+        console.warn("[store] falha ao sincronizar abas:", err);
+      }
+    });
   };
 
   /* ---- migração da rede social ----
@@ -114,8 +170,27 @@ window.NX = window.NX || {};
     db.likes = db.likes || {};
     db.comments = db.comments || {};
     db.notifications = db.notifications || [];
+    /* amizades — coleções novas em bancos antigos */
+    db.friendRequests = db.friendRequests || {};
+    db.friendships = db.friendships || {};
+    db.friendInvites = db.friendInvites || {};
 
-    const PRIV = { follow: ["all", "approved"], dm: ["all", "followers", "none"], followers: ["all", "followers", "self"], posts: ["public", "followers", "self"] };
+    /* resquícios do sistema antigo de e-mail/códigos: removidos */
+    if (db.auth) {
+      delete db.auth.codes;
+      delete db.auth.pending;
+      delete db.auth.recovery;
+    }
+    if (db.outbox) delete db.outbox;
+
+    const PRIV = {
+      follow: ["all", "approved"],
+      dm: ["all", "friends", "followers", "none"],
+      followers: ["all", "followers", "self"],
+      likes: ["all", "followers", "self"],
+      posts: ["public", "followers", "self"],
+      friendRequests: ["all", "common", "none"],
+    };
 
     Object.values(db.users || {}).forEach((usr) => {
       const p = usr.privacy || {};
@@ -123,12 +198,38 @@ window.NX = window.NX || {};
         follow: PRIV.follow.indexOf(p.follow) > -1 ? p.follow : "all",
         dm: PRIV.dm.indexOf(p.dm) > -1 ? p.dm : "all",
         followers: PRIV.followers.indexOf(p.followers) > -1 ? p.followers : "all",
+        likes: PRIV.likes.indexOf(p.likes) > -1 ? p.likes : "all",
         posts: PRIV.posts.indexOf(p.posts) > -1 ? p.posts : "public",
+        friendRequests:
+          PRIV.friendRequests.indexOf(p.friendRequests) > -1 ? p.friendRequests : "all",
       };
       if (!Array.isArray(usr.blocks)) usr.blocks = [];
       usr.followersCount = 0;
       usr.followingCount = 0;
       usr.likesReceived = 0;
+      usr.friendsCount = 0;
+    });
+
+    /* amizades válidas só entre contas que continuam existindo
+       (uma amizade nunca existe duas vezes nem consigo mesmo) */
+    const cleanFriendships = {};
+    Object.values(db.friendships || {}).forEach((fr) => {
+      if (!fr || !fr.userAId || !fr.userBId) return;
+      if (fr.userAId === fr.userBId) return;
+      if (!db.users[fr.userAId] || !db.users[fr.userBId]) return;
+      const id = [fr.userAId, fr.userBId].sort().join(":");
+      if (cleanFriendships[id]) return; /* anti-duplicidade */
+      cleanFriendships[id] = {
+        id: id, userAId: fr.userAId, userBId: fr.userBId,
+        createdAt: fr.createdAt || Date.now(),
+      };
+    });
+    db.friendships = cleanFriendships;
+    Object.values(db.friendships).forEach((fr) => {
+      const a = db.users[fr.userAId];
+      const b = db.users[fr.userBId];
+      if (a) a.friendsCount = (a.friendsCount || 0) + 1;
+      if (b) b.friendsCount = (b.friendsCount || 0) + 1;
     });
 
     /* contadores recalculados (fonte de verdade = coleções) */
@@ -140,19 +241,157 @@ window.NX = window.NX || {};
       if (from) from.followingCount = (from.followingCount || 0) + 1;
     });
 
-    const authorOf = (like) => {
-      if (like.targetType === "post") return db.posts[like.targetId];
-      if (like.targetType === "comment") return db.comments[like.targetId];
-      if (like.targetType === "message") return db.messages[like.targetId];
-      return null;
-    };
+    /* curtidas nas PUBLICAÇÕES de cada autor (fonte do "❤️ Curtidas" do perfil) */
     Object.values(db.likes).forEach((l) => {
-      const owner = authorOf(l);
-      if (owner && db.users[owner.authorId || owner.userId]) {
-        const u = db.users[owner.authorId || owner.userId];
+      if (l.targetType !== "post") return;
+      const post = db.posts[l.targetId];
+      if (post && db.users[post.authorId]) {
+        const u = db.users[post.authorId];
         u.likesReceived = (u.likesReceived || 0) + 1;
       }
     });
+  };
+
+  /* =========================================================
+     PRODUÇÃO · limpeza dos dados fictícios (seed)
+     Com DEMO_MODE=false o seed nem roda; se ainda existirem contas,
+     servidores ou mensagens de demonstração de versões antigas,
+     eles são apagados aqui.
+     REGRAS DE OURO:
+       · conta e servidor REAIS nunca são apagados;
+       · usuário fictício = marca demo:true (o seed marca todas) e,
+         em bancos antigos, a lista de nomes que só o seed cria —
+         usada apenas quando o banco tem o bloco completo (>=5),
+         para nunca confundir uma conta real com um NPC;
+       · é idempotente: roda a cada carga e não faz nada se não
+         houver nada fictício.
+     ========================================================= */
+  const SEED_NAMES = ["demo","luna","kai","maya","bruno","teo","ana","sofia","rafa","gus"];
+
+  store.purgeDemo = function () {
+    if (NX.demoMode()) return false;
+    const db = this.db;
+    if (!db || !db.users) return false;
+
+    const norm = (s) => String(s || "").trim().toLowerCase();
+    const users = Object.values(db.users);
+    const seedIds = {};
+    users.forEach((usr) => {
+      if (!usr) return;
+      if (usr.demo === true) seedIds[usr.id] = true;
+    });
+    /* bancos antigos: só os nomes do seed, e só com o bloco completo */
+    const anchor = users.some((usr) => usr && (usr.demo === true || norm(usr.username) === "demo"));
+    if (anchor) {
+      const named = users.filter((usr) => usr && SEED_NAMES.indexOf(norm(usr.username)) > -1);
+      if (named.length >= 5) named.forEach((usr) => (seedIds[usr.id] = true));
+    }
+    const seedCount = Object.keys(seedIds).length;
+    if (!seedCount) return false;
+
+    const isSeed = (id) => !!id && seedIds[id] === true;
+    const hasSeedRef = (rec) => {
+      if (!rec) return false;
+      if (rec.demo) return true;
+      return Object.keys(rec).some((k) => typeof rec[k] === "string" && seedIds[rec[k]] === true);
+    };
+    const delWhere = (col, fn) => {
+      if (!col) return;
+      Object.keys(col).forEach((id) => {
+        if (fn(col[id], id)) delete col[id];
+      });
+    };
+    const delArray = (arr, fn) => {
+      if (!Array.isArray(arr)) return;
+      for (let i = arr.length - 1; i >= 0; i--) if (fn(arr[i], i)) arr.splice(i, 1);
+    };
+
+    /* 1 · servidores fictícios (o seed cria todos com dono fictício) */
+    const seedServers = {};
+    Object.values(db.servers || {}).forEach((s) => {
+      if (s && isSeed(s.ownerId)) seedServers[s.id] = true;
+    });
+    const goneChannels = {};
+    const goneDms = {};
+    Object.keys(seedServers).forEach((id) => delete db.servers[id]);
+
+    /* 2 · estrutura e registros ligados a esses servidores */
+    delWhere(db.roles, (r) => r && seedServers[r.serverId]);
+    delWhere(db.categories, (c) => c && seedServers[c.serverId]);
+    delWhere(db.channels, (c) => {
+      if (!c) return false;
+      const gone = !!seedServers[c.serverId];
+      if (gone) goneChannels[c.id] = true;
+      return gone;
+    });
+    delWhere(db.memberships, (m) => (m && seedServers[m.serverId]) || isSeed(m && m.userId));
+    delWhere(db.bans, (b) => b && (seedServers[b.serverId] || isSeed(b.userId) || isSeed(b.byId)));
+    delWhere(db.invites, (i) => i && (seedServers[i.serverId] || isSeed(i.creatorId)));
+    delWhere(db.emojis, (e) => e && (seedServers[e.serverId] || isSeed(e.createdBy)));
+    delArray(db.logs, (l) => l && (seedServers[l.serverId] || isSeed(l.actorId) || (l.meta && isSeed(l.meta.userId))));
+    delArray(db.voice, (v) => v && (seedServers[v.serverId] || isSeed(v.userId)));
+
+    /* 3 · conversas diretas e mensagens fictícias */
+    delWhere(db.dms, (d) => {
+      if (!d) return false;
+      const gone = hasSeedRef(d);
+      if (gone) goneDms[d.id] = true;
+      return gone;
+    });
+    delWhere(db.messages, (m) => m && (isSeed(m.authorId) || goneChannels[m.channelId] || goneDms[m.channelId]));
+    /* reações de mensagens reais não podem citar contas fictícias */
+    Object.values(db.messages || {}).forEach((m) => {
+      if (!m || !m.reactions) return;
+      Object.keys(m.reactions).forEach((emo) => {
+        const arr = (m.reactions[emo] || []).filter((id) => !isSeed(id));
+        if (arr.length) m.reactions[emo] = arr;
+        else delete m.reactions[emo];
+      });
+    });
+
+    /* 4 · as contas fictícias em si */
+    Object.keys(seedIds).forEach((id) => {
+      delete db.users[id];
+      delete db.presence[id];
+      if (db.prefs) delete db.prefs[id];
+    });
+
+    /* 5 · rede social, amizades, notificações e moderação */
+    delWhere(db.follows, (f) => hasSeedRef(f));
+    delWhere(db.friendRequests, (r) => hasSeedRef(r));
+    delWhere(db.friendships, (f) => hasSeedRef(f));
+    delWhere(db.friendInvites, (f) => hasSeedRef(f));
+    delWhere(db.posts, (p) => p && (isSeed(p.authorId) || p.demo === true));
+    delWhere(db.comments, (c) => c && (isSeed(c.authorId) || c.demo === true || (c.postId && !db.posts[c.postId])));
+    delWhere(db.likes, (l) => {
+      if (!l) return false;
+      if (isSeed(l.userId) || l.demo === true) return true;
+      if (l.targetType === "post") return !db.posts[l.targetId];
+      if (l.targetType === "comment") return !db.comments[l.targetId];
+      return false;
+    });
+    delWhere(db.reports, (r) => hasSeedRef(r));
+    delArray(db.notifications, (n) => n && (isSeed(n.userId) || (n.meta && isSeed(n.meta.actorId)) || n.demo === true));
+
+    /* 6 · contadores derivados + amizades que apontavam para contas
+           apagadas (migrateSocial refaz a limpeza e os números) */
+    Object.values(db.posts || {}).forEach((p) => {
+      p.likesCount = Object.values(db.likes || {}).filter(
+        (l) => l.targetType === "post" && l.targetId === p.id
+      ).length;
+      p.commentsCount = Object.values(db.comments || {}).filter((c) => c.postId === p.id).length;
+    });
+    Object.values(db.comments || {}).forEach((c) => {
+      c.likesCount = Object.values(db.likes || {}).filter(
+        (l) => l.targetType === "comment" && l.targetId === c.id
+      ).length;
+    });
+    this.migrateSocial();
+    this.persist();
+    console.info(
+      "[store] DEMO_MODE=false: removidos " + seedCount + " conta(s) fictícia(s) e todos os dados dela(s)."
+    );
+    return true;
   };
 
   /* grava e informa se realmente deu certo */
@@ -286,6 +525,12 @@ window.NX = window.NX || {};
 
   S.onlineCount = (serverId) =>
     S.membersOf(serverId).filter((m) => m.user.status && m.user.status !== "offline").length;
+
+  /* membros que podem ser exibidos como pessoas na interface:
+     só quem realmente pertence ao servidor e, em produção
+     (DEMO_MODE=false), nenhuma conta de demonstração. */
+  S.visibleMembersOf = (serverId) =>
+    S.membersOf(serverId).filter((m) => S.isRealPerson(m.user.id));
 
   S.categoriesOf = (serverId) =>
     Object.values(store.db.categories)
@@ -630,18 +875,14 @@ window.NX = window.NX || {};
   S.likedBy = (type, id, userId) =>
     !!userId && S.likesOf(type, id).some((l) => l.userId === userId);
 
-  const likesOwner = (like) => {
-    const db = store.db;
-    if (like.targetType === "post") return db.posts[like.targetId];
-    if (like.targetType === "comment") return db.comments[like.targetId];
-    if (like.targetType === "message") return db.messages[like.targetId];
-    return null;
-  };
-
+  /* ❤️ CURTIDAS recebidas nas publicações de `userId`.
+     Uma curtida conta uma vez só: a chave do like é única por
+     (autor, alvo), então remover a curtida devolve o número. */
   S.likesReceivedOf = (userId) =>
     Object.values(store.db.likes || {}).filter((l) => {
-      const owner = likesOwner(l);
-      return owner && (owner.authorId || owner.userId) === userId;
+      if (l.targetType !== "post") return false;
+      const post = (store.db.posts || {})[l.targetId];
+      return !!post && post.authorId === userId;
     }).length;
 
   /* ---- publicações e comentários ---- */
@@ -680,6 +921,17 @@ window.NX = window.NX || {};
     return !!(viewerId && S.isFollowing(viewerId, authorId));
   };
 
+  /* pode ver as CURTIDAS (❤️) do perfil de authorId? */
+  S.canViewLikesOf = (viewerId, authorId) => {
+    if (!authorId) return false;
+    if (viewerId && viewerId === authorId) return true;
+    const author = store.db.users[authorId];
+    const mode = (author && author.privacy && author.privacy.likes) || "all";
+    if (mode === "all") return true;
+    if (mode === "self") return false;
+    return !!(viewerId && S.isFollowing(viewerId, authorId));
+  };
+
   /* pode enviar mensagem direta para authorId? */
   S.canDM = (viewerId, authorId) => {
     if (!viewerId || !authorId || viewerId === authorId) return false;
@@ -687,9 +939,117 @@ window.NX = window.NX || {};
     const author = store.db.users[authorId];
     const mode = (author && author.privacy && author.privacy.dm) || "all";
     if (mode === "none") return false;
+    if (mode === "friends") return S.isFriend(authorId, viewerId);
     if (mode === "followers") return S.isFollowing(authorId, viewerId);
     return true;
   };
+
+  /* =========================================================
+     AMIZADES — sistema GLOBAL (a amizade existe independentemente
+     de os dois estarem no mesmo servidor)
+     ========================================================= */
+  S.friendKey = (a, b) => [a, b].sort().join(":");
+
+  S.friendship = (a, b) =>
+    !a || !b || a === b
+      ? null
+      : (store.db.friendships || {})[S.friendKey(a, b)] || null;
+
+  S.isFriend = (a, b) => !!S.friendship(a, b);
+
+  S.friendCount = (userId) => {
+    const u = store.db.users[userId];
+    if (u && typeof u.friendsCount === "number") return u.friendsCount;
+    return Object.values(store.db.friendships || {}).filter(
+      (fr) => fr.userAId === userId || fr.userBId === userId
+    ).length;
+  };
+
+  S.friendsOf = (userId) =>
+    Object.values(store.db.friendships || {})
+      .filter((fr) => fr.userAId === userId || fr.userBId === userId)
+      .map((fr) => store.db.users[fr.userAId === userId ? fr.userBId : fr.userAId])
+      .filter((u) => !!u && S.isRealPerson(u.id))
+      .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
+
+  /* solicitação pendente em QUALQUER direção */
+  S.friendRequestBetween = (a, b) =>
+    Object.values(store.db.friendRequests || {}).find(
+      (r) =>
+        r.status === "pending" &&
+        ((r.senderId === a && r.receiverId === b) || (r.senderId === b && r.receiverId === a))
+    ) || null;
+
+  S.friendRequestsOf = (userId) =>
+    Object.values(store.db.friendRequests || {})
+      .filter((r) => r.status === "pending" && r.receiverId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+  S.sentFriendRequestsOf = (userId) =>
+    Object.values(store.db.friendRequests || {})
+      .filter((r) => r.status === "pending" && r.senderId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+  S.friendRequest = (id) => (store.db.friendRequests || {})[id] || null;
+
+  /* convite de servidor enviado a um amigo (evita duplicidade) */
+  S.friendInvite = (serverId, friendId) =>
+    (store.db.friendInvites || {})[serverId + ":" + friendId] || null;
+
+  /* "self" | "friends" | "sent" | "received" | "none" */
+  S.friendState = (viewerId, otherId) => {
+    if (!viewerId || !otherId) return "none";
+    if (viewerId === otherId) return "self";
+    if (S.isFriend(viewerId, otherId)) return "friends";
+    const req = S.friendRequestBetween(viewerId, otherId);
+    if (!req) return "none";
+    return req.senderId === viewerId ? "sent" : "received";
+  };
+
+  S.mutualFriendCount = (a, b) => {
+    const fa = {};
+    Object.values(store.db.friendships || {}).forEach((fr) => {
+      if (fr.userAId === a) fa[fr.userBId] = 1;
+      if (fr.userBId === a) fa[fr.userAId] = 1;
+    });
+    return Object.values(store.db.friendships || {}).filter(
+      (fr) =>
+        (fr.userAId === b || fr.userBId === b) && fa[fr.userAId === b ? fr.userBId : fr.userAId]
+    ).length;
+  };
+
+  /* pode enviar solicitação de amizade? regras do DONO do perfil */
+  S.canSendFriendRequest = (viewerId, otherId) => {
+    if (!viewerId || !otherId) return { ok: false, reason: "Usuário não encontrado." };
+    if (viewerId === otherId) return { ok: false, reason: "Você não pode adicionar a si mesmo." };
+    if (S.isFriend(viewerId, otherId))
+      return { ok: false, reason: "Vocês já são amigos." };
+    if (S.friendRequestBetween(viewerId, otherId))
+      return { ok: false, reason: "Já existe uma solicitação de amizade pendente." };
+    if (S.blockedBetween(viewerId, otherId))
+      return { ok: false, reason: "Não é possível enviar solicitação para esta pessoa." };
+    const other = store.db.users[otherId];
+    const mode = (other && other.privacy && other.privacy.friendRequests) || "all";
+    if (mode === "none")
+      return { ok: false, reason: "Esta pessoa não aceita solicitações de amizade." };
+    if (mode === "common" && S.mutualFriendCount(viewerId, otherId) < 1)
+      return { ok: false, reason: "Esta pessoa só aceita solicitações de amigos em comum." };
+    return { ok: true, reason: "" };
+  };
+
+  /* =========================================================
+     PESSOAS REAIS x DADOS DE DEMONSTRAÇÃO
+     Com DEMO_MODE=false (produção) nenhuma conta de demonstração
+     aparece em listas públicas (membros, amigos, busca...).
+     ========================================================= */
+  S.isRealPerson = (userId) => {
+    const u = store.db.users[userId];
+    if (!u) return false;
+    if (u.demo && !NX.demoMode()) return false;
+    return true;
+  };
+
+  S.realPeople = (users) => (users || []).filter((u) => u && S.isRealPerson(u.id));
 
   /* feed: minhas publicações + das pessoas que sigo + públicas */
   S.feedPosts = () => {

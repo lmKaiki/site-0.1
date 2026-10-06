@@ -191,6 +191,7 @@ window.NX = window.NX || {};
     if (!r) return null;
     if (r.name === "home" || r.name === "landing" || r.name === "welcome") return "home";
     if (r.name === "messages" || r.name === "dm") return "messages";
+    if (r.name === "feed") return "feed";
     if (r.name === "profile") return "profile";
     return null;
   }
@@ -636,7 +637,8 @@ window.NX = window.NX || {};
     if (type === "mention") return "chat";
     if (type === "server") return "shield";
     if (type === "like") return "heartFill";
-    if (type === "comment" || type === "reply") return "comment";
+    if (type === "comment") return "comment";
+    if (type === "reply") return "reply";
     return "info";
   }
 
@@ -1056,6 +1058,7 @@ window.NX = window.NX || {};
       ">" +
       item("home", "Início", "home", "#/") +
       item("messages", "Mensagens", "chat", "#/mensagens") +
+      item("feed", "Feed", "heart", "#/feed") +
       item("notifications", "Notificações", "bell", null) +
       item("profile", "Perfil", "user", profile) +
       "</nav>"

@@ -1,7 +1,7 @@
 /* ============================================================
    NEXO · páginas
-   Tela de acesso (login/cadastro/recuperação), página inicial,
-   explorar, perfil, mensagens e tela de convite.
+   Tela de acesso (login/cadastro — só nome de usuário + senha),
+   página inicial, explorar, perfil, mensagens e tela de convite.
    ============================================================ */
 
 window.NX = window.NX || {};
@@ -14,157 +14,24 @@ window.NX = window.NX || {};
   const pages = {};
 
   /* ---- autenticação: rota ↔ modo interno ----
-     (a rota usa português, a tela usa o nome interno) */
+     SEM e-mail, SEM código de verificação, SEM recuperação por
+     e-mail: aqui só existem nome de usuário + senha. */
   const AUTH_ALIAS = {
     login: "login",
     cadastro: "signup",
     signup: "signup",
-    recuperar: "forgot",
-    forgot: "forgot",
-    verificar: "verify",
-    verify: "verify",
   };
   const AUTH_ROUTE = {
     login: "#/login",
     signup: "#/cadastro",
-    forgot: "#/recuperar",
-    verify: "#/verificar",
   };
   pages.routeFor = (mode) => AUTH_ROUTE[AUTH_ALIAS[mode] || mode] || "#/login";
 
   let authMode = "login";
 
-  /* recuperação em 3 passos — estado na própria aba, para um F5
-     no meio do fluxo não trancar o usuário (nada de código aqui) */
-  const REC_KEY = "nx.rec";
-  let forgotStep = 1;
-  let forgotEmail = "";
-  let forgotToken = "";
-  let resendUntil = 0;
-  let resendPurpose = "";
-  let cdTimer = null;
-  /* aviso devolvido pela API de envio (nunca afirmamos mais que o
-     provedor confirmou) — sobrevive a F5 junto com o fluxo */
-  let authNotice = null;
+  /* tela de acesso: apenas nome de usuário + senha.
+     (sem e-mail, sem código, sem contagem de reenvio) */
 
-  function setNotice(message, sent, kind) {
-    authNotice = {
-      type: sent ? "ok" : kind === "info" ? "info" : "warn",
-      text: message || "",
-    };
-    if (!authNotice.text) authNotice = null;
-    return authNotice;
-  }
-
-  function saveRec() {
-    try {
-      sessionStorage.setItem(
-        REC_KEY,
-        JSON.stringify({
-          step: forgotStep,
-          email: forgotEmail,
-          token: forgotToken,
-          until: resendUntil,
-          purpose: resendPurpose,
-          notice: authNotice,
-        })
-      );
-    } catch (e) {}
-  }
-  function loadRec() {
-    try {
-      const raw = sessionStorage.getItem(REC_KEY);
-      if (!raw) {
-        /* sem estado salvo: recomeça do passo 1 (nunca herda um passo
-           antigo que ficou só na memória) */
-        forgotStep = 1;
-        forgotEmail = "";
-        forgotToken = "";
-        resendUntil = 0;
-        resendPurpose = "";
-        authNotice = null;
-        return;
-      }
-      const s = JSON.parse(raw) || {};
-      forgotStep = s.step || 1;
-      forgotEmail = s.email || "";
-      forgotToken = s.token || "";
-      resendUntil = s.until || 0;
-      resendPurpose = s.purpose || "";
-      authNotice = s.notice && s.notice.text ? s.notice : null;
-    } catch (e) {}
-  }
-  function clearRec() {
-    forgotStep = 1;
-    forgotEmail = "";
-    forgotToken = "";
-    resendUntil = 0;
-    resendPurpose = "";
-    authNotice = null;
-    try {
-      sessionStorage.removeItem(REC_KEY);
-    } catch (e) {}
-  }
-
-  function clearCountdown() {
-    if (cdTimer) {
-      clearInterval(cdTimer);
-      cdTimer = null;
-    }
-  }
-
-  /* contador do "Reenviar código" */
-  function startCountdown(root) {
-    clearCountdown();
-    const btn = root.querySelector("[data-resend]");
-    if (!btn) return;
-    const paint = () => {
-      const b = root.querySelector("[data-resend]");
-      if (!b) {
-        clearCountdown();
-        return;
-      }
-      const left = Math.ceil((resendUntil - Date.now()) / 1000);
-      if (left > 0) {
-        b.disabled = true;
-        b.textContent = "Reenviar em " + left + "s";
-      } else {
-        b.disabled = false;
-        b.textContent = "Reenviar código";
-        clearCountdown();
-      }
-    };
-    paint();
-    if (resendUntil > Date.now()) cdTimer = setInterval(paint, 1000);
-  }
-
-  /* aviso sobre o envio — a mensagem vem SEMPRE da API:
-     só afirmamos o envio quando o provedor respondeu {ok:true} */
-  function providerNotice() {
-    if (authNotice && authNotice.text) {
-      const mod = authNotice.type === "ok" ? "--ok" : authNotice.type === "warn" ? "--warn" : "";
-      return (
-        '<div class="auth__notice' + (mod ? " auth__notice" + mod : "") + '">' +
-        NX.icon(authNotice.type === "warn" ? "alert" : "check", "", 17) +
-        "<span>" + u().h(authNotice.text) + "</span></div>"
-      );
-    }
-    /* sem tentativa nesta sessão: só orientamos, sem prometer envio */
-    const status = NX.email && NX.email.status ? NX.email.status() : "unknown";
-    if (status === "not-configured") {
-      return (
-        '<div class="auth__notice auth__notice--warn">' +
-        NX.icon("alert", "", 17) +
-        "<span>" + u().h(NX.email.NOT_CONFIGURED_MSG) + "</span></div>"
-      );
-    }
-    return (
-      '<div class="auth__notice">' +
-      NX.icon("mail", "", 17) +
-      "<span>Confira a caixa de entrada e, se não encontrar, " +
-      "verifique também Spam ou outras pastas.</span></div>"
-    );
-  }
 
   function passwordRulesHTML(pw) {
     const p = u().passwordPolicy(pw || "");
@@ -184,29 +51,13 @@ window.NX = window.NX || {};
     );
   }
 
-  function googleButtonHTML(size) {
-    return (
-      '<button type="button" class="btn btn--soft btn--block btn--lg btn--google" data-action="auth-google">' +
-      NX.google.LOGO +
-      "<span>Continuar com Google</span></button>"
-    );
-  }
-
   pages.setAuthMode = function (mode) {
     authMode = AUTH_ALIAS[mode] || mode || "login";
-    clearCountdown();
-    if (authMode === "forgot") loadRec();
-    else if (authMode === "signup" || authMode === "login") clearRec();
     pages.renderAuth();
   };
 
   pages.renderAuth = function (mode) {
-    if (mode) {
-      authMode = AUTH_ALIAS[mode] || mode;
-      if (authMode === "forgot") loadRec();
-      else if (authMode === "signup" || authMode === "login") clearRec();
-    }
-    clearCountdown();
+    if (mode) authMode = AUTH_ALIAS[mode] || mode || "login";
     const root = document.getElementById("screen-auth");
     if (!root) return;
 
@@ -230,11 +81,11 @@ window.NX = window.NX || {};
     /* ---------------- LOGIN ---------------- */
     if (authMode === "login") {
       form =
-        "<h2>Boas-vindas de volta</h2>" +
+        "<h2>Bem-vindo de volta</h2>" +
         '<p class="auth__sub">Entre para continuar com as suas comunidades.</p>' +
         '<form class="auth__form" data-form="login" novalidate>' +
-        '<label class="field"><span class="field__label">E-mail ou nome de usuário</span>' +
-        '<input class="input" name="identifier" type="text" autocomplete="username" placeholder="voce@exemplo.com" data-autofocus /></label>' +
+        '<label class="field"><span class="field__label">Nome de usuário</span>' +
+        '<input class="input" name="identifier" type="text" autocomplete="username" placeholder="ex.: ana.bia" data-autofocus /></label>' +
         '<label class="field"><span class="field__label">Senha</span>' +
         '<span class="input-wrap">' +
         '<input class="input" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" />' +
@@ -243,17 +94,16 @@ window.NX = window.NX || {};
         "</button></span></label>" +
         '<div class="auth__row">' +
         '<label class="check"><input type="checkbox" name="remember" checked /><span class="check__box"></span>Manter conectado</label>' +
-        '<button type="button" class="link-btn" data-action="auth-mode" data-mode="forgot">Esqueci minha senha</button>' +
         "</div>" +
         '<div class="form-error" data-error hidden></div>' +
         '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Entrando">Entrar</button>' +
         "</form>" +
-        '<div class="auth__divider"><span>ou</span></div>' +
-        googleButtonHTML() +
+        '<div class="auth__note">' + NX.icon("shield", "", 16) +
+        "<span>Se você esqueceu sua senha, entre em contato com a administração da plataforma.</span></div>" +
         '<div class="auth__alt">Ainda não tem conta?' +
         '<button class="link-btn" data-action="auth-mode" data-mode="signup">Criar conta</button></div>' +
         '<div class="auth__demo">' +
-        "<div><strong>Conta de demonstração</strong><span>demo@nexo.chat · senha <code>nexo123</code></span></div>" +
+        "<div><strong>Conta de demonstração</strong><span>demo · senha <code>nexo123</code></span></div>" +
         '<button class="btn btn--soft btn--sm" data-action="fill-demo">Entrar como demo</button>' +
         "</div>" +
         '<div class="auth__foot">' +
@@ -263,142 +113,40 @@ window.NX = window.NX || {};
       /* ---------------- CADASTRO ---------------- */
     } else if (authMode === "signup") {
       form =
-        "<h2>Crie sua conta</h2>" +
-        '<p class="auth__sub">É rápido — e você já pode criar seu primeiro servidor.</p>' +
+        "<h2>Criar conta</h2>" +
+        '<p class="auth__sub">Nome de usuário e senha — é só isso.</p>' +
         '<form class="auth__form" data-form="signup" novalidate>' +
         '<label class="field"><span class="field__label">Nome de usuário</span>' +
         '<input class="input" name="username" type="text" autocomplete="username" placeholder="ex.: ana.bia" data-autofocus />' +
         '<span class="field__hint">3 a 18 caracteres: letras, números, ponto e sublinhado.</span></label>' +
-        '<label class="field"><span class="field__label">Nome de exibição <em>(opcional)</em></span>' +
-        '<input class="input" name="displayName" type="text" placeholder="Como as pessoas te chamam" /></label>' +
-        '<label class="field"><span class="field__label">E-mail</span>' +
-        '<input class="input" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" /></label>' +
-        '<div class="field-row">' +
         '<label class="field"><span class="field__label">Senha</span>' +
         '<span class="input-wrap"><input class="input" name="password" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" data-pw-source />' +
         '<button type="button" class="input-eye" data-action="toggle-password" aria-label="Mostrar senha">' +
         NX.icon("eye", "", 18) +
         "</button></span></label>" +
-        '<label class="field"><span class="field__label">Confirmar senha</span>' +
-        '<input class="input" name="confirm" type="password" autocomplete="new-password" placeholder="Repita a senha" /></label>' +
-        "</div>" +
         passwordRulesHTML("") +
-        '<label class="field"><span class="field__label">Data de nascimento</span>' +
-        '<input class="input" name="birth" type="date" /></label>' +
-        '<div class="field"><span class="field__label">Avatar <em>(opcional)</em></span>' +
-        '<div class="avatar-picker" data-avatar-picker>' +
-        '<span class="avatar-picker__preview" data-avatar-preview>' +
-        u().avatarHTML({ id: "new", displayName: "?", avatar: { emoji: "🌙", color: "#35e0a8" } }, "lg", false) +
-        "</span>" +
-        '<div class="avatar-picker__panel">' +
-        '<div class="emoji-grid">' +
-        Array.from(new Set(u().EMOJIS))
-          .map(
-            (e, i) =>
-              '<button type="button" class="emoji-grid__item' + (i === 0 ? " is-on" : "") +
-              '" data-pick-emoji="' + u().h(e) + '">' + e + "</button>"
-          )
-          .join("") +
-        "</div>" +
-        '<div class="swatch-row" data-swatches>' +
-        u().PALETTE.map(
-          (c, i) =>
-            '<button type="button" class="swatch' + (i === 0 ? " is-on" : "") + '" style="--sw:' + c +
-            '" data-pick-color="' + c + '" aria-label="Cor ' + c + '"></button>'
-        ).join("") +
-        "</div></div></div></div>" +
-        '<label class="check check--terms"><input type="checkbox" name="terms" />' +
-        '<span class="check__box"></span><span class="check__terms">Li e concordo com os ' +
-        '<button type="button" class="link-btn" data-action="open-docs" data-doc="termos">Termos de Uso</button>' +
-        " e a " +
-        '<button type="button" class="link-btn" data-action="open-docs" data-doc="privacidade">Política de Privacidade</button>.' +
-        "</span></label>" +
+        '<label class="field"><span class="field__label">Confirmar senha</span>' +
+        '<span class="input-wrap"><input class="input" name="confirm" type="password" autocomplete="new-password" placeholder="Repita a senha" />' +
+        '<button type="button" class="input-eye" data-action="toggle-password" aria-label="Mostrar senha">' +
+        NX.icon("eye", "", 18) +
+        "</button></span></label>" +
         '<div class="form-error" data-error hidden></div>' +
         '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Criando">Criar conta</button>' +
         "</form>" +
-        '<div class="auth__divider"><span>ou</span></div>' +
-        googleButtonHTML() +
+        '<div class="auth__note">' + NX.icon("shield", "", 16) +
+        "<span>Criou, entrou: a conta é ativada na hora, sem etapa de e-mail.</span></div>" +
         '<div class="auth__alt">Já tem uma conta?' +
         '<button class="link-btn" data-action="auth-mode" data-mode="login">Entrar</button></div>' +
         '<div class="auth__foot">' +
         '<button class="link-btn" data-action="goto-landing">' +
         NX.icon("arrowLeft", "", 15) + " Voltar para início</button></div>";
 
-      /* ---------------- VERIFICAÇÃO DE E-MAIL ---------------- */
-    } else if (authMode === "verify") {
-      form =
-        "<h2>Verifique seu e-mail</h2>" +
-        '<p class="auth__sub">Enviamos um código de verificação para seu endereço de e-mail. ' +
-        "Ele expira em 10 minutos e só pode ser usado uma vez.</p>" +
-        providerNotice() +
-        '<form class="auth__form" data-form="verify" novalidate>' +
-        '<label class="field"><span class="field__label">Código de verificação</span>' +
-        '<input class="input input--code" name="code" inputmode="numeric" maxlength="6" placeholder="000000" data-autofocus /></label>' +
-        '<div class="form-error" data-error hidden></div>' +
-        '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Verificando">Verificar</button>' +
-        "</form>" +
-        '<div class="auth__row auth__row--between">' +
-        '<button type="button" class="link-btn" data-resend>Reenviar código</button>' +
-        '<button type="button" class="link-btn" data-action="auth-mode" data-mode="login">' +
-        NX.icon("arrowLeft", "", 15) + " Voltar para o login</button></div>" +
-        '<div class="auth__foot">' +
-        '<button type="button" class="link-btn" data-verify-skip>Continuar sem verificar agora</button></div>';
-
-      /* ---------------- RECUPERAÇÃO ---------------- */
+      /* ---------------- FALLBACK ----------------
+         Só existem login e cadastro: qualquer endereço antigo
+         (verificação, recuperação, código) volta para o login. */
     } else {
-      if (forgotStep === 2) {
-        /* passo 2 — código */
-        form =
-          "<h2>Digite o código</h2>" +
-          '<p class="auth__sub">Se existir uma conta associada a este endereço, ' +
-          "enviaremos um código para recuperação.</p>" +
-          providerNotice() +
-          '<form class="auth__form" data-form="forgot" data-step="2" novalidate>' +
-          '<label class="field"><span class="field__label">Código de verificação</span>' +
-          '<input class="input input--code" name="code" inputmode="numeric" maxlength="6" placeholder="000000" data-autofocus /></label>' +
-          '<div class="form-error" data-error hidden></div>' +
-          '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Verificando">Verificar código</button>' +
-          "</form>" +
-          '<div class="auth__row auth__row--between">' +
-          '<button type="button" class="link-btn" data-resend>Reenviar código</button>' +
-          '<button type="button" class="link-btn" data-forgot-back>Voltar</button></div>' +
-          '<div class="auth__alt"><button class="link-btn" data-action="auth-mode" data-mode="login">' +
-          NX.icon("arrowLeft", "", 15) + " Voltar para o login</button></div>";
-      } else if (forgotStep === 3) {
-        /* passo 3 — nova senha */
-        form =
-          "<h2>Crie uma nova senha</h2>" +
-          '<p class="auth__sub">Defina uma nova senha para <strong>' +
-          u().h(forgotEmail) + "</strong>.</p>" +
-          '<form class="auth__form" data-form="forgot" data-step="3" novalidate>' +
-          '<label class="field"><span class="field__label">Nova senha</span>' +
-          '<span class="input-wrap"><input class="input" name="password" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" data-pw-source data-autofocus />' +
-          '<button type="button" class="input-eye" data-action="toggle-password" aria-label="Mostrar senha">' +
-          NX.icon("eye", "", 18) + "</button></span></label>" +
-          passwordRulesHTML("") +
-          '<label class="field"><span class="field__label">Confirmar nova senha</span>' +
-          '<input class="input" name="confirm" type="password" autocomplete="new-password" placeholder="Repita a nova senha" /></label>' +
-          '<div class="form-error" data-error hidden></div>' +
-          '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Salvando">Salvar nova senha</button>' +
-          "</form>" +
-          '<div class="auth__alt"><button class="link-btn" data-action="auth-mode" data-mode="login">' +
-          NX.icon("arrowLeft", "", 15) + " Voltar para o login</button></div>";
-      } else {
-        /* passo 1 — e-mail */
-        form =
-          "<h2>Recuperar acesso</h2>" +
-          '<p class="auth__sub">Digite o e-mail da sua conta. Depois de enviar, ' +
-          "confira a caixa de entrada para o código de verificação.</p>" +
-          '<form class="auth__form" data-form="forgot" data-step="1" novalidate>' +
-          '<label class="field"><span class="field__label">E-mail</span>' +
-          '<input class="input" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" data-autofocus />' +
-          '<span class="field__hint">Também aceitamos seu nome de usuário.</span></label>' +
-          '<div class="form-error" data-error hidden></div>' +
-          '<button class="btn btn--primary btn--block btn--lg" type="submit" data-busy-label="Enviando">Enviar código</button>' +
-          "</form>" +
-          '<div class="auth__alt"><button class="link-btn" data-action="auth-mode" data-mode="login">' +
-          NX.icon("arrowLeft", "", 15) + " Voltar para o login</button></div>";
-      }
+      authMode = "login";
+      return pages.renderAuth();
     }
 
     root.innerHTML =
@@ -410,7 +158,6 @@ window.NX = window.NX || {};
       "</div></div></div>";
 
     wireAuth(root);
-    startCountdown(root);
   };
 
   function showFormError(form, message) {
@@ -426,32 +173,6 @@ window.NX = window.NX || {};
   }
 
   function wireAuth(root) {
-    let pickedEmoji = "🌙";
-    let pickedColor = u().PALETTE[0];
-
-    const picker = root.querySelector("[data-avatar-picker]");
-    if (picker) {
-      picker.addEventListener("click", (e) => {
-        const emb = e.target.closest("[data-pick-emoji]");
-        const col = e.target.closest("[data-pick-color]");
-        if (emb) {
-          pickedEmoji = emb.getAttribute("data-pick-emoji");
-          picker.querySelectorAll("[data-pick-emoji]").forEach((b) => b.classList.toggle("is-on", b === emb));
-        } else if (col) {
-          pickedColor = col.getAttribute("data-pick-color");
-          picker.querySelectorAll("[data-pick-color]").forEach((b) => b.classList.toggle("is-on", b === col));
-        } else return;
-        const prev = picker.querySelector("[data-avatar-preview]");
-        if (prev) {
-          prev.innerHTML = u().avatarHTML(
-            { id: "new", displayName: "?", avatar: { emoji: pickedEmoji, color: pickedColor } },
-            "lg",
-            false
-          );
-        }
-      });
-    }
-
     /* checklist de requisitos da senha, ao vivo */
     const pwSource = root.querySelector("[data-pw-source]");
     if (pwSource) {
@@ -478,7 +199,6 @@ window.NX = window.NX || {};
 
     root.querySelectorAll("form[data-form]").forEach((form) => {
       const kind = form.getAttribute("data-form");
-      const step = form.getAttribute("data-step");
 
       form.addEventListener("submit", (e) => {
         e.preventDefault();
@@ -486,99 +206,19 @@ window.NX = window.NX || {};
         const data = Object.fromEntries(new FormData(form).entries());
         const btn = form.querySelector('button[type="submit"]');
 
-        /* ================= RECUPERAÇÃO DE SENHA ================= */
-        if (kind === "forgot") {
-          /* passo 1 — pedir o código */
-          if (step === "1") {
-            const id = String(data.email || "").trim();
-            if (!id) {
-              showFormError(form, "Digite um endereço de e-mail válido.");
-              return;
-            }
-            if (id.indexOf("@") > -1 && !u().isEmail(id)) {
-              showFormError(form, "Digite um endereço de e-mail válido.");
-              return;
-            }
-            const end = NX.ui.busy(btn);
-            NX.api.requestReset(id)
-              .then((res) => {
-                end();
-                forgotEmail = u().normalizeIdentifier(id);
-                resendUntil = res.resendAt || 0;
-                resendPurpose = "recover";
-                forgotStep = 2;
-                setNotice(res.message, res.sent, res.noAccount ? "info" : "");
-                saveRec();
-                pages.renderAuth();
-              })
-              .catch((err) => {
-                end();
-                showFormError(form, err.message);
-              });
-            return;
-          }
-
-          /* passo 2 — conferir o código */
-          if (step === "2") {
-            const end = NX.ui.busy(btn);
-            NX.api.confirmResetCode({ code: data.code })
-              .then((res) => {
-                end();
-                forgotToken = res.token || ""; /* fica só na aba */
-                forgotStep = 3;
-                saveRec();
-                pages.renderAuth();
-              })
-              .catch((err) => {
-                end();
-                showFormError(form, err.message);
-              });
-            return;
-          }
-
-          /* passo 3 — nova senha */
-          if (String(data.password) !== String(data.confirm)) {
-            showFormError(form, "As senhas não conferem.");
-            return;
-          }
-          const end3 = NX.ui.busy(btn);
-          NX.api.resetPassword({
-            token: forgotToken,
-            password: data.password,
-            confirm: data.confirm,
-          })
-            .then(() => {
-              end3();
-              clearRec();
-              pages.setAuthMode("login");
-              NX.ui.toast("Senha alterada com sucesso.", "success");
-            })
-            .catch((err) => {
-              end3();
-              showFormError(form, err.message);
-            });
-          return;
-        }
-
-        /* ================= VERIFICAÇÃO DE E-MAIL ================= */
-        if (kind === "verify") {
-          const end = NX.ui.busy(btn);
-          NX.api.verifyEmail({ code: data.code })
-            .then(() => {
-              end();
-              clearCountdown();
-              NX.ui.toast("E-mail verificado com sucesso!", "success");
-              NX.app.go("#/bem-vindo");
-            })
-            .catch((err) => {
-              end();
-              showFormError(form, err.message);
-            });
-          return;
-        }
-
-        /* ================= CADASTRO ================= */
+        /* ================= CADASTRO =================
+           username + senha: sem e-mail, sem termos extras.
+           Depois de criada, a conta ENTRA automaticamente. */
         if (kind === "signup") {
+          const username = String(data.username || "").trim();
+          if (!username) {
+            showFormError(form, "Digite um nome de usuário.");
+            return;
+          }
+          if (!data.password) {
+            showFormError(form, "Digite uma senha.");
+            return;
+          }
           const policy = u().passwordPolicy(data.password);
           if (!policy.ok) {
             showFormError(form, policy.message);
@@ -588,30 +228,16 @@ window.NX = window.NX || {};
             showFormError(form, "As senhas não conferem.");
             return;
           }
-          if (!data.terms) {
-            showFormError(form, "É preciso aceitar os Termos de Uso e a Política de Privacidade.");
-            return;
-          }
           const end = NX.ui.busy(btn);
           NX.api.signup({
-            email: data.email,
-            username: data.username,
-            displayName: data.displayName,
+            username: username,
             password: data.password,
             confirm: data.confirm,
-            birth: data.birth,
-            terms: !!data.terms,
-            avatar: { emoji: pickedEmoji, color: pickedColor },
           })
             .then((res) => {
               end();
-              clearRec();
-              resendUntil = res.resendAt || 0;
-              resendPurpose = "verify";
-              setNotice(res.emailNotice, res.sent, "");
-              saveRec();
               NX.ui.toast(res.message || "Sua conta foi criada com sucesso.", "success");
-              NX.app.go("#/verificar");
+              NX.app.afterAuth(); /* sessão já criada no cadastro */
             })
             .catch((err) => {
               end();
@@ -620,18 +246,25 @@ window.NX = window.NX || {};
           return;
         }
 
-        /* ================= LOGIN ================= */
+        /* ================= LOGIN =================
+           SOMENTE nome de usuário + senha. */
+        const ident = String(data.identifier || "").trim();
+        if (!ident) {
+          showFormError(form, "Digite seu nome de usuário.");
+          return;
+        }
+        if (!data.password) {
+          showFormError(form, "Digite sua senha.");
+          return;
+        }
         const end = NX.ui.busy(btn);
         NX.api.login({
-          identifier: data.identifier,
+          identifier: ident,
           password: data.password,
           remember: !!data.remember,
         })
-          .then((user) => {
+          .then(() => {
             end();
-            if (user && user.emailVerified === false) {
-              NX.ui.toast("E-mail ainda não verificado — você pode confirmar depois.", "info");
-            }
             NX.app.afterAuth();
           })
           .catch((err) => {
@@ -640,46 +273,6 @@ window.NX = window.NX || {};
           });
       });
     });
-
-    /* ---- ações soltas da tela de auth ---- */
-    if (!root.dataset.authWired) {
-      root.dataset.authWired = "1";
-      root.addEventListener("click", (e) => {
-        const resend = e.target.closest("[data-resend]");
-        if (resend) {
-          if (resend.disabled) return;
-          const purpose = resendPurpose || (authMode === "verify" ? "verify" : "recover");
-          NX.api.resendCode(purpose)
-            .then((res) => {
-              resendUntil = res.resendAt || 0;
-              resendPurpose = purpose;
-              setNotice(res.message, res.sent, "");
-              saveRec();
-              pages.renderAuth();
-              NX.ui.toast(res.message, res.sent ? "success" : "info");
-            })
-            .catch((err) => NX.ui.error(err.message));
-          return;
-        }
-
-        if (e.target.closest("[data-forgot-back]")) {
-          forgotStep = 1;
-          saveRec();
-          pages.renderAuth();
-          return;
-        }
-
-        if (e.target.closest("[data-verify-skip]")) {
-          NX.api.skipEmailVerification()
-            .then(() => {
-              clearCountdown();
-              NX.ui.toast("Você pode verificar o e-mail depois, em Configurações.", "info");
-              NX.app.go("#/bem-vindo");
-            })
-            .catch((err) => NX.ui.error(err.message));
-        }
-      });
-    }
   }
 
   /* =========================================================
@@ -726,12 +319,14 @@ window.NX = window.NX || {};
     const list = servers.length
       ? '<div class="server-grid">' + servers.map(serverCard).join("") + "</div>"
       : '<div class="empty-state">' +
-        '<span class="empty-state__ico">' + NX.icon("construction", "", 28) + "</span>" +
-        "<h3>Nenhum servidor ainda</h3>" +
-        "<p>Crie o seu servidor ou entre em um por convite. Não existe servidor obrigatório por aqui.</p>" +
+        '<span class="empty-state__ico">' + NX.icon("compass", "", 28) + "</span>" +
+        "<h3>Você ainda não está em nenhum servidor</h3>" +
+        "<p>Crie o seu servidor ou entre em um por convite. Só servidores que você criar ou entrar aparecem aqui.</p>" +
         '<div class="empty-state__actions">' +
-        '<button class="btn btn--primary" data-action="create-server">Criar servidor</button>' +
-        '<button class="btn btn--soft" data-action="join-invite">Entrar com convite</button>' +
+        '<button class="btn btn--primary" data-action="create-server">' +
+        NX.icon("plus", "", 16) + " Criar servidor</button>" +
+        '<button class="btn btn--soft" data-action="nav-explore">' +
+        NX.icon("search", "", 16) + " Explorar servidores</button>" +
         "</div></div>";
 
     const tips =
@@ -789,7 +384,7 @@ window.NX = window.NX || {};
     const me = S().me();
     const people = [];
     S().membershipsOf(me.id).forEach((m) => {
-      S().membersOf(m.serverId).forEach((row) => {
+      S().visibleMembersOf(m.serverId).forEach((row) => {
         if (row.user.id !== me.id && !people.some((p) => p.id === row.user.id)) people.push(row.user);
       });
     });

@@ -273,7 +273,6 @@ window.NX = window.NX || {};
       title: "MINHA CONTA",
       items: [
         { id: "account", label: "Perfil", icon: "user" },
-        { id: "email", label: "E-mail", icon: "mail" },
         { id: "password", label: "Senha", icon: "lock" },
       ],
     },
@@ -297,6 +296,7 @@ window.NX = window.NX || {};
     {
       title: "PRIVACIDADE",
       items: [
+        { id: "privacy-social", label: "Quem pode interagir", icon: "userPlus" },
         { id: "privacy-dms", label: "Mensagens privadas", icon: "lock" },
         { id: "privacy-invites", label: "Convites", icon: "link" },
         { id: "privacy-blocks", label: "Bloqueios", icon: "alert" },
@@ -318,7 +318,6 @@ window.NX = window.NX || {};
   /* seção -> painel */
   const SECTION_PANEL = {
     account: "account",
-    email: "email",
     password: "password",
     "theme-dark": "appearance",
     "theme-light": "appearance",
@@ -327,6 +326,7 @@ window.NX = window.NX || {};
     "notif-messages": "notifications",
     "notif-mentions": "notifications",
     "notif-sounds": "notifications",
+    "privacy-social": "privacySocial",
     "privacy-dms": "privacy",
     "privacy-invites": "privacy",
     "privacy-blocks": "privacy",
@@ -340,7 +340,6 @@ window.NX = window.NX || {};
     perfil: "account",
     conta: "account",
     senha: "password",
-    mail: "email",
     tema: "theme-dark",
     theme: "theme-dark",
     appearance: "theme-dark",
@@ -351,6 +350,9 @@ window.NX = window.NX || {};
     notificacoes: "notif-messages",
     privacy: "privacy-dms",
     privacidade: "privacy-dms",
+    interacoes: "privacy-social",
+    visibilidade: "privacy-social",
+    social: "privacy-social",
     security: "security-sessions",
     seguranca: "security-sessions",
     sair: "logout",
@@ -643,62 +645,7 @@ window.NX = window.NX || {};
       .then(done, done);
   }
 
-  /* ---------- 2. E-mail ---------- */
-  PANELS.email = function () {
-    const m = me();
-    if (!m) return { html: needAccount("Entre na sua conta para alterar o e-mail.") };
-
-    const html =
-      '<section class="set-card">' +
-      headBlock("E-mail da conta", "Usado para entrar na sua conta e para recuperar o acesso quando você esquecer a senha.") +
-      '<form data-form="email" novalidate>' +
-      '<div class="set-note set-note--accent" style="margin-bottom:14px">' + ico("info", 17) +
-      "<span>Conta conectada como <strong>@" + esc(m.username) + "</strong>. Ao trocar o e-mail, o próximo login passa a usá-lo.</span></div>" +
-      fieldBlock(
-        "E-mail",
-        '<input class="set-input" type="email" name="email" maxlength="120" autocomplete="email" value="' +
-          esc(m.email || "") + '" />',
-        "Digite um endereço válido, como voce@exemplo.com."
-      ) +
-      errorBlock() +
-      '<div class="set-card__foot">' +
-      '<button type="submit" class="set-btn set-btn--primary" data-busy-label="Salvando">Salvar e-mail</button>' +
-      "</div></form></section>";
-
-    return {
-      html: html,
-      wire: function (host) {
-        const form = host.querySelector('[data-form="email"]');
-        if (!form) return;
-        form.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const err = form.querySelector("[data-error]");
-          showErr(err, "");
-          const email = String(formData(form).email || "").trim();
-          if (NX.util && NX.util.isEmail && !NX.util.isEmail(email)) {
-            showErr(err, "Digite um e-mail válido, como voce@exemplo.com.");
-            return;
-          }
-          const btn = form.querySelector('button[type="submit"]');
-          const done = NX.ui && NX.ui.busy ? NX.ui.busy(btn) : function () {};
-          NX.api
-            .updateProfile({ email: email })
-            .then(() => {
-              toast("E-mail atualizado. Use o novo endereço no próximo login.", "success");
-              refresh();
-            })
-            .catch((er) => {
-              const msg = (er && er.message) || "Não foi possível alterar o e-mail agora.";
-              showErr(err, msg);
-              toast(msg, "error");
-            })
-            .then(done, done);
-        });
-      },
-    };
-  };
-
-  /* ---------- 3. Senha ---------- */
+  /* ---------- 2. Senha ---------- */
   PANELS.password = function () {
     const m = me();
     if (!m) return { html: needAccount("Entre na sua conta para alterar sua senha.") };
@@ -991,6 +938,269 @@ window.NX = window.NX || {};
             refresh();
           });
         }
+      },
+    };
+  };
+
+  /* ---------- 6b. Privacidade da conta (rede social) ----------
+     Controles ligados em me.privacy, sempre via NX.api.updateSocialPrivacy.
+     A fonte de verdade é o estado devolvido pela API (nunca o valor clicado). */
+  const SP_DEFAULTS = {
+    follow: "all",
+    dm: "all",
+    followers: "all",
+    likes: "all",
+    posts: "public",
+    friendRequests: "all",
+  };
+
+  const SP_VALID = {
+    follow: ["all", "approved"],
+    dm: ["all", "friends", "followers", "none"],
+    followers: ["all", "followers", "self"],
+    likes: ["all", "followers", "self"],
+    posts: ["public", "followers", "self"],
+    friendRequests: ["all", "common", "none"],
+  };
+
+  const SP_GROUPS = [
+    {
+      key: "follow",
+      label: "Quem pode me seguir?",
+      options: [
+        ["all", "Todos"],
+        ["approved", "Apenas aprovados"],
+      ],
+      hints: {
+        all: "Todos: qualquer pessoa pode começar a te seguir sem pedir sua permissão.",
+        approved: "Apenas aprovados: quem quiser te seguir recebe uma solicitação que você aceita ou recusa.",
+      },
+    },
+    {
+      key: "dm",
+      label: "Quem pode enviar DM?",
+      options: [
+        ["all", "Todos"],
+        ["friends", "Amigos"],
+        ["followers", "Seguidores"],
+        ["none", "Ninguém"],
+      ],
+      hints: {
+        all: "Todos: qualquer pessoa pode iniciar uma conversa direta com você.",
+        friends: "Amigos: só quem é seu amigo no Nexo consegue começar uma conversa direta.",
+        followers: "Seguidores: só quem já te segue pode começar uma conversa direta.",
+        none: "Ninguém: ninguém consegue iniciar uma conversa direta com você.",
+      },
+    },
+    {
+      key: "followers",
+      label: "Quem pode ver meus seguidores?",
+      options: [
+        ["all", "Todos"],
+        ["followers", "Seguidores"],
+        ["self", "Apenas eu"],
+      ],
+      hints: {
+        all: "Todos: qualquer pessoa pode abrir a sua lista de seguidores.",
+        followers: "Seguidores: só quem já te segue consegue ver quem te segue.",
+        self: "Apenas eu: ninguém além de você vê a sua lista de seguidores.",
+      },
+    },
+    {
+      key: "likes",
+      label: "Quem pode ver minhas curtidas?",
+      options: [
+        ["all", "Todos"],
+        ["followers", "Seguidores"],
+        ["self", "Apenas eu"],
+      ],
+      hints: {
+        all: "Todos: qualquer pessoa que abrir seu perfil vê o ❤️ de curtidas recebidas.",
+        followers: "Seguidores: só quem já te segue vê quantas curtidas você recebeu.",
+        self: "Apenas eu: o ❤️ do seu perfil aparece como privado para os outros.",
+      },
+    },
+    {
+      key: "posts",
+      label: "Quem pode ver minhas publicações?",
+      options: [
+        ["public", "Público"],
+        ["followers", "Seguidores"],
+        ["self", "Apenas eu"],
+      ],
+      hints: {
+        public: "Público: suas publicações aparecem para qualquer pessoa no Nexo, mesmo para quem não te segue.",
+        followers: "Seguidores: só quem já te segue vê as suas publicações no feed.",
+        self: "Apenas eu: só você vê as suas publicações.",
+      },
+    },
+    {
+      key: "friendRequests",
+      label: "Solicitações de amizade",
+      options: [
+        ["all", "Todos"],
+        ["common", "Amigos em comum"],
+        ["none", "Ninguém"],
+      ],
+      hints: {
+        all: "Todos: qualquer pessoa pode te enviar uma solicitação de amizade.",
+        common: "Amigos em comum: só quem tem pelo menos um amigo em comum pode te chamar de amizade.",
+        none: "Ninguém: ninguém envia solicitação de amizade para você.",
+      },
+    },
+  ];
+
+  function spGroup(key) {
+    for (let i = 0; i < SP_GROUPS.length; i++) {
+      if (SP_GROUPS[i].key === key) return SP_GROUPS[i];
+    }
+    return null;
+  }
+
+  /* estado atual = me.privacy (padrões do migrateSocial quando faltar algo) */
+  function spValues() {
+    const m = me();
+    const p = (m && m.privacy) || {};
+    const out = {};
+    SP_GROUPS.forEach((g) => {
+      const v = p[g.key];
+      out[g.key] = SP_VALID[g.key].indexOf(v) > -1 ? v : SP_DEFAULTS[g.key];
+    });
+    return out;
+  }
+
+  function spSegHTML(g, value) {
+    const options = g.options
+      .map((o) => {
+        const on = o[0] === value;
+        return (
+          '<label class="set-seg__btn' + (on ? " is-on" : "") + '" data-seg-opt="' + o[0] + '">' +
+          '<input type="radio" name="set-sp-' + g.key + '" value="' + o[0] + '"' +
+          (on ? " checked" : "") +
+          ' data-social="' + g.key + '" />' +
+          "<span>" + esc(o[1]) + "</span></label>"
+        );
+      })
+      .join("");
+    return (
+      '<div class="set-seg set-seg--sp" data-priv-seg="' + g.key + '" data-busy-label="Salvando"' +
+      ' role="radiogroup" aria-labelledby="set-sp-lbl-' + g.key +
+      '" aria-describedby="set-sp-hint-' + g.key + '">' +
+      options +
+      "</div>"
+    );
+  }
+
+  /* repinta um grupo a partir do valor autoritativo (e devolve o foco,
+     já que o busy do controle recria os inputs) */
+  function spMark(host, key, value, refocus) {
+    const g = spGroup(key);
+    const wrap = host.querySelector('[data-priv-group="' + key + '"]');
+    if (!g || !wrap) return;
+    Array.prototype.forEach.call(wrap.querySelectorAll("[data-seg-opt]"), (el) => {
+      const on = el.getAttribute("data-seg-opt") === value;
+      el.classList.toggle("is-on", on);
+      const input = el.querySelector("input");
+      if (input) input.checked = on;
+    });
+    const hint = wrap.querySelector("[data-priv-hint]");
+    if (hint) hint.textContent = g.hints[value] || "";
+    if (refocus) {
+      const input = wrap.querySelector('[data-seg-opt="' + value + '"] input');
+      if (input && input.focus) input.focus();
+    }
+  }
+
+  function spSave(host, key, value) {
+    const g = spGroup(key);
+    const prev = spValues()[key];
+
+    /* valor desconhecido ou já salvo: só realinha a interface */
+    if (!g || SP_VALID[key].indexOf(value) === -1 || value === prev) {
+      spMark(host, key, prev, false);
+      return;
+    }
+
+    if (!NX.api || typeof NX.api.updateSocialPrivacy !== "function") {
+      spMark(host, key, prev, false);
+      toast("Não foi possível salvar agora. Tente de novo.", "error");
+      return;
+    }
+
+    const seg = host.querySelector('[data-priv-seg="' + key + '"]');
+    const hadFocus = !!(seg && document.activeElement && seg.contains(document.activeElement));
+    let next = prev;
+
+    const done = NX.ui && NX.ui.busy ? NX.ui.busy(seg) : function () {};
+    if (seg) seg.setAttribute("aria-busy", "true");
+
+    NX.api
+      .updateSocialPrivacy({ [key]: value })
+      .then(() => {
+        /* só o que a API devolveu vira estado */
+        next = spValues()[key];
+        toast("Preferência de privacidade atualizada.", "success");
+      })
+      .catch((er) => {
+        /* deu erro: recarrega o valor anterior, nada de estado falso */
+        next = spValues()[key];
+        toast((er && er.message) || "Não foi possível salvar agora. Tente de novo.", "error");
+      })
+      .then(() => {
+        done();
+        if (seg) seg.removeAttribute("aria-busy");
+        spMark(host, key, next, hadFocus);
+      });
+  }
+
+  PANELS.privacySocial = function () {
+    const cur = spValues();
+
+    const groups = SP_GROUPS.map((g) => {
+      const value = cur[g.key];
+      return (
+        '<div class="set-priv" data-priv-group="' + g.key + '">' +
+        '<span class="set-label" id="set-sp-lbl-' + g.key + '">' + esc(g.label) + "</span>" +
+        spSegHTML(g, value) +
+        '<span class="set-hint" data-priv-hint="' + g.key + '" id="set-sp-hint-' + g.key + '">' +
+        esc(g.hints[value] || "") +
+        "</span></div>"
+      );
+    }).join("");
+
+    const html =
+      '<section class="set-card" data-focus-card="privacy-social">' +
+      headBlock(
+        "Privacidade",
+        "Escolha quem pode te seguir, te escrever e ver o que você publica. Cada escolha vale para a sua conta no Nexo inteira."
+      ) +
+      groups +
+      '<div class="set-card__foot">' +
+      '<span class="set-hint" style="margin-right:auto">Cada opção é salva sozinha assim que você escolhe.</span>' +
+      "</div></section>" +
+      '<section class="set-card">' +
+      headBlock("Como funciona na prática", "Nada muda no seu perfil: só quem consegue chegar até você.") +
+      noteBlock(
+        'Com "Apenas aprovados", os pedidos de seguimento aparecem em Solicitações e você aceita ou recusa um a um.',
+        null
+      ) +
+      '<div style="margin-top:10px">' +
+      noteBlock(
+        'Com "Apenas eu" nas publicações, só você enxerga as suas postagens — nem quem te segue.',
+        "accent"
+      ) +
+      "</div></section>";
+
+    return {
+      html: html,
+      wire: function (host) {
+        host.addEventListener("change", (e) => {
+          const input = e.target;
+          if (!input || !input.getAttribute) return;
+          const key = input.getAttribute("data-social");
+          if (!key) return;
+          spSave(host, key, input.value);
+        });
       },
     };
   };
@@ -1373,7 +1583,6 @@ window.NX = window.NX || {};
       refresh();
     },
     "set-save-profile": () => submitForm("profile"),
-    "set-save-email": () => submitForm("email"),
     "set-save-password": () => submitForm("password"),
   };
 

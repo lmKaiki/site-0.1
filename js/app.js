@@ -21,17 +21,17 @@ window.NX = window.NX || {};
   app.screen = null;
   app.pendingInvite = null;
 
-  const AUTH_MODES = { login: "#/login", cadastro: "#/cadastro", recuperar: "#/recuperar", verificar: "#/verificar" };
+  /* login da Nexo: SOMENTE nome de usuário + senha.
+     (sem recuperação por e-mail, sem verificação de e-mail) */
+  const AUTH_MODES = { login: "#/login", cadastro: "#/cadastro" };
   /* data-mode (telas) → trecho de rota */
   const AUTH_ALIAS = {
     login: "login",
     signup: "cadastro",
     cadastro: "cadastro",
-    forgot: "recuperar",
-    recuperar: "recuperar",
-    verify: "verificar",
-    verificar: "verificar",
   };
+  /* rotas antigas (e-mail/código) voltam para o login */
+  const LEGACY_AUTH = { recuperar: 1, verificar: 1, forgot: 1, verify: 1 };
 
   /* ---------------- navegação ---------------- */
   app.go = function (hash) {
@@ -156,6 +156,11 @@ window.NX = window.NX || {};
 
     /* ---- sem sessão: landing pública ou autenticação ---- */
     if (!me) {
+      if (LEGACY_AUTH[seg[0]]) {
+        /* endereço antigo (e-mail/código): cai sempre no login */
+        app.go("#/login");
+        return;
+      }
       const mode = AUTH_MODES[seg[0]] ? seg[0] : seg[0] === "config" ? "login" : null;
       if (!mode) {
         showLanding();
@@ -170,7 +175,7 @@ window.NX = window.NX || {};
     }
 
     /* ---- logado mas em rota de auth ---- */
-    if (AUTH_MODES[seg[0]]) {
+    if (AUTH_MODES[seg[0]] || LEGACY_AUTH[seg[0]]) {
       lastAuthMode = null;
       app.go("#/");
       return;
@@ -268,6 +273,7 @@ window.NX = window.NX || {};
   A["nav"] = (el) => app.go(el.getAttribute("data-to") || "#/");
   A["nav-home"] = () => app.go("#/");
   A["nav-messages"] = () => app.go("#/mensagens");
+  A["nav-feed"] = () => app.go("#/feed");
   A["nav-explore"] = () => app.go("#/explorar");
 
   /* ---- landing / autenticação ---- */
@@ -282,7 +288,7 @@ window.NX = window.NX || {};
       termos: {
         title: "Termos de Uso",
         body: [
-          "1. Conta — você é responsável pelas atividades realizadas na sua conta. Use um e-mail válido e mantenha sua senha em segurança.",
+          "1. Conta — você é responsável pelas atividades realizadas na sua conta. Use um nome de usuário único e mantenha sua senha em segurança.",
           "2. Conduta — respeite as pessoas. Não publique conteúdo ilegal, de ódio, assédio ou que viole direitos de terceiros.",
           "3. Comunidades — os administradores de cada servidor definem as regras e podem moderar conteúdo, cargos e membros.",
           "4. Serviço — este ambiente é um protótipo de demonstração: os dados podem ser reiniciados a qualquer momento.",
@@ -291,7 +297,7 @@ window.NX = window.NX || {};
       privacidade: {
         title: "Política de Privacidade",
         body: [
-          "1. Dados — nome, e-mail, avatar, mensagens e preferências ficam armazenados para que a plataforma funcione.",
+          "1. Dados — nome de usuário, avatar, mensagens e preferências ficam armazenados para que a plataforma funcione.",
           "2. Uso — as informações servem para exibir seu perfil, organizar servidores e enviar notificações.",
           "3. Controle — você pode editar seu perfil, bloquear pessoas e excluir conteúdos que publicou.",
           "4. Nada é compartilhado com terceiros fora do escopo de operar a plataforma.",
@@ -479,14 +485,10 @@ window.NX = window.NX || {};
     app.go(AUTH_MODES[AUTH_ALIAS[mode] || mode] || "#/login");
   };
 
-  A["auth-google"] = () => {
-    NX.modals.googleSignIn();
-  };
-
   A["fill-demo"] = () => {
     const form = document.querySelector('form[data-form="login"]');
     if (!form) return;
-    form.elements.identifier.value = "demo@nexo.chat";
+    form.elements.identifier.value = "demo";
     form.elements.password.value = "nexo123";
     form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true }));
   };
@@ -632,22 +634,6 @@ window.NX = window.NX || {};
       if (warn) {
         console.warn("[Nexo] " + warn);
         setTimeout(() => NX.ui.toast(warn, "warn", 9000), 700);
-      }
-    } catch (e) {}
-
-    /* retorno do Google OAuth (?code=) — a troca por token é do backend */
-    try {
-      const gcode = NX.google.pendingCode();
-      if (gcode) {
-        const url = new URL(location.href);
-        url.searchParams.delete("code");
-        url.searchParams.delete("state");
-        history.replaceState(null, "", url.pathname + url.search + url.hash);
-        console.info(
-          "[Nexo][DEMO] código OAuth recebido do Google — a troca por access_token " +
-            "acontece no backend (o client_secret nunca fica no navegador)."
-        );
-        NX.ui.toast("Retorno do Google recebido. A troca do código por token é feita no servidor.", "info", 6500);
       }
     } catch (e) {}
 

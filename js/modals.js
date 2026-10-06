@@ -1391,8 +1391,6 @@ window.NX = window.NX || {};
       '<input class="input" name="displayName" maxlength="32" value="' + u().h(me.displayName) + '" data-autofocus /></label>' +
       '<label class="field"><span class="field__label">Nome de usuário</span>' +
       '<input class="input" name="username" maxlength="18" value="' + u().h(me.username) + '" /></label>' +
-      '<label class="field"><span class="field__label">E-mail</span>' +
-      '<input class="input" name="email" type="email" value="' + u().h(me.email) + '" /></label>' +
       '<label class="field"><span class="field__label">Bio</span>' +
       '<textarea class="input input--area" name="bio" rows="2" maxlength="190" placeholder="Conte quem é você">' +
       u().h(me.bio || "") +
@@ -1435,7 +1433,6 @@ window.NX = window.NX || {};
         api().updateProfile({
           displayName: d.displayName,
           username: d.username,
-          email: d.email,
           bio: d.bio,
           status: d.status,
           statusText: d.statusText,
@@ -1644,74 +1641,6 @@ window.NX = window.NX || {};
       ],
       { align: "start", side: "top" }
     );
-  };
-
-  /* =========================================================
-     CONTINUAR COM GOOGLE
-     ========================================================= */
-  M.googleSignIn = function () {
-    /* provedor real configurado → fluxo do Google de verdade */
-    if (NX.google.isConfigured()) {
-      const res = NX.google.begin();
-      if (res && res.error) NX.ui.error(res.error);
-      return;
-    }
-
-    /* sem client id: dizemos a verdade e deixamos testar o retorno */
-    if (console && console.info) {
-      console.info(
-        "[Nexo][DEMO] adaptador Google em MODO DEMO — sem client_id configurado, " +
-          "nenhum redirecionamento real foi feito."
-      );
-    }
-
-    const footer = u().el(
-      ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-google" data-busy-label="Entrando">Continuar com Google</button>'
-      )
-    );
-    const m = NX.ui.modal({
-      title: "Continuar com Google",
-      eyebrow: "Acesso externo",
-      size: "md",
-      footer: footer,
-    });
-
-    m.body.innerHTML =
-      '<div class="notice">' + NX.icon("alert", "", 18) +
-      "<div><strong>O acesso com Google ainda não está configurado neste ambiente.</strong>" +
-      "<p>Nenhum redirecionamento real foi feito. Informe os dados que o Google devolveria " +
-      "para testar o fluxo — em produção este botão leva direto para a conta do Google, " +
-      "sem esta janela.</p></div></div>" +
-      '<form id="form-google" class="form" novalidate>' +
-      '<label class="field"><span class="field__label">E-mail da conta Google</span>' +
-      '<input class="input" name="email" type="email" placeholder="voce@gmail.com" data-autofocus /></label>' +
-      '<label class="field"><span class="field__label">Nome exibido <em>(opcional)</em></span>' +
-      '<input class="input" name="name" placeholder="Como o Google mostra seu nome" /></label>' +
-      '<div class="form-error" data-error hidden></div>' +
-      "</form>";
-
-    const form = m.body.querySelector("form");
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      showErr(form, "");
-      const data = formData(form);
-      if (!u().isEmail(data.email)) {
-        showErr(form, "Digite um endereço de e-mail válido.");
-        return;
-      }
-      runTask(
-        footer.querySelector('button[type="submit"]'),
-        api().googleSignIn(NX.google.demoProfile(data.email, data.name)),
-        form,
-        (res) => {
-          m.close();
-          NX.ui.toast(res.created ? "Conta criada com o Google." : "Bem-vindo de volta!", "success");
-          NX.app.afterAuth();
-        }
-      );
-    });
   };
 
   NX.modals = M;

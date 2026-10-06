@@ -229,7 +229,10 @@
   z-index: 3;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  max-width: min(70%, 460px);
   padding: 6px;
   border-radius: var(--r-pill);
   background: rgba(6, 17, 15, 0.42);
@@ -282,6 +285,74 @@
   background: var(--bg-elev);
   border-color: var(--border-strong);
   color: var(--text-muted);
+}
+
+/* ---- estatísticas públicas (👥 seguidores · ❤️ curtidas) ---- */
+.pp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px clamp(16px, 3vw, 28px) 0;
+}
+
+.pp-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.pp-stat:hover,
+.pp-stat:focus-visible {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+  transform: translateY(-1px);
+}
+
+.pp-stat__ico {
+  display: inline-flex;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.pp-stat__txt {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.pp-stat__txt strong {
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.pp-stat__txt span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* número escondido pela privacidade: só o cadeado aparece */
+.pp-stat.is-locked {
+  border-style: dashed;
+}
+
+.pp-stat.is-locked .pp-stat__ico,
+.pp-stat.is-locked .pp-stat__txt strong {
+  color: var(--text-dim);
+}
+
+.pp-stat.is-locked .pp-stat__txt strong {
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 /* ---- corpo do cartão ---- */

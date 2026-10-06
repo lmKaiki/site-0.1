@@ -1251,3 +1251,56 @@
     transform: none;
   }
 }
+
+/* ================= PRIVACIDADE DA CONTA =================
+   Grupos de opções da seção "Quem pode interagir" (privacy-social).
+   Reaproveita .set-seg / .set-seg__btn e só acrescenta o prefixo -sp. */
+.set-priv {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 15px 0;
+}
+
+.set-priv + .set-priv {
+  border-top: 1px solid var(--border);
+}
+
+.set-priv .set-hint {
+  max-width: 68ch;
+}
+
+/* segmentado que encolhe para o conteúdo e quebra linha em telas estreitas */
+.set-seg--sp {
+  max-width: 100%;
+  min-height: 47px;
+}
+
+/* estado de gravação (NX.ui.busy) sem pular o layout */
+.set-seg--sp.is-loading {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.set-priv + .set-card__foot {
+  margin-top: 2px;
+}
+
+@media (max-width: 760px) {
+  .set-priv {
+    align-items: stretch;
+    padding: 13px 0;
+  }
+
+  .set-seg--sp {
+    align-self: flex-start;
+  }
+
+  .set-seg--sp .set-seg__btn {
+    white-space: nowrap;
+  }
+}

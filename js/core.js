@@ -361,9 +361,30 @@ window.NX = window.NX || {};
   };
 
   /* ---------------- validação ---------------- */
-  util.isEmail = (v) => /^[^\s@,;:<>()[\]\\"]+@[^\s@,;:<>()[\]\\"]+\.[a-z]{2,}$/i.test(String(v || "").trim());
-
   util.usernameOk = (v) => /^[a-z0-9._]{3,18}$/i.test(String(v || "").trim());
+
+  /* Username canônico da Nexo — usado NO CADASTRO, NO LOGIN e em
+     toda busca por username (uma única regra, nunca duas fontes):
+       1. remove caracteres invisíveis;
+       2. remove espaços do início e do fim;
+       3. minúsculas (OSAK = osak = Osak → a mesma conta).
+     O resultado continua sendo validado por util.usernameOk. */
+  util.normalizeUsername = function (v) {
+    return String(v || "")
+      .replace(/[\u200b-\u200d\ufeff]/g, "")
+      .trim()
+      .toLowerCase();
+  };
+
+  /* número no padrão brasileiro (1.240) — estatísticas do perfil */
+  util.num = function (n) {
+    const v = Math.max(0, Number(n) || 0);
+    try {
+      return v.toLocaleString("pt-BR");
+    } catch (e) {
+      return String(v);
+    }
+  };
 
   util.PASSWORD_RULES = [
     { key: "len", label: "8 caracteres ou mais", test: (v) => v.length >= 8 },
@@ -385,12 +406,10 @@ window.NX = window.NX || {};
 
   util.passwordOk = (v) => util.passwordPolicy(v).ok;
 
-  /* normaliza um identificador digitado (e-mail, @usuário ou nome) */
+  /* normaliza o identificador digitado (nome de usuário ou @usuário)
+     — mesma regra do cadastro, para login e cadastro baterem sempre */
   util.normalizeIdentifier = function (v) {
-    return String(v || "")
-      .replace(/[\u200b-\u200d\ufeff]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    return util.normalizeUsername(String(v || "").replace(/^@/, ""));
   };
 
   /* código numérico criptográfico (nunca Math.random) */
@@ -744,6 +763,35 @@ window.NX = window.NX || {};
     NX.storage.set(NX.THEME_KEY, t);
   };
   NX.currentTheme = () => NX.storage.get(NX.THEME_KEY, "dark");
+
+  /* ---------------- modo de demonstração (DEMO_MODE) ----------------
+     DEMO_MODE = false (PADRÃO / PRODUÇÃO):
+       · o seed NÃO roda — nenhum servidor, usuário, mensagem, amigo,
+         seguidor, curtida ou notificação fictício é criado;
+       · dados fictícios de versões antigas são apagados no carregamento
+         (store.purgeDemo) — contas e servidores REAIS nunca são tocados.
+     DEMO_MODE = true (só dev/protótipo, ligado explicitamente com
+       NX.setDemoMode(true) ou window.NEXO_DEMO_MODE = true):
+       · o seed cria os dados de demonstração para explorar a interface.
+     Nada real é apagado ao trocar de modo. */
+  NX.DEMO_KEY = "nx.demo_mode";
+  NX.demoMode = () => {
+    if (window.NEXO_DEMO_MODE === true) return true;
+    if (window.NEXO_DEMO_MODE === false) return false;
+    try {
+      return NX.storage.get(NX.DEMO_KEY, "off") === "on";
+    } catch (e) {
+      return false; /* produção por padrão */
+    }
+  };
+  NX.setDemoMode = (on) => {
+    try {
+      NX.storage.set(NX.DEMO_KEY, on ? "on" : "off");
+    } catch (e) {}
+    NX.DEMO_MODE = !!on;
+    window.NEXO_DEMO_MODE = !!on;
+  };
+  NX.DEMO_MODE = NX.demoMode();
 
   /* ---------------- eventos de rota ---------------- */
   NX.actions = {};
