@@ -1,13 +1,32 @@
-# credenciais — nunca versionadas
+# ============================================================
+#  NEXO .gitignore  (ASCII puro, sem acentos)
+#  NUNCA versionar credenciais / segredos
+# ============================================================
+
+# --- credenciais: nunca versionadas ---
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
+netlify-token
+.netlify
 
-# dependências e build
+# --- chaves de API e tokens (qualquer arquivo com esse nome) ---
+*secret*
+*token*
+!*tokens.css
+
+# --- dependencias e build ---
 node_modules/
 .vercel/
 *.log
 
-# sistema
+# --- sistema ---
 .DS_Store
 Thumbs.db
+desktop.ini
