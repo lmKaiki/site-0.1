@@ -1,0 +1,14 @@
+# ============================================================
+#  NEXO · deploy automático no Netlify
+#  Repo: lmKaiki/site-0.1  ·  branch: main
+#
+#  Site 100% estático (index.html + css/ + js/):
+#  NÃO há build, npm nem etapa de compilação — o Netlify só
+#  publica os arquivos da raiz deste projeto.
+# ============================================================
+
+[build]
+  # diretório publicado = raiz do projeto (contém index.html)
+  publish = "."
+  # sem build command: nenhum npm/node é executado
+  command = ""
