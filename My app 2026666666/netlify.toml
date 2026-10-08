@@ -1,0 +1,57 @@
+# ============================================================
+#  NEXO - deploy automatico no Netlify
+#  Repo: lmKaiki/site-0.1  |  branch: main
+#
+#  Frontend estatico (index.html + css/ + js/) + backend
+#  (Netlify Functions em netlify/functions/api.js) que fala
+#  com o Supabase (PostgreSQL).
+#
+#  SEGURANCA: nenhuma credencial mora aqui. As variaveis
+#  SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY
+#  sao configuradas em:
+#     Netlify > Site configuration > Environment variables
+#  e existem apenas no ambiente da Function (backend).
+# ============================================================
+
+[build]
+  # diretorio publicado = raiz do projeto (contem index.html)
+  publish = "."
+  # sem build command: nenhum npm/node e executado
+  command = ""
+
+[functions]
+  # uma unica funcao: /api/* -> netlify/functions/api.js
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["node:sqlite"]
+
+[functions.environment]
+  # apenas valores fixos e NAO secretos podem ir aqui.
+  NEXO_DB = "supabase"
+
+# /api/* vira a Function acima (o handler aceita tanto o caminho
+# original quanto o caminho da funcao)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA: qualquer rota sem extensao cai no index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # a chave de servico nunca e um asset: nada aqui a expoe
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/.env*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Harness de teste do módulo social (feed, publicações, seguidores, curtidas e comentários) do Nexo." />
+  <title>Nexo · Social (harness)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230E1517'/%3E%3Cpath d='M18 45V19l28 26V19' stroke='%2335E0A8' stroke-width='6.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/chatmedia.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/permui.css" />
+  <link rel="stylesheet" href="css/people.css" />
+  <link rel="stylesheet" href="css/social.css" />
+  <link rel="stylesheet" href="css/extras.css" />
+  <style>
+    /* ---- estilos só do harness (não fazem parte do protótipo) ---- */
+    .sxh {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      background: var(--bg-sidebar);
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .sxh-brand {
+      font-weight: 800;
+      color: var(--text-strong);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .sxh-brand b { color: var(--accent); font-weight: 800; }
+
+    .sxh-group { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; }
+
+    .sxh button {
+      font: inherit;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elev);
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .sxh button:hover { border-color: var(--accent); color: var(--text-strong); }
+    .sxh button.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #06231a); font-weight: 700; }
+
+    .sxh-run { font-weight: 800; border-color: var(--accent) !important; }
+
+    .sxh-status {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      max-width: 42vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sxh-status.is-err { color: var(--danger); }
+
+    #sxh-audit {
+      position: fixed;
+      right: 8px;
+      bottom: 56px;
+      z-index: 96;
+      margin: 0;
+      max-width: min(560px, 70vw);
+      max-height: 34vh;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.82);
+      color: #7cffd4;
+      font: 600 11.5px/1.45 ui-monospace, Consolas, monospace;
+      padding: 8px 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      pointer-events: none;
+    }
+
+    body.sxh-nochrome .sxh,
+    body.sxh-nochrome #sxh-audit { display: none !important; }
+
+    @media (max-width: 720px) {
+      .sxh-status { max-width: 100%; }
+      #sxh-audit { bottom: 92px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- captura de erros ANTES de qualquer módulo carregar -->
+  <script>
+    window.__sxErrors = [];
+    (function () {
+      function push(msg) {
+        try {
+          var s = String(msg == null ? "" : msg && msg.message ? msg.message : msg);
+          if (s.indexOf("[harness") === 0) return; /* erros do próprio harness */
+          window.__sxErrors.push(s);
+          if (window.__sxErrors.length > 40) window.__sxErrors.shift();
+        } catch (e) {}
+      }
+      window.addEventListener("error", function (e) { push(e.message || e.error); });
+      window.addEventListener("unhandledrejection", function (e) { push("promise: " + (e.reason && e.reason.message || e.reason)); });
+      var ce = console.error;
+      console.error = function () {
+        try {
+          push(Array.prototype.map.call(arguments, function (a) {
+            return a && a.message ? a.message : typeof a === "object" ? JSON.stringify(a) : String(a);
+          }).join(" "));
+        } catch (e) {}
+        return ce.apply(console, arguments);
+      };
+    })();
+  </script>
+
+  <!-- caixa de auditoria do harness -->
+  <pre id="sxh-audit">carregando…</pre>
+
+  <!-- Landing page pública (deslogado) -->
+  <section id="screen-landing" class="screen screen--landing" hidden></section>
+
+  <!-- Tela inicial / autenticação -->
+  <section id="screen-auth" class="screen screen--auth" hidden></section>
+
+  <!-- Página de convite -->
+  <section id="screen-invite" class="screen screen--invite" hidden></section>
+
+  <!-- Configurações do usuário (camada sobre o app) -->
+  <section id="screen-settings" class="screen screen--settings" hidden></section>
+
+  <!-- Aplicação principal -->
+  <div id="screen-app" class="app-shell" hidden>
+    <nav id="rail" class="rail" aria-label="Servidores"></nav>
+    <aside id="sidebar" class="sidebar" aria-label="Canais do servidor"></aside>
+    <main id="main" class="main">
+      <header id="channel-header" class="channel-header"></header>
+      <div id="main-content" class="main-content"></div>
+      <footer id="composer" class="composer" hidden></footer>
+    </main>
+    <aside id="members" class="members" aria-label="Membros"></aside>
+    <div id="scrim" class="scrim" hidden></div>
+  </div>
+
+  <!-- Camadas de UI -->
+  <div id="modal-root"></div>
+  <div id="popout-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <!-- Barra de controle do harness (fica abaixo de modal/popout/toast) -->
+  <div class="sxh" id="sxh" hidden>
+    <span class="sxh-brand">Nexo · social <b>harness</b></span>
+    <div class="sxh-group">
+      <button type="button" data-v="feed">Feed</button>
+      <button type="button" data-v="composer">Composer</button>
+      <button type="button" data-v="compose-modal">Novo post (modal)</button>
+      <button type="button" data-v="comments">Comentários</button>
+      <button type="button" data-v="followers">Seguidores</button>
+      <button type="button" data-v="following">Seguindo</button>
+      <button type="button" data-v="requests">Solicitações</button>
+      <button type="button" data-v="profile">Perfil</button>
+      <button type="button" data-v="light">Tema claro</button>
+      <button type="button" data-v="audit">Auditoria</button>
+    </div>
+    <button type="button" class="sxh-run" id="sxh-run">Testes</button>
+    <span class="sxh-status" id="sxh-status">…</span>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/modals.js"></script>
+  <!-- módulos auto-contidos (registram ações com prefixo próprio) -->
+  <script src="js/landing.js"></script>
+  <script src="js/chatmedia.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/permui.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/social.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    (function () {
+      "use strict";
+      var NX = window.NX;
+      var Q = new URLSearchParams(location.search);
+
+      /* ?wipe=1 → manutenção do harness: apaga SÓ o banco demo (nexo.db.v3)
+         para o seed recriar os dados sociais (novo banco vazio => NX.seed()).
+         Tema, sessão e preferências (nexo.ui.v1) não são tocados. */
+      if (Q.get("wipe") === "1") {
+        try { localStorage.removeItem("nexo.db.v3"); } catch (e) {}
+        location.href = location.pathname; /* volta para a URL sem o parâmetro */
+        return;
+      }
+
+      /* sessão demo + rota do feed ANTES do bootstrap do app */
+      try {
+        NX.store.load();
+        NX.seed();
+        if (!NX.selectors.me()) {
+          var demo = Object.values(NX.store.db.users).filter(function (x) { return x.demo; })[0];
+          if (demo) NX.session.set(demo.id, true);
+        }
+        if (!location.hash || location.hash === "#/") location.hash = "#/feed";
+      } catch (e) {
+        console.error("[harness:prime]", e);
+      }
+
+      function status(msg, isErr) {
+        var el = document.getElementById("sxh-status");
+        if (!el) return;
+        el.textContent = msg;
+        el.className = "sxh-status" + (isErr ? " is-err" : "");
+      }
+
+      function box() { return document.getElementById("sxh-audit"); }
+      function setAudit(txt) { var b = box(); if (b) b.textContent = txt; }
+
+      window.addEventListener("error", function (e) {
+        status("ERRO: " + (e.message || "desconhecido"), true);
+      });
+
+      /* ---------------- utilitários do harness ---------------- */
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      function nav(hash) {
+        return new Promise(function (r) {
+          if (location.hash === hash) { r(); return; }
+          location.hash = hash;
+          setTimeout(r, 320);
+        });
+      }
+      function q(sel, root) { return (root || document).querySelector(sel); }
+      function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+      function setVal(el, v) {
+        el.value = v;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      function submit(form) {
+        if (form.requestSubmit) form.requestSubmit();
+        else form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+      }
+      function lastBackdrop() {
+        var all = qa(".modal-backdrop");
+        return all.length ? all[all.length - 1] : null;
+      }
+      /* confirma se um diálogo de confirmação empilhou (btn que não é "Cancelar") */
+      async function confirmIfAsked() {
+        await sleep(420);
+        var backs = qa(".modal-backdrop");
+        for (var i = backs.length - 1; i >= 0; i--) {
+          var btn = q(".modal__foot .btn:not(.btn--ghost), .modal__actions .btn:not(.btn--ghost)", backs[i]);
+          if (btn && /excluir|deixar de seguir|cancelar solicita|apagar|sim/i.test(btn.textContent)) {
+            btn.click(); await sleep(700); return true;
+          }
+        }
+        return false;
+      }
+      function closeModals() {
+        qa(".modal-backdrop [data-modal-close]").forEach(function (b) { b.click(); });
+      }
+      function toastText() {
+        return qa(".toast").map(function (t) { return t.textContent.trim(); }).join(" | ");
+      }
+      function errs() {
+        return window.__sxErrors.slice();
+      }
+
+      /* ---------------- auditoria visual ---------------- */
+      function audit(label) {
+        var out = [];
+        var de = document.documentElement;
+        out.push((label ? label + " ;; " : "") + "rota=" + (location.hash || "(base)"));
+        out.push("overflowX=" + (de.scrollWidth - de.clientWidth));
+        var vw = window.innerWidth, vh = window.innerHeight, wide = [];
+        qa("#sxh *, #main-content *, .modal *, .menu *, .popout *, .sx-post *, .sx-composer *").forEach(function (el) {
+          if (el.classList && el.classList.contains("sx-file")) return;
+          var cs = window.getComputedStyle(el);
+          if (cs.opacity === "0" || cs.pointerEvents === "none" || cs.visibility === "hidden") return;
+          var b = el.getBoundingClientRect();
+          if (!b.width || !b.height) return;
+          if (b.right > vw + 2 || b.left < -2) wide.push((el.className || el.tagName).toString().slice(0, 44));
+        });
+        out.push("foraDaViewport=" + (wide.length ? wide.slice(0, 8).join(" | ") : "nenhum"));
+        var m = q(".modal");
+        if (m) {
+          var mb = m.getBoundingClientRect();
+          out.push("modal=top" + Math.round(mb.top) + ",bottom" + Math.round(mb.bottom) + ",vh" + vh +
+            ",cabemNoViewport=" + (mb.bottom <= vh + 1 && mb.top >= -1));
+          var t = q(".modal__title", m);
+          out.push("modalTitulo=" + (t ? t.textContent.trim() : "-"));
+          var rows = qa(".sx-row", m).length;
+          if (rows) out.push("linhasModal=" + rows);
+        }
+        out.push("cartoes=" + qa("#main-content .sx-post").length);
+        out.push("composer=" + !!q("#main-content form[data-sx-form='composer']"));
+        out.push("threadAberta=" + qa(".sx-comments").length);
+        out.push("tema=" + (document.documentElement.getAttribute("data-theme") || "?"));
+        out.push("bgCorpo=" + getComputedStyle(document.body).backgroundColor);
+        out.push("toast=" + (toastText() || "nenhum"));
+        out.push("erros=" + (errs().length ? errs().slice(0, 4).join(" | ") : "nenhum"));
+        var res = out.join("\n");
+        setAudit(res);
+        status("audit ok");
+        return res;
+      }
+
+      /* ---------------- fixture: solicitação pendente recebida ----------------
+         O seed não traz pedidos pendentes; para exibir a aba "Solicitações"
+         inserimos uma aresta pendente direto na coleção follows (e limpo no fim). */
+      function fixtureRequest(otherId) {
+        var me = NX.selectors.me();
+        var id = otherId + ">" + me.id;
+        if (NX.store.db.follows[id]) return id;
+        NX.store.db.follows[id] = {
+          id: id, followerId: otherId, followingId: me.id, state: "pending",
+          createdAt: Date.now(), fixture: true /* o harness limpa na próxima carga */
+        };
+        NX.store.persist();
+        NX.store.commit(["profile", "posts", "notifications", "members"]);
+        return id;
+      }
+      function purgeFixtures() {
+        var n = 0;
+        Object.keys(NX.store.db.follows || {}).forEach(function (k) {
+          if (NX.store.db.follows[k] && NX.store.db.follows[k].fixture) {
+            delete NX.store.db.follows[k];
+            n++;
+          }
+        });
+        /* publicações/comentários deixados pelos testes automatizados */
+        var rmPosts = [];
+        Object.keys(NX.store.db.posts || {}).forEach(function (k) {
+          var p = NX.store.db.posts[k];
+          if (p && /^Teste <b>Nexo<\/b> & "aspas" /.test(String(p.content || ""))) rmPosts.push(k);
+        });
+        rmPosts.forEach(function (k) {
+          delete NX.store.db.posts[k];
+          n++;
+          Object.keys(NX.store.db.likes || {}).forEach(function (lk) {
+            var l = NX.store.db.likes[lk];
+            if (l && l.targetType === "post" && l.targetId === k) delete NX.store.db.likes[lk];
+          });
+        });
+        Object.keys(NX.store.db.comments || {}).forEach(function (k) {
+          var c = NX.store.db.comments[k];
+          if (!c) return;
+          if (rmPosts.indexOf(c.postId) > -1 ||
+            /^(Comentário de teste|Resposta de teste) \d+/.test(String(c.content || ""))) {
+            delete NX.store.db.comments[k];
+            n++;
+            Object.keys(NX.store.db.likes || {}).forEach(function (lk) {
+              var l = NX.store.db.likes[lk];
+              if (l && l.targetType === "comment" && l.targetId === k) delete NX.store.db.likes[lk];
+            });
+          }
+        });
+        if (n) {
+          NX.store.persist();
+          NX.store.commit(["profile", "posts", "notifications", "members"]);
+        }
+        return n;
+      }
+      function clearFixture(id) {
+        if (!id || !NX.store.db.follows[id]) return;
+        delete NX.store.db.follows[id];
+        NX.store.persist();
+        NX.store.commit(["profile", "posts", "notifications", "members"]);
+      }
+
+      function pickOther() {
+        var me = NX.selectors.me();
+        var users = Object.values(NX.store.db.users).filter(function (u) {
+          return u.id !== me.id && !u.banned;
+        });
+        for (var i = 0; i < users.length; i++) {
+          var st = NX.selectors.followState(me.id, users[i].id);
+          if (!st) return users[i];
+        }
+        return users[0];
+      }
+
+      /* ---------------- abertura de vistas ---------------- */
+      async function openView(v, forShot) {
+        closeModals();
+        var me = NX.selectors.me();
+        if (v === "feed" || v === "") {
+          await nav("#/feed");
+        } else if (v === "composer") {
+          await nav("#/feed");
+          await sleep(240);
+          NX.social.openCreatePost();
+          await sleep(320);
+          var ta = q("#main-content .sx-composer textarea");
+          if (ta) {
+            setVal(ta, "Bom dia, gente! Hoje tem live às 20h ☕");
+            ta.focus();
+            await sleep(200);
+          }
+          var emo = q('#main-content .sx-composer [data-action="sx-emoji"]');
+          if (emo && forShot) emo.click();
+        } else if (v === "compose-modal") {
+          /* sem composer inline na rota → openCreatePost abre o modal */
+          await nav("#/perfil/" + me.username);
+          await sleep(280);
+          NX.social.openCreatePost();
+          await sleep(400);
+          var mta = q(".modal-backdrop .sx-composer textarea");
+          if (mta) { setVal(mta, "Publicação criada pelo modal do harness."); mta.focus(); }
+        } else if (v === "comments") {
+          await nav("#/feed");
+          await sleep(260);
+          var post = q("#main-content .sx-post");
+          if (post) {
+            NX.social.openComments(post.getAttribute("data-post"));
+            await sleep(500);
+            var cta = q(".modal-backdrop form[data-sx-form='comment'] textarea");
+            if (cta && forShot) { setVal(cta, "Comentário de exemplo do harness."); cta.focus(); }
+          }
+        } else if (v === "followers" || v === "following") {
+          await nav("#/feed");
+          await sleep(240);
+          NX.social.openFollowers(me.id, v);
+          await sleep(700);
+        } else if (v === "requests") {
+          await nav("#/feed");
+          await sleep(240);
+          var other = pickOther();
+          var fid = fixtureRequest(other.id);
+          NX.social.openFollowers(me.id, "requests");
+          await sleep(700);
+          if (forShot) return fid; /* mantém o fixture para o screenshot */
+          return fid;
+        } else if (v === "profile") {
+          await nav("#/perfil/" + me.username);
+          await sleep(400);
+        } else if (v === "light") {
+          NX.applyTheme("light");
+          await nav("#/feed");
+          await sleep(300);
+        } else if (v === "audit") {
+          await nav("#/feed");
+          await sleep(300);
+        }
+        return null;
+      }
+
+      /* ?debug=reply → deixa o fluxo de resposta rastreado passo a passo */
+      async function debugReply() {
+        var log = [];
+        function L(m) { log.push(m); setAudit(log.join("\n")); status("debug"); }
+        var orig = NX.api.addComment;
+        NX.api.addComment = function (postId, content, parentId) {
+          L("api.addComment parentId=" + parentId);
+          return orig.apply(this, arguments);
+        };
+        L("ação sx-reply registrada=" + (typeof NX.actions["sx-reply"]));
+        var origReply = NX.actions["sx-reply"];
+        NX.actions["sx-reply"] = function (el) {
+          var card = el.closest("[data-post]");
+          L("sx-reply chamado id=" + el.getAttribute("data-id") +
+            " · cardPrefix=" + (card && card.getAttribute("data-sx-cprefix")) +
+            " · cardPost=" + (card && card.getAttribute("data-post")) +
+            " · commentExiste=" + !!NX.selectors.comment(el.getAttribute("data-id")) +
+            " · commentsViewAberta=" + !!document.querySelector(".modal-backdrop .sx-post"));
+          var r = origReply(el);
+          var f1 = q(".modal-backdrop form[data-sx-form='comment']");
+          L("sx-reply saiu; chip=" + !!q(".modal-backdrop .sx-replychip") +
+            " · formRecriado=" + (f1 !== window.__f0) +
+            " · threadRecriada=" + (q(".modal-backdrop .sx-comments") !== window.__s0) +
+            " · mesmoPostNoModal=" + ((q(".modal-backdrop .sx-post") || {}).getAttribute
+              ? q(".modal-backdrop .sx-post").getAttribute("data-post") : "-"));
+          return r;
+        };
+        document.addEventListener("click", function (e) {
+          var el = e.target.closest && e.target.closest("[data-action]");
+          if (el) L("clique alcançou document → data-action=" + el.getAttribute("data-action"));
+        }, true);
+        await nav("#/feed"); await sleep(300);
+        var post = q("#main-content .sx-post");
+        if (!post) { L("sem cartão"); return; }
+        var pid = post.getAttribute("data-post");
+        NX.social.openComments(pid); await sleep(700);
+        var f = q(".modal-backdrop form[data-sx-form='comment']");
+        var card = q(".modal-backdrop .sx-post");
+        L("formKey=" + (f && f.getAttribute("data-sx-key")) + " · prefix=" + (card && card.getAttribute("data-sx-cprefix")));
+        setVal(f.querySelector("textarea"), "A-" + Date.now());
+        submit(f); await sleep(1000);
+        var rb = q('.modal-backdrop [data-action="sx-reply"]');
+        L("replyBtn=" + !!rb + " id=" + (rb && rb.getAttribute("data-id")) + " post=" + (rb && rb.getAttribute("data-post")));
+        if (!rb) return;
+        window.__f0 = q(".modal-backdrop form[data-sx-form='comment']");
+        window.__s0 = q(".modal-backdrop .sx-comments");
+        rb.click(); await sleep(600);
+        var chip = q(".modal-backdrop .sx-replychip");
+        L("chip=" + !!chip + " · " + (chip ? chip.textContent.trim().replace(/\s+/g, " ") : "-"));
+        var f2 = q(".modal-backdrop form[data-sx-form='comment']");
+        L("form2Key=" + (f2 && f2.getAttribute("data-sx-key")));
+        setVal(f2.querySelector("textarea"), "R-" + Date.now());
+        L("taValue=" + f2.querySelector("textarea").value);
+        submit(f2); await sleep(1000);
+        var cs = NX.selectors.commentsOf(pid);
+        L("comentários=" + JSON.stringify(cs.map(function (c) {
+          return { p: c.parentId, t: String(c.content).slice(0, 8) };
+        })));
+        L("toast=" + (toastText() || "nenhum"));
+      }
+
+      /* ---------------- testes reais ---------------- */
+      async function runTests() {
+        var R = [];
+        var me = NX.selectors.me();
+        var S = NX.selectors;
+        function ok(name, cond, detail) {
+          R.push((cond ? "PASS  " : "FAIL  ") + name + (detail ? "  — " + detail : ""));
+          return !!cond;
+        }
+        status("rodando testes…");
+        setAudit("rodando testes…");
+
+        try {
+          /* 1 · feed renderiza */
+          await nav("#/feed");
+          await sleep(400);
+          var cards = qa("#main-content .sx-post");
+          ok("feed renderiza cartões", cards.length > 0, cards.length + " cartões");
+
+          /* 2 · curtir e descurtir pela UI (sem duplicar) */
+          var pid = cards.length ? cards[0].getAttribute("data-post") : null;
+          if (pid) {
+            var before = S.likeCount("post", pid);
+            var wasLiked = !!S.likedBy("post", pid, me.id);
+            var lb = q('.sx-post[data-post="' + pid + '"] [data-action="sx-like"]');
+            ok("botão de curtida presente", !!lb);
+            if (lb) {
+              lb.click(); await sleep(800);
+              var liked = !!S.likedBy("post", pid, me.id);
+              ok("curtir/descurtir inverte o estado", liked === !wasLiked &&
+                S.likeCount("post", pid) === before + (wasLiked ? -1 : 1),
+                before + "→" + S.likeCount("post", pid) + " · curtiu=" + liked);
+              var lb2 = q('.sx-post[data-post="' + pid + '"] [data-action="sx-like"]');
+              if (lb2) lb2.click();
+              await sleep(800);
+              ok("segundo clique volta ao total original",
+                S.likeCount("post", pid) === before && !!S.likedBy("post", pid, me.id) === wasLiked,
+                "total=" + S.likeCount("post", pid) + " · curtiu=" + !!S.likedBy("post", pid, me.id));
+            }
+
+            /* 3 · anti-duplicidade na camada de API (partindo do estado neutro) */
+            if (S.likedBy("post", pid, me.id)) { await NX.api.unlikeContent("post", pid); await sleep(300); }
+            var base = S.likeCount("post", pid);
+            var threw1 = "";
+            try { await NX.api.likeContent("post", pid); } catch (e) { threw1 = e.message; }
+            var after1 = S.likeCount("post", pid);
+            var threw2 = "";
+            try { await NX.api.likeContent("post", pid); } catch (e) { threw2 = e.message; }
+            ok("API aceita a primeira curtida", !threw1 && after1 === base + 1, base + "→" + after1);
+            ok("API recusa curtida duplicada", /já curtiu/i.test(threw2) && S.likeCount("post", pid) === after1,
+              threw2 || "(sem erro)");
+            await NX.api.unlikeContent("post", pid).catch(function () {});
+            await sleep(300);
+            ok("API descurtir restaura total", S.likeCount("post", pid) === base, "total=" + S.likeCount("post", pid));
+          }
+
+          /* 4 · seguir / deixar de seguir (API) */
+          var other = pickOther();
+          var st0 = S.followState(me.id, other.id);
+          var res = await NX.api.followUser(other.id);
+          ok("seguir cria a aresta", S.followState(me.id, other.id) === (res.state || "active"),
+            "estado=" + S.followState(me.id, other.id));
+          ok("followStatus reflete o seguimento", NX.api.followStatus(other.id).state === "following",
+            NX.api.followStatus(other.id).state);
+          await NX.api.unfollowUser(other.id);
+          ok("deixar de seguir remove a aresta", !S.followState(me.id, other.id),
+            "estado=" + S.followState(me.id, other.id) + (st0 ? " (era " + st0 + ")" : ""));
+
+          /* 5 · seguir e deixar de seguir pela UI (modal de seguidores) */
+          var fEdges = Object.keys(NX.store.db.follows).map(function (k) { return NX.store.db.follows[k]; })
+            .filter(function (f) { return f.followingId === me.id && f.state === "active"; });
+          var F = null;
+          for (var fi = 0; fi < fEdges.length && !F; fi++) {
+            var fu = S.user(fEdges[fi].followerId);
+            if (fu && fu.id !== me.id) F = fu;
+          }
+          ok("existe um seguidor para o teste", !!F, F ? "@" + F.username : "nenhum seguidor no seed");
+          if (F) {
+            var startedFollowing = !!S.followState(me.id, F.id);
+            NX.social.openFollowers(me.id, "followers");
+            await sleep(900);
+            var row = q('.modal-backdrop .sx-row[data-user="' + F.id + '"]');
+            ok("linha do seguidor no modal", !!row);
+
+            if (startedFollowing) {
+              var ub = row && q('[data-action="sx-unfollow"]', row);
+              ok("botão sx-unfollow na linha", !!ub);
+              if (ub) {
+                ub.click(); await confirmIfAsked(); await sleep(700);
+                ok("deixar de seguir pela UI remove a aresta", !S.followState(me.id, F.id),
+                  "estado=" + S.followState(me.id, F.id));
+              }
+            }
+
+            var row2 = q('.modal-backdrop .sx-row[data-user="' + F.id + '"]');
+            var fb = row2 && q('[data-action="sx-follow"]', row2);
+            ok("botão sx-follow na linha", !!fb, row2 ? row2.textContent.replace(/\s+/g, " ").slice(0, 60) : "sem linha");
+            if (fb) {
+              fb.click(); await sleep(900);
+              var st2 = S.followState(me.id, F.id);
+              ok("seguir pela UI cria a aresta", st2 === "active" || st2 === "pending", "estado=" + st2);
+            }
+
+            /* deixa como estava */
+            if (!startedFollowing) {
+              var row3 = q('.modal-backdrop .sx-row[data-user="' + F.id + '"]');
+              var ub3 = row3 && q('[data-action="sx-unfollow"]', row3);
+              if (ub3) {
+                ub3.click(); await confirmIfAsked(); await sleep(700);
+              }
+              ok("estado final restaurado", !S.followState(me.id, F.id), "estado=" + S.followState(me.id, F.id));
+            } else {
+              ok("estado final restaurado", !!S.followState(me.id, F.id), "estado=" + S.followState(me.id, F.id));
+            }
+            closeModals(); await sleep(300);
+          }
+
+          /* 6 · pesquisa do modal de seguidores */
+          if (!q('.modal-backdrop input[data-sx-input="follow-search"]')) {
+            NX.social.openFollowers(me.id, "followers");
+            await sleep(900);
+          }
+          var allRows = qa(".modal-backdrop .sx-row").length;
+          var inp = q('.modal-backdrop input[data-sx-input="follow-search"]');
+          ok("campo de pesquisa do modal", !!inp);
+          if (inp) {
+            setVal(inp, "zzzzz-nada");
+            await sleep(400);
+            var filtered = qa(".modal-backdrop .sx-row").length;
+            var note = q(".modal-backdrop .sx-note");
+            ok("pesquisa filtra a lista", filtered < allRows && !!note,
+              allRows + "→" + filtered + " · " + (note ? note.textContent.trim().slice(0, 60) : "sem nota"));
+            setVal(inp, "");
+            await sleep(300);
+          }
+          closeModals(); await sleep(300);
+
+          /* 7 · publicar (com escape de HTML) + excluir */
+          await nav("#/feed"); await sleep(350);
+          var marker = 'Teste <b>Nexo</b> & "aspas" ' + Date.now();
+          var form = q("#main-content form[data-sx-form='composer']");
+          ok("composer inline presente", !!form);
+          if (form) {
+            setVal(form.querySelector("textarea"), marker);
+            await sleep(250);
+            submit(form);
+            await sleep(1100);
+            var created = Object.values(NX.store.db.posts).filter(function (p) {
+              return p.authorId === me.id && p.content === marker;
+            })[0];
+            ok("publicar cria a publicação", !!created, created ? created.id : "não criou");
+            if (created) {
+              var card = q('#main-content .sx-post[data-post="' + created.id + '"]');
+              var txt = card && q(".sx-post__text", card);
+              ok("texto escapado (sem HTML interpretado)", !!txt && !q("b", txt) && txt.textContent.indexOf("<b>") !== -1,
+                txt ? txt.textContent.slice(0, 46) : "cartão não renderizado");
+              var del = card && q('[data-action="sx-delete-post"]', card);
+              ok("botão excluir no próprio cartão", !!del);
+              if (del) {
+                del.click();
+                await confirmIfAsked();
+                ok("excluir publicação remove do banco", !NX.selectors.post(created.id));
+              }
+            }
+            ok("rascunho limpo após publicar",
+              !q("#main-content form[data-sx-form='composer'] textarea") ||
+              q("#main-content form[data-sx-form='composer'] textarea").value === "",
+              "valor=" + ((q("#main-content form[data-sx-form='composer'] textarea") || {}).value || "").slice(0, 30));
+          }
+
+          /* 8 · comentar, responder e excluir comentários */
+          await nav("#/feed"); await sleep(350);
+          var p0 = q("#main-content .sx-post");
+          if (p0) {
+            var ppid = p0.getAttribute("data-post");
+            var n0 = S.commentsOf(ppid).length;
+            NX.social.openComments(ppid);
+            await sleep(600);
+            var cform = q(".modal-backdrop form[data-sx-form='comment']");
+            ok("formulário de comentário no modal", !!cform);
+            if (cform) {
+              setVal(cform.querySelector("textarea"), "Comentário de teste " + Date.now());
+              await sleep(250);
+              submit(cform);
+              await sleep(1000);
+              var mine1 = S.commentsOf(ppid).filter(function (c) {
+                return c.authorId === me.id && c.content.indexOf("Comentário de teste") === 0;
+              })[0];
+              ok("comentar aumenta a lista", S.commentsOf(ppid).length === n0 + 1 && !!mine1,
+                n0 + "→" + S.commentsOf(ppid).length);
+
+              /* responder (no MEU comentário, não no primeiro da lista) */
+              var replyBtn = q('.modal-backdrop [data-comment="' + mine1.id + '"] [data-action="sx-reply"]');
+              ok("botão Responder presente", !!replyBtn);
+              if (replyBtn && mine1) {
+                replyBtn.click(); await sleep(500);
+                var chip = q(".modal-backdrop .sx-replychip");
+                ok("chip “Respondendo a” no formulário", !!chip,
+                  chip ? chip.textContent.trim().replace(/\s+/g, " ").slice(0, 50) : "sem chip");
+                var cform2 = q(".modal-backdrop form[data-sx-form='comment']");
+                setVal(cform2.querySelector("textarea"), "Resposta de teste " + Date.now());
+                await sleep(250);
+                submit(cform2);
+                await sleep(1000);
+                var reply = S.commentsOf(ppid).filter(function (c) {
+                  return c.content.indexOf("Resposta de teste") === 0;
+                })[0];
+                ok("responder cria comentário aninhado", !!reply && reply.parentId === mine1.id,
+                  reply ? "parent=" + (reply.parentId === mine1.id ? "ok" : String(reply.parentId)) : "não criou");
+              }
+
+              /* excluir os dois (os meus) */
+              var beforeDel = S.commentsOf(ppid).length;
+              var idsDel = [reply && reply.id, mine1.id].filter(Boolean);
+              for (var di = 0; di < idsDel.length; di++) {
+                var dbtn = q('.modal-backdrop [data-comment="' + idsDel[di] + '"] [data-action="sx-comment-delete"]');
+                if (!dbtn) continue;
+                dbtn.click();
+                await confirmIfAsked();
+              }
+              var afterDel = S.commentsOf(ppid).length;
+              var restam = S.commentsOf(ppid).filter(function (c) {
+                return c.content.indexOf("Comentário de teste") === 0 || c.content.indexOf("Resposta de teste") === 0;
+              }).length;
+              ok("excluir comentários", restam === 0, beforeDel + "→" + afterDel + " · restam=" + restam);
+            }
+            closeModals(); await sleep(300);
+          }
+
+          /* 9 · solicitações: aprovar e recusar */
+          var other2 = pickOther();
+          var fid = fixtureRequest(other2.id);
+          NX.social.openFollowers(me.id, "requests");
+          await sleep(800);
+          ok("modal de solicitações lista o pedido", !!q('.modal-backdrop .sx-row[data-user="' + other2.id + '"]'));
+          var rej = q('.modal-backdrop [data-action="sx-follow-reject"]');
+          ok("botão Recusar presente", !!rej);
+          if (rej) {
+            rej.click(); await confirmIfAsked(); await sleep(700);
+            ok("recusar remove o pedido", !S.followState(other2.id, me.id),
+              "estado=" + S.followState(other2.id, me.id));
+          }
+          closeModals(); await sleep(250);
+          var fid2 = fixtureRequest(pickOther().id);
+          NX.social.openFollowers(me.id, "requests");
+          await sleep(800);
+          var apr = q('.modal-backdrop [data-action="sx-follow-approve"]');
+          ok("botão Aprovar presente", !!apr);
+          if (apr) {
+            apr.click(); await confirmIfAsked(); await sleep(800);
+            var owner = Object.keys(NX.store.db.follows).map(function (k) { return NX.store.db.follows[k]; })
+              .filter(function (f) { return f.state === "active" && f.followingId === me.id; });
+            ok("aprovar ativa a aresta", owner.length > 0, owner.length + " seguidor(es) ativo(s)");
+          }
+          closeModals(); await sleep(250);
+          /* limpeza dos fixtures */
+          clearFixture(fid); clearFixture(fid2);
+          Object.keys(NX.store.db.follows).forEach(function (k) {
+            var f = NX.store.db.follows[k];
+            if (f.followingId === me.id && f.state === "active") {
+              /* só remove arestas criadas agora (as do seed já são active) */
+            }
+          });
+
+          /* 10 · postsSectionHTML (contrato) + integração no perfil */
+          var sec = NX.social.postsSectionHTML(me.id);
+          ok("postsSectionHTML devolve HTML", /sx-feed--profile|sx-empty/.test(String(sec)),
+            String(sec).replace(/<[^>]*>/g, " ").trim().slice(0, 60));
+          await nav("#/perfil/" + me.username);
+          await sleep(600);
+          var wired = !!q("#main-content .sx-feed--profile");
+          R.push((wired ? "PASS  " : "INFO  ") + "perfil renderiza a seção de publicações (integrado pela camada principal)=" + wired);
+
+          /* 11 · sem erros de console */
+          ok("zero erros de console", errs().length === 0, errs().length ? errs().slice(0, 3).join(" | ") : "nenhum");
+        } catch (e) {
+          R.push("FAIL  exceção no harness — " + (e && e.message));
+          console.error("[harness:test]", e);
+        }
+
+        await nav("#/feed");
+        await sleep(300);
+        var fails = R.filter(function (x) { return x.indexOf("FAIL") === 0; }).length;
+        setAudit(R.join("\n") + "\n\n" + audit("").split("\n").slice(1).join("\n"));
+        status(fails ? fails + " teste(s) falharam" : "todos os testes passaram (" + R.length + ")", fails > 0);
+        return R;
+      }
+
+      /* ---------------- bootstrap do harness ---------------- */
+      /* ?syntax=1 → compila os arquivos JS e reporta erro de sintaxe com linha */
+      if (Q.get("syntax") === "1") {
+        var files = ["js/core.js", "js/icons.js", "js/store.js", "js/seed.js", "js/api.js", "js/ui.js",
+          "js/views.js", "js/pages.js", "js/modals.js", "js/people.js", "js/social.js", "js/app.js"];
+        Promise.all(files.map(function (f) {
+          return fetch(f).then(function (r) { return r.text(); }).then(function (src) {
+            try { new Function(src); return f + "=ok"; }
+            catch (e) {
+              var m = /<anonymous>:(\d+)/.exec((e && e.stack) || "");
+              return f + "=ERRO " + e.message + " (linha ~" + (m ? m[1] : "?") + ")";
+            }
+          }).catch(function (e) { return f + "=fetch " + e.message; });
+        })).then(function (res) {
+          setAudit(res.join("\n"));
+          status("syntax check");
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        try {
+          var me = NX.selectors.me();
+          if (!me) throw new Error("sem sessão (conta demo)");
+
+          document.getElementById("sxh").hidden = false;
+          purgeFixtures(); /* deixa o localStorage como estava antes do harness */
+          if (Q.get("chrome") === "0") document.body.classList.add("sxh-nochrome");
+          if (Q.get("theme") === "light") NX.applyTheme("light");
+
+          qa("#sxh .sxh-group button").forEach(function (b) {
+            b.addEventListener("click", function () {
+              var v = b.getAttribute("data-v");
+              qa("#sxh .sxh-group button").forEach(function (x) { x.classList.remove("is-on"); });
+              b.classList.add("is-on");
+              openView(v, false).then(function () {
+                status("vista: " + v);
+                setTimeout(function () { audit(v); }, 500);
+              });
+            });
+          });
+
+          document.getElementById("sxh-run").addEventListener("click", function () {
+            runTests();
+          });
+
+          var view = Q.get("view");
+          if (Q.get("debug") === "reply") {
+            debugReply();
+          } else if (Q.get("debug") === "posts" || Q.get("debug") === "state") {
+            var me2 = NX.selectors.me();
+            var list = Object.keys(NX.store.db.posts).map(function (k) { return NX.store.db.posts[k]; })
+              .filter(function (p) { return String(p.content).indexOf("Teste") === 0; })
+              .map(function (p) { return { id: p.id, c: String(p.content).slice(0, 50) }; });
+            setAudit(
+              "me=" + (me2 ? me2.username + "/" + me2.id : "ninguém") +
+              "\nposts=" + Object.keys(NX.store.db.posts).length +
+              " · feedPosts=" + NX.selectors.feedPosts().length +
+              " · follows=" + Object.keys(NX.store.db.follows || {}).length +
+              " · likes=" + Object.keys(NX.store.db.likes || {}).length +
+              "\nusers=" + Object.keys(NX.store.db.users || {}).length +
+              " · servers=" + Object.keys(NX.store.db.servers || {}).length +
+              " · msgs=" + Object.keys(NX.store.db.messages || {}).length +
+              " · comments=" + Object.keys(NX.store.db.comments || {}).length +
+              "\nprivacy=" + JSON.stringify(me2 ? me2.privacy : null) +
+              "\nfeedIds=" + JSON.stringify(NX.selectors.feedPosts().map(function (p) {
+                return p.authorId + ":" + String(p.content).slice(0, 18);
+              })) +
+              "\npostsTeste=" + JSON.stringify(list, null, 1));
+            status("debug posts");
+          } else if (view) {
+            openView(view, true).then(function () {
+              setTimeout(function () {
+                audit(view);
+                status("vista: " + view);
+                if (Q.get("tests") === "1") runTests();
+              }, 900);
+            });
+          } else {
+            setTimeout(function () {
+              audit("feed");
+              status("ok · " + me.username + " · " + (NX.social && NX.social.__id));
+              if (Q.get("tests") === "1") runTests();
+            }, 700);
+          }
+        } catch (e) {
+          console.error("[harness]", e);
+          status("ERRO: " + e.message, true);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
