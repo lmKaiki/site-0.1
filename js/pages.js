@@ -102,10 +102,13 @@ window.NX = window.NX || {};
         "<span>Se você esqueceu sua senha, entre em contato com a administração da plataforma.</span></div>" +
         '<div class="auth__alt">Ainda não tem conta?' +
         '<button class="link-btn" data-action="auth-mode" data-mode="signup">Criar conta</button></div>' +
-        '<div class="auth__demo">' +
-        "<div><strong>Conta de demonstração</strong><span>demo · senha <code>nexo123</code></span></div>" +
-        '<button class="btn btn--soft btn--sm" data-action="fill-demo">Entrar como demo</button>' +
-        "</div>" +
+        /* atalho demo só existe em modo demonstração (produção não tem conta demo) */
+        (NX.demoMode()
+          ? '<div class="auth__demo">' +
+            "<div><strong>Conta de demonstração</strong><span>demo · senha <code>nexo123</code></span></div>" +
+            '<button class="btn btn--soft btn--sm" data-action="fill-demo">Entrar como demo</button>' +
+            "</div>"
+          : "") +
         '<div class="auth__foot">' +
         '<button class="link-btn" data-action="goto-landing">' +
         NX.icon("arrowLeft", "", 15) + " Voltar para início</button></div>";

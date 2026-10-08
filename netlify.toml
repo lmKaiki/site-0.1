@@ -2,9 +2,10 @@
 #  NEXO - deploy automatico no Netlify
 #  Repo: lmKaiki/site-0.1  |  branch: main
 #
-#  Site 100% estatico (index.html + css/ + js/):
+#  Frontend 100% estatico (index.html + css/ + js/):
 #  NAO ha build, npm nem compilacao - o Netlify apenas
 #  publica os arquivos da raiz deste projeto.
+#  Backend: Netlify Functions em netlify/functions (rotas /api/*).
 # ============================================================
 
 [build]
@@ -12,3 +13,44 @@
   publish = "."
   # sem build command: nenhum npm/node e executado
   command = ""
+
+[functions]
+  directory = "netlify/functions"
+
+# --- scripts locais (PowerShell) nao devem ser servidos ---
+[[redirects]]
+  from = "/serve.ps1"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tools/*"
+  to = "/404"
+  status = 404
+  force = true
+
+# --- /api/* sem function correspondente: 404, nunca o index.html ---
+[[redirects]]
+  from = "/api/*"
+  to = "/404"
+  status = 404
+
+# --- SPA: o app roteia por hash (#/...); qualquer outro caminho abre o app ---
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
