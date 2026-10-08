@@ -16,10 +16,19 @@ service-account*.json
 netlify-token
 .netlify
 
-# --- chaves de API e tokens (qualquer arquivo com esse nome) ---
+# --- chaves de API e tokens (credenciais de verdade) ---
+#  (nada generico demais: "tokens.css" e afins sao arquivos de design)
+*.token
+.token
+.token.*
+*token.txt
+*token.json
+*token.yml
+*token.yaml
 *secret*
-*token*
-!*tokens.css
+*credential*
+!css/tokens.css
+!css/tokens*.css
 
 # --- dependencias e build ---
 node_modules/
