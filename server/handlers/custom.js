@@ -15,6 +15,12 @@
      POST   /custom/claim    resgatar missão (único, progresso real)
      PATCH  /custom          preferência de animações
 
+   Fora de rota (chamado por servers.joinByInvite):
+     recordInviteJoin        Conquistas do Brasil — grava a
+                             entrada real confirmada pelo
+                             convite e desbloqueia as placas
+                             da coleção automaticamente.
+
    Toda mutação roda dentro de db.lockPrefs(userId): leituras e
    escritas do mesmo usuário ficam em fila, então compra dupla,
    resgate duplo e saldo negativo não têm como passar (mesma
@@ -89,6 +95,18 @@ async function buildState(user) {
     };
   });
 
+  /* Conquistas do Brasil 🇧🇷 — progresso = pessoas DISTINTAS que
+     entraram num servidor pelo convite deste usuário (gravado
+     por recordInviteJoin, em entrada real confirmada). */
+  const brTiers = C.brasilTierState(c);
+  const brasil = {
+    invitees: C.brasilCount(c),
+    tiers: brTiers,
+    next: brTiers.find(function (t) {
+      return !t.unlocked;
+    }) || null,
+  };
+
   return {
     currency: C.CURRENCY,
     balance: c.balance,
@@ -99,8 +117,60 @@ async function buildState(user) {
     catalog: C.catalog(),
     categories: C.CATEGORIES,
     missions: missions,
+    brasil: brasil,
     serverTime: Date.now(),
   };
+}
+
+/* ============================================================
+   Conquistas do Brasil 🇧🇷 · registro de ENTRADA CONFIRMADA
+   ------------------------------------------------------------
+   Chamado por servers.joinByInvite DEPOIS da entrada real ser
+   criada, com o convite lido pelo servidor (nunca com dado do
+   cliente). Grava em prefs de quem convidou (lockPrefs: linhas
+   simultâneas do mesmo convidador ficam em fila, então a mesma
+   pessoa nunca conta duas vezes e nenhuma entrada passa 2x).
+
+   · auto-entrada (convidou a si mesmo) → nada;
+   · mesma pessoa de novo → não conta de novo (chave = invitee);
+   · ao cruzar uma meta de BRASIL_TIERS → placa entra em owned
+     (desbloqueio automático, equipável na loja) e o chamador
+     pode notificar.
+   ============================================================ */
+async function recordInviteJoin(inviterId, inviteeId, serverId, code) {
+  if (!inviterId || !inviteeId) return null;
+  if (String(inviterId) === String(inviteeId)) return null;
+  /* só conta para uma conta que ainda existe */
+  const owners = await safeSelect("users", { id: inviterId }, 1);
+  if (!owners.length) return null;
+
+  let out = null;
+  await db.lockPrefs(inviterId, async function () {
+    const prefs = await db.readPrefs(inviterId);
+    const c = C.normalize(prefs && prefs.custom);
+    const n0 = C.brasilCount(c);
+    if (Object.prototype.hasOwnProperty.call(c.brInvitees, inviteeId)) {
+      out = { count: n0, unlocked: [], already: true };
+      return;
+    }
+    c.brInvitees[String(inviteeId)] = {
+      serverId: serverId ? String(serverId) : "",
+      at: Date.now(),
+      code: code ? String(code) : "",
+    };
+    const n = n0 + 1;
+    const unlocked = [];
+    C.BRASIL_TIERS.forEach(function (t) {
+      if (n >= t.goal && c.owned.indexOf(t.plateId) === -1) {
+        c.owned.push(t.plateId);
+        unlocked.push(t.plateId);
+      }
+    });
+    prefs.custom = c;
+    await db.writePrefs(inviterId, prefs);
+    out = { count: n, unlocked: unlocked, already: false };
+  });
+  return out;
 }
 
 /* ---------------- rotas ---------------- */
@@ -234,4 +304,4 @@ function routes() {
   ];
 }
 
-module.exports = { routes, buildState };
+module.exports = { routes, buildState, recordInviteJoin };

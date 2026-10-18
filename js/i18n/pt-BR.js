@@ -2607,6 +2607,33 @@
   D["np.errProgress"] = "Missão ainda não concluída. O progresso é verificado no servidor.";
   D["np.errAnim"] = "Preferência de animação inválida.";
 
+  /* ---- conquistas do Brasil 🇧🇷 (loja) ---- */
+  D["nbr.title"] = "Conquistas do Brasil 🇧🇷";
+  D["nbr.lead"] = "Traga pessoas de verdade para um servidor: quando a entrada for confirmada pelo servidor, a conquista é sua. Gerar ou copiar um convite sozinho não conta.";
+  D["nbr.confirmed1"] = "convite confirmado";
+  D["nbr.confirmedN"] = "convites confirmados";
+  D["nbr.next"] = "Próxima:";
+  D["nbr.progress"] = "Progresso";
+  D["nbr.allDone"] = "Todas as conquistas concluídas!";
+  D["nbr.goal"] = "Convide";
+  D["nbr.person"] = "pessoa";
+  D["nbr.people"] = "pessoas";
+  D["nbr.goalSuffix"] = "para um servidor";
+  D["nbr.locked"] = "Bloqueada";
+  D["nbr.done"] = "Concluído!";
+  D["nbr.short"] = "Conquista";
+  D["nbr.shareTitle"] = "Convide pelo seu servidor";
+  D["nbr.shareHint"] = "Escolha um servidor, gere o convite e envie para uma pessoa real. O progresso só aumenta quando ela entrar.";
+  D["nbr.noServer"] = "Sem servidor";
+  D["nbr.copy"] = "Copiar convite 🇧🇷";
+  D["nbr.copied"] = "Convite copiado! Cole para uma pessoa entrar.";
+  D["nbr.linkReady"] = "Link gerado: copie o campo acima.";
+  D["nbr.linkPh"] = "O link do convite aparece aqui ao copiar";
+  D["nbr.linkPh2"] = "Link do convite";
+  D["nbr.errCopy"] = "Não foi possível gerar o convite.";
+  D["nbr.noServerToast"] = "Você ainda não tem um servidor.";
+  D["nbr.conquestToast"] = "Conquista do Brasil desbloqueada!";
+
   /* ---- grupos privados nas DMs ---- */
   D["grp.novoGrupo"] = "Novo grupo";
   D["grp.criarGrupo"] = "Criar grupo";

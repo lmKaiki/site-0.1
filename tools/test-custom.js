@@ -144,7 +144,7 @@ async function main() {
   ok("nenhuma placa equipada", st.equipped === null);
   ok("animações ligadas por padrão", st.animations === true);
   ok("sem itens pagos no início", Array.isArray(st.owned) && st.owned.length === 0);
-  ok("catálogo com 12 placas", Array.isArray(st.catalog) && st.catalog.length === 12, String((st.catalog || []).length));
+  ok("catálogo com 19 placas (12 + 7 do Brasil)", Array.isArray(st.catalog) && st.catalog.length === 19, String((st.catalog || []).length));
   ok("7 categorias (Neon…Nexo)", Array.isArray(st.categories) && st.categories.length === 7, String((st.categories || []).length));
   ok("6 missões", Array.isArray(st.missions) && st.missions.length === 6);
 
@@ -153,9 +153,9 @@ async function main() {
   const free = (st.catalog || []).filter((p) => p.price === 0).map((p) => p.id);
   ok("2 placas gratuitas", free.length === 2 && free.indexOf("faixa-verde") > -1 && free.indexOf("linha-serena") > -1, JSON.stringify(free));
   const rewardOnly = (st.catalog || []).filter((p) => p.price === null);
-  ok("1 placa só por recompensa (selo-nexo, price null)",
-    rewardOnly.length === 1 && rewardOnly[0].id === "selo-nexo" && rewardOnly[0].rewardOnly === true,
-    JSON.stringify(rewardOnly));
+  ok("8 placas só por recompensa (selo-nexo + 7 do Brasil, price null)",
+    rewardOnly.length === 8 && rewardOnly[0].id === "selo-nexo" && rewardOnly.every((p) => p.rewardOnly === true),
+    JSON.stringify(rewardOnly.map((p) => p.id)));
   const paid = (st.catalog || []).filter((p) => typeof p.price === "number" && p.price > 0);
   ok("9 placas compráveis com preço > 0", paid.length === 9, String(paid.length));
   ok("kind só static/animated", (st.catalog || []).every((p) => p.kind === "static" || p.kind === "animated"));

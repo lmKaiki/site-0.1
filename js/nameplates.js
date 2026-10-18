@@ -56,6 +56,14 @@ window.NX = window.NX || {};
     { id: "onda-arcade", name: "Onda Arcade", category: "arcade", kind: "animated", price: 160, rarity: "rara", description: "Listras que deslizam em ritmo de jogo.", rewardOnly: false },
     { id: "alvorecer", name: "Alvorecer", category: "epica", kind: "animated", price: 220, rarity: "rara", description: "Um céu de amanhecer que muda de cor por trás do nome.", rewardOnly: false },
     { id: "selo-nexo", name: "Selo Nexo", category: "nexo", kind: "animated", price: null, rarity: "lendaria", description: "Recompensa da Jornada Nexo: um brilho que percorre a placa. Não é vendida.", rewardOnly: true },
+    /* ---- Conquistas do Brasil 🇧🇷 (recompensa, nunca à venda) ---- */
+    { id: "sol-de-neon", name: "Sol de Neon", category: "neon", kind: "animated", price: null, rarity: "incomum", description: "Primeira recompensa da coleção Brasil: um sol neon que percorre o nome. Desbloqueada ao confirmar 1 convite.", rewardOnly: true, brasilGoal: 1 },
+    { id: "cruzeiro-do-sul", name: "Cruzeiro do Sul", category: "cosmica", kind: "static", price: null, rarity: "rara", description: "As estrelas do Cruzeiro pontilhando o fundo. Recompensa da coleção Brasil por convites confirmados.", rewardOnly: true, brasilGoal: 3 },
+    { id: "mata-atlantica", name: "Mata Atlântica", category: "natureza", kind: "static", price: null, rarity: "incomum", description: "Verde de mata fechada em memória da floresta costeira. Recompensa da coleção Brasil.", rewardOnly: true, brasilGoal: 5 },
+    { id: "faixa-amarela", name: "Faixa Amarela", category: "minimalista", kind: "static", price: null, rarity: "comum", description: "Uma faixa amarela só e fina, no espírito discreto brasileiro. Recompensa da coleção Brasil.", rewardOnly: true, brasilGoal: 10 },
+    { id: "moeda-de-ouro", name: "Moeda de Ouro", category: "arcade", kind: "animated", price: null, rarity: "rara", description: "Um brilho de moeda que desliza como em fliperama. Recompensa da coleção Brasil.", rewardOnly: true, brasilGoal: 20 },
+    { id: "carnaval-de-luz", name: "Carnaval de Luz", category: "epica", kind: "animated", price: null, rarity: "rara", description: "Cores de carnaval que passam atrás do nome. Recompensa da coleção Brasil.", rewardOnly: true, brasilGoal: 35 },
+    { id: "brasil-nexo", name: "Brasil Nexo", category: "nexo", kind: "animated", price: null, rarity: "lendaria", description: "A maior recompensa da coleção Brasil: verde, amarelo e azul na placa Nexo. Recompensa por muitos convites confirmados.", rewardOnly: true, brasilGoal: 50 },
   ];
 
   const MISSIONS = [
@@ -67,6 +75,20 @@ window.NX = window.NX || {};
     { id: "jornada", name: "Jornada Nexo", description: "Conclua as outras 5 missões e ganhe a placa Selo Nexo (recompensa, sem venda).", goal: 5, reward: { plate: "selo-nexo" }, deadline: null },
   ];
 
+  /* Metas das Conquistas do Brasil 🇧🇷 — espelho de BRASIL_TIERS
+     do server/custom.js (o estado do servidor é a autoridade;
+     aqui vale para o modo offline e para o primeiro desenho).
+     As metas exibidas na loja são exatamente estes números. */
+  const BRASIL_TIERS = [
+    { plateId: "sol-de-neon", goal: 1 },
+    { plateId: "cruzeiro-do-sul", goal: 3 },
+    { plateId: "mata-atlantica", goal: 5 },
+    { plateId: "faixa-amarela", goal: 10 },
+    { plateId: "moeda-de-ouro", goal: 20 },
+    { plateId: "carnaval-de-luz", goal: 35 },
+    { plateId: "brasil-nexo", goal: 50 },
+  ];
+
   const np = {
     state: null,
     loading: null,
@@ -74,9 +96,12 @@ window.NX = window.NX || {};
     busy: false,
     cat: "",
     picker: null,
+    brServerId: null,
+    brLink: null,
     CATALOG: CATALOG,
     CATEGORIES: CATEGORIES,
     MISSIONS: MISSIONS,
+    BRASIL_TIERS: BRASIL_TIERS,
   };
   NX.nameplates = np;
 
@@ -320,7 +345,9 @@ window.NX = window.NX || {};
     if (p.price === null)
       return (
         '<span class="shop-card__price is-reward">' +
-        h(t("np.reward", "Recompensa")) +
+        (Number(p.brasilGoal)
+          ? "🇧🇷 " + h(t("nbr.short", "Conquista"))
+          : h(t("np.reward", "Recompensa"))) +
         "</span>"
       );
     return (
@@ -345,6 +372,20 @@ window.NX = window.NX || {};
         "</button>"
       );
     if (p.price === null) {
+      /* coleção Brasil 🇧🇷: mostra o progresso REAL de convites
+         confirmados — mesma meta que o servidor valida */
+      const brGoal = Number(p.brasilGoal) || 0;
+      if (brGoal) {
+        const tier = brasilView().tiers.find((x) => x.plateId === p.id);
+        const prog = tier ? Number(tier.progress) || 0 : 0;
+        return (
+          '<span class="shop-card__hint" data-brasil="' + h(p.id) + '">' +
+          h(t("nbr.short", "Conquista")) +
+          " · " + h(t("nbr.progress", "Progresso")) +
+          ": " + prog + "/" + brGoal +
+          "</span>"
+        );
+      }
       const m = np.missionForPlate(p.id);
       return (
         '<span class="shop-card__hint">' +
@@ -378,6 +419,116 @@ window.NX = window.NX || {};
       "</article>"
     );
   }
+
+  /* ============ CONQUISTAS DO BRASIL 🇧🇷 (loja) ============ */
+
+  /* Fonte do progresso: np.state.brasil (servidor/local). Sem
+     estado carregado ainda, deriva do catálogo + placas
+     desbloqueadas — nunca inventa número de convites. */
+  function brasilView() {
+    const st = np.state;
+    if (st && st.brasil && Array.isArray(st.brasil.tiers) && st.brasil.tiers.length)
+      return st.brasil;
+    const owned = st && Array.isArray(st.owned) ? st.owned : [];
+    const tiers = BRASIL_TIERS.map((t) => {
+      const p = plateById(t.plateId);
+      const goal = Math.max(1, Number(t.goal) || 1);
+      const unlocked = owned.indexOf(t.plateId) > -1;
+      return {
+        plateId: t.plateId,
+        name: p ? p.name : t.plateId,
+        category: p ? p.category : null,
+        goal: goal,
+        progress: 0,
+        unlocked: unlocked,
+        done: unlocked,
+      };
+    });
+    return { invitees: 0, tiers: tiers, next: tiers.find((x) => !x.unlocked) || null };
+  }
+  np.brasilView = brasilView;
+
+  function serversIMember() {
+    const me = S().me();
+    if (!me) return [];
+    const out = [];
+    (S().membershipsOf(me.id) || []).forEach((m) => {
+      const s = S().server(m.serverId);
+      if (s) out.push(s);
+    });
+    return out;
+  }
+
+  function brasilCard(tier) {
+    const pct = tier.goal ? Math.min(100, Math.round((tier.progress / tier.goal) * 100)) : 0;
+    const state = tier.unlocked ? "done" : tier.progress > 0 ? "doing" : "locked";
+    let foot;
+    if (tier.unlocked) {
+      const equipped = !!(np.state && np.state.equipped === tier.plateId);
+      foot = equipped
+        ? '<button class="btn btn--soft btn--sm" data-action="np-remove">' + h(t("np.remove", "Remover")) + "</button>"
+        : '<button class="btn btn--primary btn--sm" data-action="np-equip" data-id="' + h(tier.plateId) + '">' + h(t("np.equip", "Equipar")) + "</button>";
+    } else if (state === "doing") {
+      foot = '<span class="nbr-card__doing">' + h(t("np.inProgress", "Em progresso")) + "</span>";
+    } else {
+      foot = '<span class="nbr-card__locked">' + h(t("nbr.locked", "Bloqueada")) + "</span>";
+    }
+    return (
+      '<article class="nbr-card is-' + state + '" data-tier="' + h(tier.plateId) + '">' +
+      '<div class="nbr-card__prev">' + np.chipHTML(tier.plateId, "@" + ((S().me() && S().me().username) || "usuario")) + "</div>" +
+      '<div class="nbr-card__body">' +
+      '<div class="nbr-card__top"><strong>' + h(tier.name) + "</strong>" +
+      (tier.unlocked ? '<span class="nbr-card__done">' + h(t("nbr.done", "Concluído!")) + "</span>" : "") +
+      "</div>" +
+      "<p>" + h(t("nbr.goal", "Convide")) + " " + Number(tier.goal) + " " +
+      (tier.goal === 1 ? h(t("nbr.person", "pessoa")) : h(t("nbr.people", "pessoas"))) + " " +
+      h(t("nbr.goalSuffix", "para um servidor")) + "</p>" +
+      '<div class="nbr-card__prog"><span class="mis-bar"><i style="width:' + pct + '%"></i></span>' +
+      '<span class="mis-card__num">' + Number(tier.progress) + "/" + Number(tier.goal) + "</span></div>" +
+      "</div>" +
+      '<div class="nbr-card__foot">' + foot + "</div>" +
+      "</article>"
+    );
+  }
+
+  np.brasilHTML = function () {
+    const bv = brasilView();
+    const invitees = Number(bv.invitees) || 0;
+    const next = bv.next || null;
+    const servers = serversIMember();
+    const chosen = servers.find((s) => s.id === np.brServerId) || servers[0] || null;
+    const link = np.brLink || "";
+
+    return (
+      '<section class="shop-br" aria-label="' + h(t("nbr.title", "Conquistas do Brasil 🇧🇷")) + '">' +
+      '<div class="shop-br__head"><h3>' + h(t("nbr.title", "Conquistas do Brasil 🇧🇷")) + "</h3>" +
+      "<p>" + h(t("nbr.lead", "Traga pessoas de verdade para um servidor: quando a entrada for confirmada pelo servidor, a conquista é sua. Gerar ou copiar um convite sozinho não conta.")) + "</p>" +
+      '<div class="shop-br__summary">' +
+      '<span class="shop-br__count"><strong>' + invitees + "</strong> " +
+      h(invitees === 1 ? t("nbr.confirmed1", "convite confirmado") : t("nbr.confirmedN", "convites confirmados")) +
+      "</span>" +
+      (next
+        ? '<span class="shop-br__next">' + h(t("nbr.next", "Próxima:")) + " <b>" + h(next.name) + "</b> · " +
+          h(t("nbr.progress", "Progresso")) + ": " + Number(next.progress) + "/" + Number(next.goal) + "</span>"
+        : '<span class="shop-br__next is-done">' + NX.icon("check", "", 15) + " " +
+          h(t("nbr.allDone", "Todas as conquistas concluídas!")) + "</span>") +
+      "</div></div>" +
+      '<div class="shop-br__grid">' + bv.tiers.map(brasilCard).join("") + "</div>" +
+      '<div class="shop-br__share">' +
+      '<div class="shop-br__shareTxt"><strong>' + h(t("nbr.shareTitle", "Convide pelo seu servidor")) + "</strong>" +
+      "<small>" + h(t("nbr.shareHint", "Escolha um servidor, gere o convite e envie para uma pessoa real. O progresso só aumenta quando ela entrar.")) + "</small></div>" +
+      '<div class="shop-br__shareBtns">' +
+      '<button type="button" class="btn btn--soft btn--sm" data-action="np-br-server"' + (servers.length ? "" : " disabled") + ">" +
+      NX.icon("users", "", 15) + "<span>" + h(chosen ? chosen.name : t("nbr.noServer", "Sem servidor")) + "</span></button>" +
+      '<button type="button" class="btn btn--primary btn--sm" data-action="np-br-copy"' + (chosen ? "" : " disabled") + ">" +
+      h(t("nbr.copy", "Copiar convite 🇧🇷")) + "</button>" +
+      "</div>" +
+      '<label class="shop-br__link"><input class="input" readonly data-np-link value="' + h(link) + '" placeholder="' +
+      h(t("nbr.linkPh", "O link do convite aparece aqui ao copiar")) + '" aria-label="' + h(t("nbr.linkPh2", "Link do convite")) + '" /></label>' +
+      "</div>" +
+      "</section>"
+    );
+  };
 
   np.pages = np.pages || {};
 
@@ -415,6 +566,8 @@ window.NX = window.NX || {};
       "<p>" + h(t("np.shop.missionsHint", "Opcional, sem prazo e sem compra obrigatória. O progresso é verificado no servidor.")) + "</p></div>" +
       '<div class="shop-miss__list">' + missions.map(missionCard).join("") + "</div>" +
       "</section>" +
+
+      np.brasilHTML() +
 
       '<section class="shop-cats" aria-label="' + h(t("np.shop.cats", "Categorias")) + '">' + chips + "</section>" +
 
@@ -599,6 +752,68 @@ window.NX = window.NX || {};
   };
   A["np-open-picker"] = function () {
     np.openPicker();
+  };
+
+  /* ---- Conquistas do Brasil 🇧🇷: escolher servidor e copiar
+     convite. O convite é o MESMO usado pelo app inteiro — não
+     há convite especial da loja. O progresso da conquista só
+     muda quando uma pessoa real entra (validado no servidor). */
+  A["np-br-server"] = function (el) {
+    const servers = serversIMember();
+    if (!servers.length) {
+      NX.ui.toast(t("nbr.noServer", "Você ainda não tem um servidor."), "warn");
+      return;
+    }
+    NX.ui.menu(
+      el,
+      servers.map((s) => ({
+        label: s.name,
+        icon: "chat",
+        onClick: () => {
+          np.brServerId = s.id;
+          np.brLink = null;
+          np.repaint();
+        },
+      })),
+      { align: "end" }
+    );
+  };
+
+  A["np-br-copy"] = async function () {
+    if (np.busy) return;
+    const servers = serversIMember();
+    if (!servers.length) {
+      NX.ui.toast(t("nbr.noServer", "Você ainda não tem um servidor."), "warn");
+      return;
+    }
+    const chosen = servers.find((s) => s.id === np.brServerId) || servers[0];
+    np.brServerId = chosen.id;
+    np.busy = true;
+    try {
+      /* reusa um convite válido já existente do servidor; se não
+         houver, cria um novo pelo mesmo fluxo de sempre */
+      let invite = (S().invitesOf(chosen.id) || []).find(
+        (i) =>
+          i &&
+          (!i.expiresAt || i.expiresAt > Date.now()) &&
+          (!i.maxUses || (i.uses || 0) < i.maxUses)
+      );
+      if (!invite) invite = await NX.api.createInvite(chosen.id);
+      const link = location.href.split("#")[0] + "#/convite/" + invite.code;
+      np.brLink = link;
+      const copied = await u().copy(link);
+      NX.ui.toast(
+        copied
+          ? t("nbr.copied", "Convite copiado! Cole para uma pessoa entrar.")
+          : t("nbr.linkReady", "Link gerado: copie o campo acima."),
+        copied ? "success" : "info"
+      );
+      np.repaint();
+    } catch (e) {
+      NX.ui.error(e && e.message ? e.message : t("nbr.errCopy", "Não foi possível gerar o convite."));
+    } finally {
+      np.busy = false;
+    }
   };
 
   /* página da loja registrada em NX.pages (usada pelo views.content) */

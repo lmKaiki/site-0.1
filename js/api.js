@@ -585,12 +585,33 @@ window.NX = window.NX || {};
       : [];
     const claimed =
       raw.claimed && typeof raw.claimed === "object" ? raw.claimed : {};
+    /* entradas confirmadas pelos convites do usuário (Conquistas
+       do Brasil) — mesmas chaves que o backend grava */
+    const brInvitees = {};
+    if (
+      raw.brInvitees &&
+      typeof raw.brInvitees === "object" &&
+      !Array.isArray(raw.brInvitees)
+    ) {
+      Object.keys(raw.brInvitees).forEach((k) => {
+        if (!k) return;
+        const v =
+          raw.brInvitees[k] && typeof raw.brInvitees[k] === "object"
+            ? raw.brInvitees[k]
+            : {};
+        brInvitees[k] = {
+          serverId: v.serverId ? String(v.serverId) : "",
+          at: Number(v.at) > 0 ? Number(v.at) : 0,
+        };
+      });
+    }
     return {
       balance: Math.max(0, Math.floor(Number(raw.balance) || 0)),
       owned: owned,
       equipped: npPlate(raw.equipped) ? String(raw.equipped) : null,
       animations: raw.animations !== false,
       claimed: claimed,
+      brInvitees: brInvitees,
     };
   }
   function npFacts(me) {
@@ -627,6 +648,31 @@ window.NX = window.NX || {};
       n = npMissions().filter((x) => x.id !== "jornada" && claimed[x.id]).length;
     return Math.max(0, Math.min(Number(m.goal) || 1, n));
   }
+  /* estado da coleção Brasil 🇧🇷 (espelho do server/custom.js):
+     progresso = pessoas distintas que entraram pelo convite */
+  function npBrasilState(c) {
+    const tiersMirror = (NX.nameplates && NX.nameplates.BRASIL_TIERS) || [];
+    const n = Object.keys(c.brInvitees || {}).length;
+    const tiers = tiersMirror.map((t) => {
+      const p = npPlate(t.plateId);
+      const goal = Math.max(1, Math.floor(Number(t.goal) || 1));
+      const unlocked = c.owned.indexOf(t.plateId) > -1;
+      return {
+        plateId: t.plateId,
+        name: p ? p.name : t.plateId,
+        category: p ? p.category : null,
+        goal: goal,
+        progress: Math.max(0, Math.min(goal, n)),
+        unlocked: unlocked,
+        done: unlocked,
+      };
+    });
+    return {
+      invitees: n,
+      tiers: tiers,
+      next: tiers.find((x) => !x.unlocked) || null,
+    };
+  }
   function npState(me) {
     const c = npCustom(me.id);
     const facts = npFacts(me);
@@ -653,6 +699,7 @@ window.NX = window.NX || {};
           deadline: m.deadline || null,
         };
       }),
+      brasil: npBrasilState(c),
       serverTime: Date.now(),
     };
   }
@@ -983,6 +1030,59 @@ window.NX = window.NX || {};
     return true;
   };
 
+  /* ---- Conquistas do Brasil 🇧🇷 (espelho local) -------------
+     Mesma regra do backend: conta só a entrada real confirmada
+     pelo convite que o PRÓPRIO código buscou (aqui o convite
+     saiu da busca local por código — nunca de um corpo enviado
+     pelo cliente). Auto-entrada não conta; a mesma pessoa não
+     conta duas vezes; ao cruzar a meta a placa é desbloqueada
+     e quem convidou recebe a notificação. */
+  function npRecordBrasilInvite(invite, me) {
+    try {
+      const creatorId = invite && invite.creatorId;
+      if (!creatorId || String(creatorId) === String(me.id)) return;
+      const inviter = db().users[creatorId];
+      if (!inviter) return;
+      const c = npCustom(creatorId);
+      if (Object.prototype.hasOwnProperty.call(c.brInvitees, me.id)) return;
+      c.brInvitees[me.id] = {
+        serverId: invite.serverId ? String(invite.serverId) : "",
+        at: Date.now(),
+      };
+      const n = Object.keys(c.brInvitees).length;
+      const unlocked = [];
+      ((NX.nameplates && NX.nameplates.BRASIL_TIERS) || []).forEach((t) => {
+        if (n >= t.goal && c.owned.indexOf(t.plateId) === -1) {
+          c.owned.push(t.plateId);
+          unlocked.push(t.plateId);
+        }
+      });
+      npSave(inviter, c);
+      if (unlocked.length) {
+        const names = unlocked
+          .map((pid) => {
+            const p = npPlate(pid);
+            return p ? p.name : pid;
+          })
+          .join(", ");
+        notify(
+          creatorId,
+          "conquest",
+          "Conquista do Brasil desbloqueada: " +
+            names +
+            " (" +
+            n +
+            (n === 1 ? " convite confirmado" : " convites confirmados") +
+            ").",
+          { href: "#/loja" }
+        );
+        NX.store.commit(["notifications"]);
+      }
+    } catch (e) {
+      console.warn("[nameplates] conquista:", e && e.message);
+    }
+  }
+
   api.joinByInvite = async function (code) {
     await delay();
     const me = S().me();
@@ -1003,7 +1103,9 @@ window.NX = window.NX || {};
     }
     if (invite.maxUses && invite.uses >= invite.maxUses)
       fail(NX.i18n.get("api.esteConviteAtingiuLimite", "Este convite atingiu o limite de usos. Peça um novo link."));
-    return api.joinServer(invite.serverId, invite);
+    const server = await api.joinServer(invite.serverId, invite);
+    npRecordBrasilInvite(invite, me);
+    return server;
   };
 
   api.joinServer = async function (serverId, invite) {

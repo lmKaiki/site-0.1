@@ -206,6 +206,108 @@ h3.np {
   transform: translateX(-120%);
 }
 
+/* ---------------- COLEÇÃO BRASIL 🇧🇷 (conquistas) ----------------
+   Verde, amarelo e azul nas 7 categorias — mesmas regras de
+   legibilidade do arquivo (fundos translúcidos + text-shadow). */
+
+.np--sol-de-neon {
+  background: linear-gradient(
+    115deg,
+    rgba(0, 155, 58, 0.42),
+    rgba(255, 223, 0, 0.3) 46%,
+    rgba(0, 155, 58, 0.42)
+  );
+  background-size: 220% 100%;
+  border-color: rgba(255, 223, 0, 0.5);
+  box-shadow: inset 0 0 12px rgba(255, 223, 0, 0.16);
+}
+
+.np--cruzeiro-do-sul {
+  background:
+    radial-gradient(circle at 26% 34%, rgba(255, 255, 255, 0.5) 0 1.7px, transparent 2.6px),
+    radial-gradient(circle at 44% 62%, rgba(255, 255, 255, 0.42) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 62% 30%, rgba(255, 255, 255, 0.46) 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 76% 58%, rgba(255, 255, 255, 0.4) 0 1.3px, transparent 2px),
+    linear-gradient(90deg, rgba(18, 42, 110, 0.55), rgba(10, 22, 64, 0.62));
+  border-color: rgba(86, 120, 255, 0.45);
+}
+
+.np--mata-atlantica {
+  background: linear-gradient(
+    120deg,
+    rgba(14, 74, 40, 0.6),
+    rgba(30, 120, 60, 0.4) 55%,
+    rgba(8, 46, 24, 0.66)
+  );
+  border-color: rgba(64, 175, 96, 0.45);
+  box-shadow: inset 0 0 12px rgba(30, 120, 60, 0.2);
+}
+
+.np--faixa-amarela {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 223, 0, 0.35);
+  border-bottom: 2px solid rgba(255, 223, 0, 0.75);
+}
+
+.np--moeda-de-ouro {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 214, 79, 0.16) 0 6px,
+      rgba(255, 214, 79, 0.05) 6px 12px
+    ),
+    linear-gradient(120deg, rgba(120, 84, 0, 0.5), rgba(255, 193, 7, 0.28), rgba(120, 84, 0, 0.5));
+  background-size: auto, 220% 100%;
+  border-color: rgba(255, 193, 7, 0.55);
+  box-shadow: inset 0 0 12px rgba(255, 193, 7, 0.18);
+}
+
+.np--carnaval-de-luz {
+  background: linear-gradient(
+    110deg,
+    rgba(0, 155, 58, 0.4),
+    rgba(255, 223, 0, 0.34) 28%,
+    rgba(20, 84, 66, 0.5) 52%,
+    rgba(156, 39, 176, 0.34) 76%,
+    rgba(0, 155, 58, 0.4)
+  );
+  background-size: 300% 100%;
+  border-color: rgba(255, 223, 0, 0.5);
+  box-shadow: inset 0 0 14px rgba(156, 39, 176, 0.2);
+}
+
+.np--brasil-nexo {
+  background: linear-gradient(180deg, rgba(0, 122, 51, 0.62), rgba(8, 40, 26, 0.74));
+  border-color: rgba(255, 223, 0, 0.65);
+  box-shadow: inset 0 0 16px rgba(255, 223, 0, 0.22);
+}
+
+.np--brasil-nexo::after {
+  background: linear-gradient(
+    100deg,
+    transparent 22%,
+    rgba(120, 180, 255, 0.32) 50%,
+    transparent 78%
+  );
+  transform: translateX(-120%);
+}
+
+body:not(.nx-motion-off) .np.np--sol-de-neon {
+  animation: np-flow 3s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--moeda-de-ouro {
+  animation: np-flow 2.6s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--carnaval-de-luz {
+  animation: np-flow-slow 6s ease-in-out infinite alternate;
+}
+
+body:not(.nx-motion-off) .np.np--brasil-nexo::after {
+  animation: np-sweep 3.4s ease-in-out infinite;
+}
+
 /* ============================================================
    ANIMAÇÕES — só ligadas quando a pessoa NÃO desativou
    (body.nx-motion-off) e o sistema não pede movimento reduzido.
@@ -448,6 +550,183 @@ body:not(.nx-motion-off) .np.np--selo-nexo::after {
   .mis-bar i {
     transition: none;
   }
+}
+
+/* ---- conquistas do Brasil 🇧🇷 ---- */
+
+.shop-br {
+  margin-bottom: 26px;
+  padding: 16px 16px 14px;
+  border: 1px solid rgba(255, 223, 0, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(0, 155, 58, 0.08), rgba(255, 255, 255, 0.02) 46%);
+}
+
+.shop-br__head h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.shop-br__head > p {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  opacity: 0.72;
+  max-width: 72ch;
+}
+
+.shop-br__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+  font-size: 0.86rem;
+}
+
+.shop-br__count strong {
+  font-size: 1.02rem;
+  color: #ffd54a;
+  margin-right: 2px;
+}
+
+.shop-br__next {
+  opacity: 0.85;
+}
+
+.shop-br__next b {
+  color: #35e0a8;
+}
+
+.shop-br__next.is-done {
+  color: #35e0a8;
+  font-weight: 700;
+  opacity: 1;
+}
+
+.shop-br__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.nbr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 15px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+}
+
+.nbr-card.is-done {
+  border-color: rgba(53, 224, 168, 0.4);
+}
+
+.nbr-card.is-doing {
+  border-color: rgba(255, 223, 0, 0.35);
+}
+
+.nbr-card__prev {
+  align-self: flex-start;
+}
+
+.nbr-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nbr-card__top strong {
+  font-size: 0.98rem;
+}
+
+.nbr-card__done {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #35e0a8;
+  white-space: nowrap;
+}
+
+.nbr-card__body p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  opacity: 0.78;
+}
+
+.nbr-card__prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nbr-card__prog .mis-bar i {
+  background: linear-gradient(90deg, #009b3a, #ffd54a);
+}
+
+.nbr-card__foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.nbr-card__doing {
+  font-size: 0.8rem;
+  opacity: 0.68;
+}
+
+.nbr-card__locked {
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+.shop-br__share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 223, 0, 0.35);
+}
+
+.shop-br__shareTxt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.shop-br__shareTxt strong {
+  font-size: 0.92rem;
+}
+
+.shop-br__shareTxt small {
+  font-size: 0.78rem;
+  opacity: 0.68;
+}
+
+.shop-br__shareBtns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shop-br__link {
+  flex-basis: 100%;
+}
+
+.shop-br__link .input {
+  width: 100%;
+  font-size: 0.8rem;
 }
 
 /* ---- categorias ---- */

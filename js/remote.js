@@ -967,7 +967,9 @@ window.NX = window.NX || {};
       POST("/dms/groups", { name: name, userIds: userIds || [], icon: icon || null }),
     ["messages"]
   );
-  wrap("listGroupMembers", (dmId) => GET("/dms/" + enc(dmId) + "/members"), ["messages"]);
+  /* obs.: a rota GET /dms/:id/members existe no servidor e é
+     testada; a interface ainda não a chama (o painel lê os
+     participantes do estado /dms), então não há wrap aqui. */
   wrap("addGroupMember", (dmId, userId) =>
     POST("/dms/" + enc(dmId) + "/members", { userId: userId }), ["messages"]);
   wrap("removeGroupMember", (dmId, userId) =>

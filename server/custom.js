@@ -146,6 +146,105 @@ const PLATES = [
       "Recompensa da Jornada Nexo: um brilho que percorre a placa. Não é vendida.",
     rewardOnly: true,
   },
+  /* ---- Conquistas do Brasil 🇧🇷 (recompensa, nunca à venda) ----
+     Desbloqueadas automaticamente quando uma pessoa NOVA entra
+     num servidor pelo convite de quem convidou (entrada real
+     confirmada pelo backend). A meta de cada placa fica em
+     BRASIL_TIERS — tabela única e fácil de ajustar. */
+  {
+    id: "sol-de-neon",
+    name: "Sol de Neon",
+    category: "neon",
+    kind: "animated",
+    price: null,
+    rarity: "incomum",
+    description:
+      "Primeira recompensa da coleção Brasil: um sol neon que percorre o nome. Desbloqueada ao confirmar 1 convite.",
+    rewardOnly: true,
+  },
+  {
+    id: "cruzeiro-do-sul",
+    name: "Cruzeiro do Sul",
+    category: "cosmica",
+    kind: "static",
+    price: null,
+    rarity: "rara",
+    description:
+      "As estrelas do Cruzeiro pontilhando o fundo. Recompensa da coleção Brasil por convites confirmados.",
+    rewardOnly: true,
+  },
+  {
+    id: "mata-atlantica",
+    name: "Mata Atlântica",
+    category: "natureza",
+    kind: "static",
+    price: null,
+    rarity: "incomum",
+    description:
+      "Verde de mata fechada em memória da floresta costeira. Recompensa da coleção Brasil.",
+    rewardOnly: true,
+  },
+  {
+    id: "faixa-amarela",
+    name: "Faixa Amarela",
+    category: "minimalista",
+    kind: "static",
+    price: null,
+    rarity: "comum",
+    description:
+      "Uma faixa amarela só e fina, no espírito discreto brasileiro. Recompensa da coleção Brasil.",
+    rewardOnly: true,
+  },
+  {
+    id: "moeda-de-ouro",
+    name: "Moeda de Ouro",
+    category: "arcade",
+    kind: "animated",
+    price: null,
+    rarity: "rara",
+    description:
+      "Um brilho de moeda que desliza como em fliperama. Recompensa da coleção Brasil.",
+    rewardOnly: true,
+  },
+  {
+    id: "carnaval-de-luz",
+    name: "Carnaval de Luz",
+    category: "epica",
+    kind: "animated",
+    price: null,
+    rarity: "rara",
+    description:
+      "Cores de carnaval que passam atrás do nome. Recompensa da coleção Brasil.",
+    rewardOnly: true,
+  },
+  {
+    id: "brasil-nexo",
+    name: "Brasil Nexo",
+    category: "nexo",
+    kind: "animated",
+    price: null,
+    rarity: "lendaria",
+    description:
+      "A maior recompensa da coleção Brasil: verde, amarelo e azul na placa Nexo. Recompensa por muitos convites confirmados.",
+    rewardOnly: true,
+  },
+];
+
+/* ---- Metas das Conquistas do Brasil 🇧🇷 --------------------
+   Tabela de configuração ÚNICA da coleção: para ajustar quantas
+   pessoas cada placa exige, mude só `goal` aqui. As metas são
+   exibidas na loja exatamente como estão aqui — nada de meta
+   escondida. `progresso` no servidor = quantidade de pessoas
+   DISTINTAS que entraram num servidor pelo convite do usuário
+   (entrada real confirmada; copiar link não conta).          */
+const BRASIL_TIERS = [
+  { plateId: "sol-de-neon", goal: 1 },
+  { plateId: "cruzeiro-do-sul", goal: 3 },
+  { plateId: "mata-atlantica", goal: 5 },
+  { plateId: "faixa-amarela", goal: 10 },
+  { plateId: "moeda-de-ouro", goal: 20 },
+  { plateId: "carnaval-de-luz", goal: 35 },
+  { plateId: "brasil-nexo", goal: 50 },
 ];
 
 /* Missões: progresso sempre derivado de dados reais no servidor.
@@ -239,13 +338,61 @@ function normalize(raw) {
       if (missionById(k)) claimed[k] = c.claimed[k];
     });
   }
+  /* registros de entradas confirmadas pelos convites do usuário
+     (quem entrou, em qual servidor, quando) — fonte do progresso
+     das Conquistas do Brasil. Lixo do banco vira objeto vazio. */
+  const brInvitees = {};
+  if (c.brInvitees && typeof c.brInvitees === "object" && !Array.isArray(c.brInvitees)) {
+    Object.keys(c.brInvitees).forEach(function (k) {
+      if (typeof k !== "string" || !k) return;
+      const v = c.brInvitees[k] && typeof c.brInvitees[k] === "object" ? c.brInvitees[k] : {};
+      brInvitees[k] = {
+        serverId: v.serverId ? String(v.serverId) : "",
+        at: Number(v.at) > 0 ? Number(v.at) : 0,
+      };
+    });
+  }
   return {
     balance: Math.max(0, Math.floor(Number(c.balance) || 0)),
     owned: owned,
     equipped: plateById(c.equipped) ? String(c.equipped) : null,
     animations: c.animations !== false,
     claimed: claimed,
+    brInvitees: brInvitees,
   };
+}
+
+/* Quantas pessoas distintas já entraram pelo convite do usuário */
+function brasilCount(c) {
+  const inv = c && c.brInvitees && typeof c.brInvitees === "object" ? c.brInvitees : {};
+  return Object.keys(inv).length;
+}
+
+/* Estado da coleção Brasil para a tela (metas + progresso +
+   desbloqueio), derivado APENAS do registro real de entradas. */
+function brasilTierState(c) {
+  const n = brasilCount(c);
+  const owned = c && Array.isArray(c.owned) ? c.owned : [];
+  return BRASIL_TIERS.map(function (t) {
+    const p = plateById(t.plateId);
+    const unlocked = owned.indexOf(t.plateId) > -1;
+    return {
+      plateId: t.plateId,
+      name: p ? p.name : t.plateId,
+      category: p ? p.category : null,
+      goal: Math.max(1, Math.floor(Number(t.goal) || 1)),
+      progress: Math.max(0, Math.min(Math.max(1, Math.floor(Number(t.goal) || 1)), n)),
+      unlocked: unlocked,
+      done: unlocked,
+    };
+  });
+}
+
+function brasilGoalOf(plateId) {
+  const t = BRASIL_TIERS.find(function (x) {
+    return x.plateId === plateId;
+  });
+  return t ? Math.max(1, Math.floor(Number(t.goal) || 1)) : null;
 }
 
 /* progresso das missões a partir de FATOS já calculados pelo
@@ -274,6 +421,9 @@ function catalog() {
     rarity: p.rarity,
     description: p.description,
     rewardOnly: !!p.rewardOnly,
+    /* meta da coleção Brasil (null quando a placa não é de
+       conquista) — a loja mostra "N/G" exatamente como aqui */
+    brasilGoal: brasilGoalOf(p.id),
   }));
 }
 
@@ -283,9 +433,13 @@ module.exports = {
   PLATES,
   MISSIONS,
   JORNADA_BASE,
+  BRASIL_TIERS,
   plateById,
   missionById,
   normalize,
   progressOf,
   catalog,
+  brasilCount,
+  brasilTierState,
+  brasilGoalOf,
 };

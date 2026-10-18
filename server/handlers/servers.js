@@ -499,9 +499,14 @@ async function previewInvite(ctx) {
     }
   }
 
-  const memberCount = await db.count("memberships", {
+  /* memberships no Supabase NÃO tem coluna `id` (chave composta
+     serverId+userId), então db.count (que seleciona `id`) falha
+     lá — contar via select, que funciona nos dois drivers. */
+  const memberRows = await db.select("memberships", {
     where: { server_id: server.id },
+    limit: 10000,
   });
+  const memberCount = (memberRows || []).length;
 
   return { data: { invite, server, owner, memberCount: memberCount || 0 } };
 }
@@ -524,6 +529,51 @@ async function joinByInvite(ctx) {
     event: ctx.event,
     query: {},
   });
+
+  /* ---- Conquistas do Brasil 🇧🇷 ---------------------------
+     Conta só ENTRADA REAL confirmada por ESTE convite: o código
+     veio do caminho da rota e o convite foi lido pelo servidor
+     (nunca pelo corpo do pedido). Gerar/copiar link sozinho não
+     conta; entrar pelo POST genérico /servers/:id/join (corpo
+     vindo do cliente) também não conta. A gravação roda no
+     lockPrefs de quem convidou: entradas simultâneas ficam em
+     fila e a mesma pessoa nunca conta duas vezes. */
+  let brasil = null;
+  try {
+    const customH = require("./custom");
+    brasil = await customH.recordInviteJoin(
+      invite.creatorId,
+      me.id,
+      invite.serverId,
+      invite.code
+    );
+  } catch (e) {
+    brasil = null; /* a entrada em si já foi criada; coleção não derruba o join */
+  }
+  if (brasil && brasil.unlocked && brasil.unlocked.length) {
+    try {
+      const plateMod = require("../custom");
+      const names = brasil.unlocked
+        .map(function (pid) {
+          const p = plateMod.plateById(pid);
+          return p ? p.name : pid;
+        })
+        .join(", ");
+      await notifyUser(
+        invite.creatorId,
+        "conquest",
+        "Conquista do Brasil desbloqueada: " +
+          names +
+          " (" +
+          brasil.count +
+          (brasil.count === 1 ? " convite confirmado" : " convites confirmados") +
+          ").",
+        { href: "#/loja" }
+      );
+    } catch (e) {
+      /* notificação é bônus: a conquista já ficou gravada */
+    }
+  }
   return result;
 }
 
