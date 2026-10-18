@@ -416,14 +416,19 @@ async function update(table, opts, patch) {
   const schema = await schemaFor(table);
   const where = map.filterToRow(table, opts.where);
   if (where === null || (where && !whereOk(table, where, schema))) return 0;
+  /* guarda condicional repassada ao motor (ex.: member_count < 10
+     do limite rígido dos grupos). As chaves entram em snake porque
+     os dois drivers leem `op` como coluna crua. */
+  const op = opts.op ? opToRow(opts.op) : null;
 
   if (table === "messages") {
-    const n1 = await safeUpdate("messages", where, patch, schema);
+    const n1 = await safeUpdate("messages", where, patch, schema, op);
     const n2 = await safeUpdate(
       "dm_messages",
       toDMWhere(where),
       patch,
-      await schemaFor("dm_messages")
+      await schemaFor("dm_messages"),
+      op
     );
     return n1 + n2;
   }
@@ -439,7 +444,7 @@ async function update(table, opts, patch) {
     delete rest.reads;
     delete rest.muted;
     if (Object.keys(rest).length)
-      n += await safeUpdate("dms", where, rest, schema);
+      n += await safeUpdate("dms", where, rest, schema, op);
     if (reads) {
       const dmIds = await resolveDmIds(where);
       for (const dmId of dmIds) {
@@ -461,7 +466,7 @@ async function update(table, opts, patch) {
     return n;
   }
 
-  return safeUpdate(table, where, patch, schema);
+  return safeUpdate(table, where, patch, schema, op);
 }
 
 async function resolveDmIds(where) {
@@ -485,7 +490,7 @@ function membershipFilter(where) {
   return out;
 }
 
-async function safeUpdate(table, where, patch, schema) {
+async function safeUpdate(table, where, patch, schema, op) {
   const row = map.toRow(table, patch, schema);
   if (schema && schema.size) {
     Object.keys(row).forEach((col) => {
@@ -493,7 +498,17 @@ async function safeUpdate(table, where, patch, schema) {
     });
   }
   if (!Object.keys(row).length) return 0;
-  return d().update(table, { where }, row);
+  return d().update(table, { where, op: op || undefined }, row);
+}
+
+/* chaves do `op` viram coluna de banco (memberCount → member_count):
+   os drivers leem `op` como nome de coluna cru */
+function opToRow(op) {
+  const out = {};
+  Object.keys(op || {}).forEach((k) => {
+    out[map.camelToSnake(k)] = op[k];
+  });
+  return out;
 }
 
 async function updateUser(where, patch, schema) {

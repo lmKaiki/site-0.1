@@ -590,6 +590,20 @@ window.NX = window.NX || {};
     );
   };
 
+  /* ---------------- ícone de GRUPO privado ----------------
+     Reusa o mesmo formato de avatar ({emoji,color,image}) com o
+     NOME do grupo como identidade — sem emoji/ foto, caem nas
+     mesmas iniciais/ logo de sempre. Sem ponto de presença: grupo
+     não está "online". */
+  util.groupIconHTML = (dm, size) => {
+    if (!dm) return "";
+    return util.avatarHTML(
+      { id: dm.id, displayName: dm.name || "?", avatar: dm.icon || {}, status: null },
+      size,
+      false
+    );
+  };
+
   util.serverIconHTML = (server, size, showBadge) => {
     if (!server) return "";
     const cls = ["server-icon", size ? "server-icon--" + size : "server-icon--md"];

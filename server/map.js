@@ -88,6 +88,9 @@ const T = {
   dms: {
     key: "id",
     iso: ["createdAt", "updatedAt"],
+    /* ícone do GRUPO privado ({emoji,color,image}) — coluna nova
+       da migração 0004, guardada como JSON como avatar de usuário */
+    json: ["icon"],
     /* participantes/leitura/mudo moram em outras tabelas */
     drop: ["participants", "reads", "muted"],
   },

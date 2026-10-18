@@ -1835,6 +1835,171 @@ window.NX = window.NX || {};
     return { dmId: dmId, hidden: !!dm.hidden };
   };
 
+  /* =========================================================
+     GRUPOS PRIVADOS NAS DMs (modo local / offline)
+     Mesma regra do backend: mínimo 2, máximo 10 no total,
+     quem cria administra, eventos viram mensagens de sistema.
+     Com o servidor ligado, o remote.js substitui cada função
+     abaixo pelas rotas reais — quem manda é o BACKEND.
+     ========================================================= */
+  const GROUP_MAX = 10;
+
+  function localSysMsg(dmId, actorId, content) {
+    const m = {
+      id: u().uid("ms"),
+      channelId: dmId,
+      conversationId: dmId,
+      authorId: actorId,
+      senderId: actorId,
+      content: String(content || "").slice(0, 300),
+      type: "system",
+      reactions: {},
+      pinned: false,
+      attachments: [],
+      createdAt: Date.now(),
+      updatedAt: null,
+    };
+    db().messages[m.id] = m;
+    return m;
+  }
+
+  api.createGroup = async function (name, userIds, icon) {
+    await delay();
+    const me = S().me();
+    const trimmed = String(name || "").trim().slice(0, 64);
+    if (!trimmed) fail(NX.i18n.get("grp.nomeVazio", "Dê um nome ao grupo."));
+    let ids = (userIds || []).map(String).filter((x) => x && x !== me.id);
+    ids = ids.filter((x, i) => ids.indexOf(x) === i); /* mesmo usuário não conta duas vezes */
+    if (!ids.length) fail(NX.i18n.get("grp.minimoDuasPessoas", "Adicione pelo menos uma pessoa (o grupo começa com 2)."));
+    if (ids.length + 1 > GROUP_MAX)
+      fail(NX.i18n.get("grp.limiteAtingido", "O limite é de 10 participantes por grupo."));
+    ids.forEach((id) => {
+      const p = S().user(id);
+      if (!p) fail(NX.i18n.get("api.usuarioNaoEncontrado2", "Usuário não encontrado."));
+      if (S().isBlocked(me.id, id) || S().isBlocked(id, me.id))
+        fail(NX.i18n.get("api.desbloqueieEstaPessoaPrimeiro", "Desbloqueie esta pessoa primeiro."));
+    });
+    const id = "dm_" + u().uid("g");
+    const dm = {
+      id: id,
+      isGroup: true,
+      name: trimmed,
+      icon: icon || { emoji: null, color: null, image: null },
+      adminId: me.id,
+      memberCount: ids.length + 1,
+      participants: [me.id].concat(ids),
+      muted: false,
+      reads: {},
+      hidden: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    db().dms[id] = dm;
+    localSysMsg(id, me.id, "criou o grupo.");
+    ids.forEach((uid2) =>
+      notify(uid2, "dm", "@" + me.username + " criou um grupo com você.", {
+        href: "#/mensagens/" + id,
+        actorId: me.id,
+      })
+    );
+    NX.store.commit(["messages", "notifications"]);
+    return dm;
+  };
+
+  api.addGroupMember = async function (dmId, userId) {
+    await delay();
+    const me = S().me();
+    const dm = db().dms[dmId];
+    if (!dm || !dm.isGroup || (dm.participants || []).indexOf(me.id) === -1)
+      fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
+    if (dm.adminId !== me.id)
+      fail(NX.i18n.get("grp.somenteAdmin", "Somente o administrador do grupo pode fazer isto."));
+    const p = S().user(userId);
+    if (!p) fail(NX.i18n.get("api.usuarioNaoEncontrado2", "Usuário não encontrado."));
+    if (dm.participants.indexOf(userId) !== -1) return dm; /* idempotente */
+    if (Number(dm.memberCount || dm.participants.length) >= GROUP_MAX)
+      fail(NX.i18n.get("grp.limiteAtingido", "O limite é de 10 participantes por grupo."));
+    dm.participants.push(userId);
+    dm.memberCount = dm.participants.length;
+    dm.updatedAt = Date.now();
+    localSysMsg(dmId, me.id, "adicionou @" + p.username + " ao grupo.");
+    notify(userId, "dm", "@" + me.username + " adicionou você a um grupo.", {
+      href: "#/mensagens/" + dmId,
+      actorId: me.id,
+    });
+    NX.store.commit(["messages", "notifications"]);
+    return dm;
+  };
+
+  api.removeGroupMember = async function (dmId, userId) {
+    await delay();
+    const me = S().me();
+    const dm = db().dms[dmId];
+    if (!dm || !dm.isGroup || (dm.participants || []).indexOf(me.id) === -1)
+      fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
+    if (dm.adminId !== me.id)
+      fail(NX.i18n.get("grp.somenteAdmin", "Somente o administrador do grupo pode fazer isto."));
+    if (userId === me.id)
+      fail(NX.i18n.get("grp.useSair", "Use \"sair do grupo\" para sair você mesmo."));
+    if (dm.participants.indexOf(userId) === -1) return dm;
+    const p = S().user(userId);
+    dm.participants = dm.participants.filter((x) => x !== userId);
+    dm.memberCount = dm.participants.length;
+    dm.updatedAt = Date.now();
+    localSysMsg(dmId, me.id, "removeu @" + (p ? p.username : "?") + " do grupo.");
+    NX.store.commit(["messages"]);
+    return dm;
+  };
+
+  api.leaveGroup = async function (dmId) {
+    await delay();
+    const me = S().me();
+    const dm = db().dms[dmId];
+    if (!dm || !dm.isGroup || (dm.participants || []).indexOf(me.id) === -1)
+      fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
+    if (dm.participants.length <= 1)
+      fail(NX.i18n.get("grp.ultimoMembro", "Você é o último membro do grupo."));
+    const wasAdmin = dm.adminId === me.id;
+    dm.participants = dm.participants.filter((x) => x !== me.id);
+    dm.memberCount = dm.participants.length;
+    dm.updatedAt = Date.now();
+    if (wasAdmin) {
+      /* admin que sai entrega a administração para quem está lá
+         mais tempo (mesma regra do backend: joined_at mais antigo;
+         aqui, ordem de entrada) */
+      dm.adminId = dm.participants[0];
+      localSysMsg(dmId, me.id, "saiu do grupo; a administração passou para outro membro.");
+    } else {
+      localSysMsg(dmId, me.id, "saiu do grupo.");
+    }
+    delete db().dms[dmId]; /* some da MINHA lista; as mensagens ficam */
+    NX.store.commit(["messages"]);
+    return { left: true, dmId: dmId };
+  };
+
+  api.editGroup = async function (dmId, patchIn) {
+    await delay();
+    const me = S().me();
+    const dm = db().dms[dmId];
+    if (!dm || !dm.isGroup || (dm.participants || []).indexOf(me.id) === -1)
+      fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
+    if (dm.adminId !== me.id)
+      fail(NX.i18n.get("grp.somenteAdmin", "Somente o administrador do grupo pode fazer isto."));
+    if (patchIn && patchIn.name !== undefined) {
+      const name = String(patchIn.name || "").trim().slice(0, 64);
+      if (!name) fail(NX.i18n.get("grp.nomeVazio", "O nome do grupo não pode ficar vazio."));
+      if (name !== dm.name) {
+        dm.name = name;
+        localSysMsg(dmId, me.id, "mudou o nome do grupo.");
+      }
+    }
+    if (patchIn && patchIn.icon !== undefined)
+      dm.icon = patchIn.icon === null ? { emoji: null, color: null, image: null } : patchIn.icon;
+    dm.updatedAt = Date.now();
+    NX.store.commit(["messages"]);
+    return dm;
+  };
+
   api.reportUser = async function (userId, reason) {
     await delay();
     const me = S().me();

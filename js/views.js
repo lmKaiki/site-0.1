@@ -428,15 +428,33 @@ window.NX = window.NX || {};
         const active = route.dmId === row.dm.id;
         const unread = row.unread || 0;
         const hora = row.last ? u().formatTime(row.last.createdAt) : "";
+        /* GRUPO: nome do grupo + ícone próprio; 1:1: a outra pessoa */
+        const isGroup = !!row.dm.isGroup;
+        const label = isGroup
+          ? row.dm.name || NX.i18n.get("grp.semNome", "Grupo")
+          : row.other.displayName;
+        const icon = isGroup
+          ? u().groupIconHTML(row.dm, "sm")
+          : u().avatarHTML(row.other, "sm", true);
+        const lastLine = row.last
+          ? isGroup && row.last.type === "system"
+            ? row.last.content
+            : row.last.content.slice(0, 46)
+          : "";
         html +=
           '<button class="dm-row' +
           (active ? " is-active" : "") +
           (unread ? " is-unread" : "") +
-          '" data-action="open-dm" data-id="' + row.dm.id + '">' +
-          u().avatarHTML(row.other, "sm", true) +
-          '<span class="dm-row__txt"><strong class="truncate">' + u().h(row.other.displayName) + "</strong>" +
+          (isGroup ? " dm-row--group" : "") +
+          '" data-action="open-dm" data-id="' + row.dm.id + '"' +
+          (isGroup
+            ? ' title="' + u().h(S().groupCountLabel(row.dm) + " " + NX.i18n.get("grp.membros", "membros")) + '"'
+            : "") +
+          ">" +
+          icon +
+          '<span class="dm-row__txt"><strong class="truncate">' + u().h(label) + "</strong>" +
           "<small class=\"truncate\">" +
-          (row.last ? u().h(row.last.content.slice(0, 46)) : NX.i18n.get("view.mensagensAinda", "Sem mensagens ainda")) +
+          (lastLine ? u().h(lastLine) : NX.i18n.get("view.mensagensAinda", "Sem mensagens ainda")) +
           "</small></span>" +
           '<span class="dm-row__meta">' +
           (hora ? "<time>" + u().h(hora) + "</time>" : "") +
@@ -460,6 +478,8 @@ window.NX = window.NX || {};
     }
     html +=
       '<div class="side-cta">' +
+      '<button class="btn btn--soft btn--sm btn--block" data-action="new-group">' + NX.icon("users", "", 16) +
+      (" " + NX.i18n.get("grp.novoGrupo", "Novo grupo") + "</button>") +
       '<button class="btn btn--soft btn--sm btn--block" data-action="new-dm">' + NX.icon("userPlus", "", 16) +
       (" " + NX.i18n.get("modal.novaConversa", "Nova conversa") + "</button></div></div>");
     return html;
@@ -558,16 +578,39 @@ window.NX = window.NX || {};
           : "") +
         "</div>";
     } else if (route.name === "dm") {
-      const dm = S().user(route.dmOtherId);
-      const controls =
-        NX.people && typeof NX.people.dmHeaderControls === "function"
+      const dmUser = S().user(route.dmOtherId);
+      const dmRow = NX.store.db.dms[route.dmId];
+      const isGroup = !!(dmRow && dmRow.isGroup);
+      const controls = isGroup
+        ? groupHeaderControls(dmRow)
+        : NX.people && typeof NX.people.dmHeaderControls === "function"
           ? NX.people.dmHeaderControls(route.dmId, route.dmOtherId)
           : "";
       html =
         burger +
-        '<span class="header__ico">' + (dm ? u().avatarHTML(dm, "xs", true) : "") + "</span>" +
-        '<span class="header__title">' + u().h(dm ? dm.displayName : (NX.i18n.get("view.conversa", "Conversa"))) + "</span>" +
-        '<span class="header__status">' + u().h(dm ? NX.STATUS_LABEL[dm.status] || "" : "") + "</span>" +
+        '<span class="header__ico">' +
+        (isGroup
+          ? u().groupIconHTML(dmRow, "xs")
+          : dmUser
+            ? u().avatarHTML(dmUser, "xs", true)
+            : "") +
+        "</span>" +
+        '<span class="header__title">' +
+        u().h(
+          isGroup
+            ? dmRow.name || NX.i18n.get("grp.semNome", "Grupo")
+            : dmUser
+              ? dmUser.displayName
+              : NX.i18n.get("view.conversa", "Conversa")
+        ) +
+        "</span>" +
+        (isGroup
+          ? '<span class="header__count" title="' +
+            u().h(NX.i18n.get("grp.membrosTitulo", "Participantes do grupo")) +
+            '">' +
+            u().h(S().groupCountLabel(dmRow)) +
+            "</span>"
+          : '<span class="header__status">' + u().h(dmUser ? NX.STATUS_LABEL[dmUser.status] || "" : "") + "</span>") +
         '<div class="header__actions">' +
         controls +
         '<button class="icon-btn" data-action="toggle-members" title="' + NX.i18n.get("people.detalhes", "Detalhes") + '" aria-label="' + NX.i18n.get("people.detalhes", "Detalhes") + '">' +
@@ -579,6 +622,8 @@ window.NX = window.NX || {};
         '<span class="header__ico">' + NX.icon("chat", "", 20) + "</span>" +
         '<span class="header__title">' + (NX.t ? NX.t("head.messages") : (NX.i18n.get("nav.messages", "Mensagens"))) + "</span>" +
         '<div class="header__actions">' +
+        '<button class="btn btn--soft btn--sm" data-action="new-group">' + NX.icon("users", "", 16) +
+        ("<span>" + NX.i18n.get("grp.novoGrupo", "Novo grupo") + "</span></button>") +
         '<button class="btn btn--soft btn--sm" data-action="new-dm">' + NX.icon("userPlus", "", 16) +
         ("<span>" + NX.i18n.get("modal.novaConversa", "Nova conversa") + "</span></button></div>");
     } else if (route.name === "explore") {
@@ -695,6 +740,18 @@ window.NX = window.NX || {};
   }
 
   function messageHTML(m, grouped, info, ctx) {
+    /* MENSAGEM DE SISTEMA do grupo (criação/entrada/saída/remoção/
+       renomear): gravada pelo servidor com type "system" e pintada
+       como linha central — sem avatar, sem ações de mensagem, sem
+       agrupamento com mensagens de gente. */
+    if (m.type === "system") {
+      return (
+        '<div class="msg-sys" data-id="' + m.id + '">' +
+        NX.icon("info", "", 13) +
+        "<span><strong>" + u().h(authorLabel(m, null)) + "</strong> " + u().h(m.content) + "</span>" +
+        "</div>"
+      );
+    }
     const serverId = ctx && ctx.serverId;
     const author = S().user(m.authorId) || {
       displayName: NX.i18n.get("view.usuarioRemovido2", "Usuário removido"),
@@ -995,7 +1052,10 @@ window.NX = window.NX || {};
       else html = ch.type === "voice" ? renderVoiceRoom(ch) : renderChat(ch);
     } else if (route.name === "dm") {
       const other = S().user(route.dmOtherId);
-      html = other
+      const dmRow = NX.store.db.dms[route.dmId];
+      /* grupo não depende do "outro" cacheado: a própria conversa
+         carrega nome, ícone e participantes */
+      html = other || (dmRow && dmRow.isGroup)
         ? renderDmChat(route.dmId, other)
         : ("<div class=\"state-block\"><h3>" + NX.i18n.get("view.conversaindisponivel", "Conversa indisponível") + "</h3></div>");
     } else if (route.name === "messages") {
@@ -1059,18 +1119,62 @@ window.NX = window.NX || {};
     return "";
   };
 
+  /* ---- GRUPOS PRIVADOS NAS DMs ----
+     contagem visível "N/10" (o limite é do backend; aqui é o
+     espelho para a tela) e botões do cabeçalho do grupo. */
+  function groupCountText(dm) {
+    return S().groupCountLabel(dm) + " " + NX.i18n.get("grp.membros", "membros");
+  }
+
+  /* silenciar + opções: no lugar dos botões de chamada 1:1 */
+  function groupHeaderControls(dm) {
+    const muted = !!dm.muted;
+    const label = muted
+      ? NX.i18n.get("grp.ativarNotificacoes", "Ativar notificações")
+      : NX.i18n.get("grp.silenciar", "Silenciar");
+    const menuLabel = NX.i18n.get("view.opcoesDaConversa", "Opções da conversa");
+    return (
+      '<button class="icon-btn' + (muted ? " is-muted" : "") +
+      '" data-action="dm-mute" data-id="' + dm.id + '" title="' +
+      u().h(label) + '" aria-label="' + u().h(label) + '">' +
+      NX.icon("bell", "", 19) +
+      "</button>" +
+      '<button class="icon-btn" data-action="dm-menu" data-id="' + dm.id +
+      '" title="' + u().h(menuLabel) + '" aria-label="' + u().h(menuLabel) + '">' +
+      NX.icon("more", "", 19) +
+      "</button>"
+    );
+  }
+
   function renderDmChat(dmId, other) {
     const me = S().me();
     const msgs = S().messagesOf(dmId);
-    const memberInfo = { list: [other.username, me.username], roleOf: () => null };
-    const ctx = { serverId: null, canModerate: false, canPin: false, canReact: true, canSend: true };
     const dm = NX.store.db.dms[dmId];
+    const isGroup = !!(dm && dm.isGroup);
+    /* 1:1 sem a pessoa no cache: nada a pintar (o bloco de estado
+       da rota já explica); grupo não cai aqui — ele não depende
+       do "outro lado" */
+    if (!isGroup && !other) return "";
+    const dmUsers = isGroup
+      ? (dm.participants || []).map((id) => S().user(id)).filter((u2) => !!u2)
+      : [];
+    const memberInfo = {
+      list: (isGroup ? dmUsers.map((u2) => u2.username) : other ? [other.username] : []).concat([me.username]),
+      roleOf: () => null,
+    };
+    const ctx = { serverId: null, canModerate: false, canPin: false, canReact: true, canSend: true };
     let body = "";
     let prev = null;
     msgs.forEach((m) => {
       if (!prev || !u().sameDay(prev.createdAt, m.createdAt)) body += dayDivider(m.createdAt);
+      /* mensagens de sistema nunca se agrupam com ninguém: elas são
+         linhas centrais de contexto (entrada/saída/renomear) */
+      const sysNow = m.type === "system";
+      const sysPrev = !!(prev && prev.type === "system");
       const grouped =
         prev &&
+        !sysNow &&
+        !sysPrev &&
         prev.authorId === m.authorId &&
         m.createdAt - prev.createdAt < 5 * 60 * 1000 &&
         views.editingMessageId !== m.id;
@@ -1079,11 +1183,42 @@ window.NX = window.NX || {};
     });
     if (!msgs.length)
       body =
-        '<div class="chat-empty"><span class="chat-empty__icon">' + u().avatarHTML(other, "xl", true) +
-        "</span><h3>" + u().h(other.displayName) + ("</h3><p>" + NX.i18n.get("view.envieaprimeiramensagemdestaconversa", "Envie a primeira mensagem desta conversa.") + "</p></div>");
+        '<div class="chat-empty"><span class="chat-empty__icon">' +
+        (isGroup ? u().groupIconHTML(dm, "xl") : u().avatarHTML(other, "xl", true)) +
+        "</span><h3>" +
+        u().h(isGroup ? dm.name || "" : other ? other.displayName : "") +
+        "</h3><p>" +
+        (isGroup
+          ? NX.i18n.get("grp.inicioGrupo", "Este é o início do grupo. Envie a primeira mensagem.")
+          : NX.i18n.get("view.envieaprimeiramensagemdestaconversa", "Envie a primeira mensagem desta conversa.")) +
+        "</p></div>";
+
+    const muted = dm && dm.muted;
+
+    if (isGroup) {
+      const adminUser = S().user(dm.adminId);
+      return (
+        '<div class="chat" data-ref="' + dmId + '">' +
+        '<div class="chat__intro chat__intro--dm chat__intro--group">' +
+        u().groupIconHTML(dm, "xl") +
+        "<div><h2>" + u().h(dm.name || NX.i18n.get("grp.semNome", "Grupo")) + "</h2>" +
+        "<p>" +
+        u().h(groupCountText(dm)) +
+        " · " +
+        u().h(
+          NX.i18n.get("grp.administradoPor", "Administrador: ") + "@" + (adminUser ? adminUser.username : "?")
+        ) +
+        "</p></div></div>" +
+        (muted
+          ? '<div class="chat__notice">' + NX.icon("bell", "", 16) + "<span>" +
+            NX.i18n.get("grp.notificacoesDesligadas", "Notificações deste grupo desligadas. Você continua vendo as mensagens.") +
+            "</span></div>"
+          : "") +
+        '<div class="chat__list" data-chat-list>' + body + "</div></div>"
+      );
+    }
 
     const blocked = S().blockedBetween(me.id, other.id);
-    const muted = dm && dm.muted;
 
     return (
       '<div class="chat" data-ref="' + dmId + '">' +
@@ -1187,12 +1322,90 @@ window.NX = window.NX || {};
     );
   }
 
+  /* ---- painel do GRUPO (coluna direita) ----
+     Lista de participantes com avatar/nome/@, contagem N/10 e
+     ações por permissão: admin adiciona/remove/edita; qualquer
+     membro sai. Ao chegar a 10 a adição desabilita com aviso —
+     o limite de 10 é do BACKEND; aqui é a sala de espera avisada. */
+  function groupPanelHTML(dm, me) {
+    const members = (dm.participants || [])
+      .map((id) => S().user(id))
+      .filter((u2) => !!u2)
+      .sort((a, b) => {
+        if (a.id === dm.adminId) return -1;
+        if (b.id === dm.adminId) return 1;
+        return String(a.displayName || "").localeCompare(String(b.displayName || ""));
+      });
+    const isAdmin = dm.adminId === me.id;
+    const count = Number(dm.memberCount) || members.length;
+    const full = count >= 10;
+
+    const rows = members
+      .map((u2) => {
+        const isMe = u2.id === me.id;
+        return (
+          '<div class="member-card">' +
+          u().avatarHTML(u2, "sm", true) +
+          '<span class="member-card__txt"><strong class="truncate">' + u().h(u2.displayName) + "</strong>" +
+          '<small class="truncate">@' +
+          u().h(u2.username) +
+          (u2.id === dm.adminId ? " · " + u().h(NX.i18n.get("grp.admin", "administrador")) : "") +
+          (isMe ? " · " + u().h(NX.i18n.get("grp.voce", "você")) : "") +
+          "</small></span>" +
+          (isAdmin && !isMe
+            ? '<button class="icon-btn icon-btn--xs" data-action="group-remove-member" data-id="' +
+              dm.id + '" data-user="' + u2.id +
+              '" title="' + u().h(NX.i18n.get("grp.remover", "Remover do grupo")) +
+              '" aria-label="' + u().h(NX.i18n.get("grp.remover", "Remover do grupo")) + '">' +
+              NX.icon("x", "", 15) +
+              "</button>"
+            : "") +
+          "</div>"
+        );
+      })
+      .join("");
+
+    return (
+      '<div class="members__head"><span>' + NX.i18n.get("grp.membros", "Membros") +
+      '</span><span class="members__count">' + count + "/10</span></div>" +
+      '<div class="members__scroll">' +
+      '<div class="group-card">' +
+      u().groupIconHTML(dm, "lg") +
+      "<h3>" + u().h(dm.name || NX.i18n.get("grp.semNome", "Grupo")) + "</h3>" +
+      "<p>" + u().h(groupCountText(dm)) + "</p>" +
+      (isAdmin
+        ? '<div class="group-card__acts">' +
+          '<button class="btn btn--soft btn--sm" data-action="group-edit" data-id="' + dm.id + '">' +
+          NX.icon("settings", "", 15) + " " + NX.i18n.get("grp.editar", "Editar") + "</button>" +
+          "</div>"
+        : "") +
+      "</div>" +
+      (isAdmin
+        ? full
+          ? '<div class="group-full" role="status">' + NX.icon("users", "", 15) +
+            "<span>" + NX.i18n.get("grp.cheio", "Grupo cheio: 10/10 membros. Saia alguém para adicionar outra pessoa.") + "</span></div>"
+          : '<button class="btn btn--soft btn--sm btn--block" data-action="group-add" data-id="' + dm.id + '">' +
+            NX.icon("userPlus", "", 15) + " " + NX.i18n.get("grp.adicionarMembros", "Adicionar membros") + "</button>"
+        : "") +
+      rows +
+      '<button class="btn btn--danger btn--sm btn--block group-card__leave" data-action="group-leave" data-id="' + dm.id + '">' +
+      NX.icon("logout", "", 15) + " " + NX.i18n.get("grp.sairDoGrupo", "Sair do grupo") + "</button>" +
+      "</div>"
+    );
+  }
+
   views.members = function () {
     const el = document.getElementById("members");
     const route = NX.app.route;
     const me = S().me();
 
     if (route.name === "dm") {
+      const dmRow = NX.store.db.dms[route.dmId];
+      if (dmRow && dmRow.isGroup) {
+        el.classList.remove("is-empty");
+        el.innerHTML = groupPanelHTML(dmRow, me);
+        return;
+      }
       const other = S().user(route.dmOtherId);
       if (!other) {
         el.innerHTML = "";
@@ -1300,6 +1513,20 @@ window.NX = window.NX || {};
       };
     }
     if (route.name === "dm") {
+      const dmRow = NX.store.db.dms[route.dmId];
+      if (dmRow && dmRow.isGroup)
+        return {
+          /* o nome entra na chave: quando o admin renomeia, o
+             composer re-renderiza com o placeholder novo */
+          key: "dmg:" + route.dmId + ":" + (dmRow.name || ""),
+          ref: route.dmId,
+          placeholder:
+            NX.i18n.get("view.mensagempara2", "Mensagem para") +
+            " " +
+            (dmRow.name || NX.i18n.get("grp.semNome", "Grupo")),
+          canSend: true,
+          serverId: null,
+        };
       const other = S().user(route.dmOtherId);
       if (!other) return null;
       return {

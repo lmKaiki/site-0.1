@@ -2057,3 +2057,159 @@
   color: var(--accent);
   background: rgba(53, 224, 168, 0.14);
 }
+
+/* ============================================================
+   GRUPOS PRIVADOS NAS DMs
+   ============================================================ */
+
+/* contagem "N/10" no cabeçalho da conversa */
+.header__count {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* botão do sininho quando o grupo está silenciado */
+.icon-btn.is-muted {
+  color: var(--text-dim);
+}
+
+/* mensagem de sistema do grupo: linha central, sem avatar */
+.msg-sys {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0;
+  padding: 2px 14px;
+  font-size: 12.5px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.msg-sys svg {
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+
+.msg-sys strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* linha de grupo na lista: o ícone é o grupo, sem ponto de presença */
+.dm-row--group .avatar__dot {
+  display: none;
+}
+
+/* seleção de pessoas no modal "novo grupo" */
+.dm-row--pick .dm-row__tick {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  color: transparent;
+}
+
+.dm-row--pick.is-picked {
+  background: var(--accent-soft);
+}
+
+.dm-row--pick.is-picked .dm-row__tick {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dm-row--pick.is-dim {
+  opacity: 0.45;
+}
+
+/* dica de contagem/estado nos modais de grupo */
+.field__hint {
+  margin: 2px 0 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* edição do ícone do grupo (emoji manual + imagem enviada) */
+.group-icon-edit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.group-icon-edit__acts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+/* painel do grupo na coluna direita */
+.members__count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.group-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 12px;
+  padding: 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elev);
+  text-align: center;
+}
+
+.group-card h3 {
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.group-card p {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.group-card__acts {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.group-card__leave {
+  margin-top: 10px;
+}
+
+/* grupo completo: aviso no lugar do botão de adicionar */
+.group-full {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 2px 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 700px) {
+  .header__count {
+    margin-left: 6px;
+  }
+}

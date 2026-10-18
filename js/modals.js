@@ -1595,6 +1595,415 @@ window.NX = window.NX || {};
   };
 
   /* =========================================================
+     GRUPOS PRIVADOS NAS DMs
+     Os três modais do grupo. Candidatos: amigos + pessoas dos
+     meus servidores (mesma base do "Nova conversa"). O limite
+     de 10 é validado NO BACKEND; aqui a interface só avisa
+     antes de perder a viagem.
+     ========================================================= */
+  function groupCandidatePool() {
+    const me = S().me();
+    const people = [];
+    const seen = {};
+    const add = (p) => {
+      if (!p || !p.id || p.id === me.id || seen[p.id]) return;
+      if (!S().isPerson(p)) return;
+      seen[p.id] = true;
+      people.push(p);
+    };
+    S().friendsOf(me.id).forEach(add);
+    S().membershipsOf(me.id).forEach((mm) => {
+      S().membersOf(mm.serverId).forEach((row) => add(row.user));
+    });
+    const sort = () =>
+      people.sort((a, b) => {
+        const fa = S().isFriend(me.id, a.id) ? 0 : 1;
+        const fb = S().isFriend(me.id, b.id) ? 0 : 1;
+        if (fa !== fb) return fa - fb;
+        const oa = a.status === "online" ? 0 : 1;
+        const ob = b.status === "online" ? 0 : 1;
+        if (oa !== ob) return oa - ob;
+        return String(a.displayName || "").localeCompare(String(b.displayName || ""));
+      });
+    sort();
+    return { me: me, people: people, add: add, sort: sort };
+  }
+
+  /* ---- NOVO GRUPO ---- */
+  M.newGroup = function () {
+    const pool = groupCandidatePool();
+    const people = pool.people;
+    const selected = {};
+    const selCount = () => Object.keys(selected).length + 1; /* + quem cria */
+
+    const m = NX.ui.modal({
+      title: NX.i18n.get("grp.novoGrupo", "Novo grupo"),
+      eyebrow: NX.i18n.get("modal.mensagensDiretas", "Mensagens diretas"),
+      size: "sm",
+      footer: u().el(
+        ACTIONS(
+          '<button class="btn btn--ghost" type="button" data-modal-close>' +
+            NX.i18n.get("common.close", "Fechar") +
+            "</button>" +
+            '<button class="btn btn--primary" type="button" data-create disabled>' +
+            NX.i18n.get("grp.criarGrupo", "Criar grupo") +
+            "</button>"
+        )
+      ),
+    });
+
+    const listHTML = (filter) => {
+      const f = u().normalize(filter || "");
+      const rows = people.filter(
+        (p) =>
+          !f ||
+          u().normalize(p.displayName).indexOf(f) !== -1 ||
+          u().normalize(p.username).indexOf(f) !== -1
+      );
+      if (!rows.length)
+        return (
+          '<div class="invite-empty">' + NX.icon("users", "", 20) + "<span>" +
+          NX.i18n.get("modal.nenhumapessoaencontrada", "Nenhuma pessoa corresponde à sua busca.") +
+          "</span></div>"
+        );
+      const full = selCount() >= 10;
+      return rows
+        .map((p) => {
+          const picked = !!selected[p.id];
+          return (
+            '<button class="dm-row dm-row--pick' +
+            (picked ? " is-picked" : "") +
+            (!picked && full ? " is-dim" : "") +
+            '" data-pick="' + p.id + '">' +
+            u().avatarHTML(p, "sm", true) +
+            '<span class="dm-row__txt"><strong class="truncate">' + u().h(p.displayName) + "</strong>" +
+            '<small class="truncate">@' + u().h(p.username) + " · " +
+            u().h(NX.STATUS_LABEL[p.status] || "") +
+            "</small></span>" +
+            '<span class="dm-row__tick">' + (picked ? NX.icon("check", "", 16) : "") + "</span>" +
+            "</button>"
+          );
+        })
+        .join("");
+    };
+
+    m.body.innerHTML =
+      '<label class="field"><span class="field__label">' +
+      NX.i18n.get("grp.nomeDoGrupo", "Nome do grupo") + "</span>" +
+      '<input class="input" data-name maxlength="64" placeholder="' +
+      NX.i18n.get("grp.nomeGrupoPh", "Ex.: time do rolê") + '" data-autofocus /></label>' +
+      '<p class="field__hint" data-count></p>' +
+      '<label class="field"><span class="field__label">' + NX.i18n.get("modal.buscarpessoa", "Buscar pessoa") + "</span>" +
+      '<span class="input-affix"><span class="input-affix__ico">' + NX.icon("search", "", 16) +
+      '</span><input class="input" data-search placeholder="' + NX.i18n.get("ui.nomeouusuario", "Nome ou @usuário") + '" /></span></label>' +
+      '<div class="dm-list dm-list--modal" data-results>' + listHTML("") + "</div>";
+
+    const nameEl = m.body.querySelector("[data-name]");
+    const countEl = m.body.querySelector("[data-count]");
+    const search = m.body.querySelector("[data-search]");
+    const results = m.body.querySelector("[data-results]");
+    const createBtn = m.el.querySelector("[data-create]");
+
+    const repaint = () => {
+      const n = selCount();
+      countEl.textContent =
+        n +
+        "/10 " +
+        NX.i18n.get("grp.participantesNoTotal", "participantes no total (você inclusive)") +
+        (n < 2
+          ? " — " + NX.i18n.get("grp.minimoDuasPessoas", "Adicione pelo menos uma pessoa (o grupo começa com 2).")
+          : "");
+      createBtn.disabled = !(nameEl.value || "").trim() || n < 2;
+      if (results && results.isConnected) results.innerHTML = listHTML(search ? search.value : "");
+    };
+
+    nameEl.addEventListener("input", repaint);
+    search.addEventListener("input", u().debounce(repaint, 160));
+
+    results.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-pick]");
+      if (!b) return;
+      const uid = b.getAttribute("data-pick");
+      if (selected[uid]) delete selected[uid];
+      else if (selCount() >= 10) {
+        NX.ui.toast(NX.i18n.get("grp.limiteAtingido", "O limite é de 10 participantes por grupo."), "warn");
+        return;
+      } else selected[uid] = true;
+      repaint();
+    });
+
+    let creating = false;
+    createBtn.addEventListener("click", async () => {
+      if (creating || createBtn.disabled) return;
+      creating = true;
+      createBtn.disabled = true;
+      try {
+        const dm = await api().createGroup(nameEl.value, Object.keys(selected));
+        m.close();
+        NX.app.go("#/mensagens/" + dm.id);
+      } catch (err) {
+        creating = false;
+        createBtn.disabled = false;
+        NX.ui.error(err.message);
+      }
+    });
+
+    repaint();
+
+    /* a amizade é global e pode mudar em outro aparelho: refaz a
+       lista pelo backend sem fechar o modal */
+    Promise.resolve()
+      .then(() => api().listFriends())
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        const before = people.length;
+        list.forEach(pool.add);
+        if (people.length === before) return;
+        pool.sort();
+        repaint();
+      })
+      .catch(() => {});
+  };
+
+  /* ---- ADICIONAR MEMBROS (só admin; abre de novo a cada clique,
+     lê o tamanho atual e recusa quando está cheio) ---- */
+  M.groupAddMembers = function (dmId) {
+    const dm = NX.store.db.dms[dmId];
+    if (!dm || !dm.isGroup) return;
+    const pool = groupCandidatePool();
+
+    const m = NX.ui.modal({
+      title: NX.i18n.get("grp.adicionarMembros", "Adicionar membros"),
+      eyebrow: NX.i18n.get("grp.membros", "Membros"),
+      size: "sm",
+      footer: u().el(
+        ACTIONS(
+          '<button class="btn btn--ghost" type="button" data-modal-close>' +
+            NX.i18n.get("common.close", "Fechar") + "</button>"
+        )
+      ),
+    });
+
+    const live = () => NX.store.db.dms[dmId] || {};
+    const members = () => live().participants || [];
+    const count = () => Number(live().memberCount) || members().length;
+
+    const listHTML = (filter) => {
+      const have = members();
+      const f = u().normalize(filter || "");
+      const rows = pool.people.filter(
+        (p) =>
+          have.indexOf(p.id) === -1 &&
+          (!f ||
+            u().normalize(p.displayName).indexOf(f) !== -1 ||
+            u().normalize(p.username).indexOf(f) !== -1)
+      );
+      if (!rows.length)
+        return (
+          '<div class="invite-empty">' + NX.icon("users", "", 20) + "<span>" +
+          NX.i18n.get("modal.nenhumapessoaencontrada", "Nenhuma pessoa corresponde à sua busca.") +
+          "</span></div>"
+        );
+      return rows
+        .map(
+          (p) =>
+            '<button class="dm-row" data-add="' + p.id + '">' +
+            u().avatarHTML(p, "sm", true) +
+            '<span class="dm-row__txt"><strong class="truncate">' + u().h(p.displayName) + "</strong>" +
+            '<small class="truncate">@' + u().h(p.username) + "</small></span>" +
+            '<span class="dm-row__tick">' + NX.icon("plus", "", 16) + "</span>" +
+            "</button>"
+        )
+        .join("");
+    };
+
+    m.body.innerHTML =
+      '<p class="field__hint" data-count></p>' +
+      '<label class="field"><span class="field__label">' + NX.i18n.get("modal.buscarpessoa", "Buscar pessoa") + "</span>" +
+      '<span class="input-affix"><span class="input-affix__ico">' + NX.icon("search", "", 16) +
+      '</span><input class="input" data-search placeholder="' + NX.i18n.get("ui.nomeouusuario", "Nome ou @usuário") + '" data-autofocus /></span></label>' +
+      '<div class="dm-list dm-list--modal" data-results>' + listHTML("") + "</div>";
+
+    const countEl = m.body.querySelector("[data-count]");
+    const search = m.body.querySelector("[data-search]");
+    const results = m.body.querySelector("[data-results]");
+
+    const repaint = () => {
+      const n = count();
+      if (n >= 10) {
+        countEl.textContent = NX.i18n.get(
+          "grp.cheio",
+          "Grupo cheio: 10/10 membros. Saia alguém para adicionar outra pessoa."
+        );
+        results.innerHTML = "";
+        search.disabled = true;
+      } else {
+        countEl.textContent = n + "/10 " + NX.i18n.get("grp.membros", "membros");
+        if (results.isConnected) results.innerHTML = listHTML(search.value);
+      }
+    };
+
+    search.addEventListener("input", u().debounce(repaint, 160));
+
+    results.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-add]");
+      if (!b) return;
+      const uid = b.getAttribute("data-add");
+      b.disabled = true;
+      try {
+        await api().addGroupMember(dmId, uid);
+        const p = S().user(uid);
+        NX.ui.toast(
+          NX.i18n.get("grp.adicionado", "Adicionado: ") + (p ? "@" + p.username : ""),
+          "success"
+        );
+        repaint();
+      } catch (err) {
+        b.disabled = false;
+        NX.ui.error(err.message);
+        repaint(); /* mostra o aviso de cheio se o backend recusou */
+      }
+    });
+
+    repaint();
+
+    Promise.resolve()
+      .then(() => api().listFriends())
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        const before = pool.people.length;
+        list.forEach(pool.add);
+        if (pool.people.length === before) return;
+        pool.sort();
+        repaint();
+      })
+      .catch(() => {});
+  };
+
+  /* ---- EDITAR GRUPO (só admin): nome + emoji manual ou imagem ---- */
+  M.groupEdit = function (dmId) {
+    const dm = NX.store.db.dms[dmId];
+    const me = S().me();
+    if (!dm || !dm.isGroup || dm.adminId !== me.id) return;
+
+    const iconState = {
+      emoji: (dm.icon && dm.icon.emoji) || "",
+      color: (dm.icon && dm.icon.color) || null,
+      image: (dm.icon && dm.icon.image) || null,
+    };
+
+    const m = NX.ui.modal({
+      title: NX.i18n.get("grp.editarGrupo", "Editar grupo"),
+      eyebrow: NX.i18n.get("grp.membrosTitulo", "Participantes do grupo"),
+      size: "sm",
+      footer: u().el(
+        ACTIONS(
+          '<button class="btn btn--ghost" type="button" data-modal-close>' +
+            NX.i18n.get("common.close", "Fechar") + "</button>" +
+            '<button class="btn btn--primary" type="button" data-save>' +
+            NX.i18n.get("common.save", "Salvar") + "</button>"
+        )
+      ),
+    });
+
+    m.body.innerHTML =
+      '<label class="field"><span class="field__label">' +
+      NX.i18n.get("grp.nomeDoGrupo", "Nome do grupo") + "</span>" +
+      '<input class="input" data-name maxlength="64" data-autofocus /></label>' +
+      '<label class="field"><span class="field__label">' +
+      NX.i18n.get("grp.emoji", "Emoji (opcional, até 8 caracteres)") + "</span>" +
+      '<input class="input" data-emoji maxlength="8" placeholder="🎮" /></label>' +
+      '<div class="field"><span class="field__label">' + NX.i18n.get("grp.imagem", "Imagem do grupo") + "</span>" +
+      '<div class="group-icon-edit">' +
+      "<span data-preview></span>" +
+      '<div class="group-icon-edit__acts">' +
+      '<label class="btn btn--soft btn--sm">' + NX.i18n.get("grp.trocarImagem", "Enviar imagem") +
+      '<input type="file" accept="image/*" data-image hidden /></label>' +
+      '<button class="btn btn--ghost btn--sm" type="button" data-rm>' +
+      NX.i18n.get("grp.removerImagem", "Remover imagem") + "</button>" +
+      "</div></div></div>";
+
+    const nameEl = m.body.querySelector("[data-name]");
+    const emojiEl = m.body.querySelector("[data-emoji]");
+    const preview = m.body.querySelector("[data-preview]");
+    const fileEl = m.body.querySelector("[data-image]");
+    const saveBtn = m.el.querySelector("[data-save]");
+
+    nameEl.value = dm.name || "";
+    emojiEl.value = iconState.emoji;
+
+    const paintPreview = () => {
+      preview.innerHTML = u().groupIconHTML(
+        {
+          id: dm.id,
+          name: nameEl.value || dm.name,
+          icon: Object.assign({}, iconState, { emoji: emojiEl.value ? emojiEl.value.trim() : null }),
+        },
+        "lg"
+      );
+    };
+    paintPreview();
+
+    nameEl.addEventListener("input", paintPreview);
+    emojiEl.addEventListener("input", paintPreview);
+
+    m.body.querySelector("[data-rm]").addEventListener("click", () => {
+      iconState.image = null;
+      paintPreview();
+    });
+
+    fileEl.addEventListener("change", () => {
+      const file = fileEl.files && fileEl.files[0];
+      if (!file) return;
+      if (file.type.indexOf("image/") !== 0) {
+        NX.ui.error(NX.i18n.get("grp.erroImagem", "Envie uma imagem válida."));
+        fileEl.value = "";
+        return;
+      }
+      const fr = new FileReader();
+      fr.onload = () => {
+        const data = String(fr.result || "");
+        /* mesmo teto do backend — a imagem viaja dentro do JSON */
+        if (data.length > 250000) {
+          NX.ui.error(NX.i18n.get("grp.imagemGrande", "Imagem grande demais (máximo 250 KB)."));
+          fileEl.value = "";
+          return;
+        }
+        iconState.image = data;
+        paintPreview();
+      };
+      fr.onerror = () => NX.ui.error(NX.i18n.get("chat.naoFoiPossivelLer2", "Não foi possível ler o arquivo."));
+      fr.readAsDataURL(file);
+    });
+
+    let saving = false;
+    saveBtn.addEventListener("click", async () => {
+      if (saving) return;
+      const name = String(nameEl.value || "").trim();
+      if (!name) {
+        NX.ui.error(NX.i18n.get("grp.nomeVazio", "O nome do grupo não pode ficar vazio."));
+        return;
+      }
+      saving = true;
+      try {
+        await api().editGroup(dmId, {
+          name: name,
+          icon: {
+            emoji: emojiEl.value ? emojiEl.value.trim().slice(0, 8) : null,
+            color: iconState.color,
+            image: iconState.image,
+          },
+        });
+        m.close();
+        NX.ui.toast(NX.i18n.get("grp.atualizado", "Grupo atualizado."), "success");
+      } catch (err) {
+        saving = false;
+        NX.ui.error(err.message);
+      }
+    });
+  };
+
+  /* =========================================================
      CONVERSAS OCULTAS
      Remover da barra nunca apaga nada: a conversa, as mensagens e
      a relação entre as pessoas continuam guardadas e voltam na hora.

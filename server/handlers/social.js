@@ -13,7 +13,7 @@ const u = require("../util");
 const P = require("../patch");
 const R = require("../relations");
 const handlersAuth = require("./auth");
-const { bad, forbidden, notFound } = require("../errors");
+const { ApiError, bad, forbidden, notFound } = require("../errors");
 
 function now() {
   return Date.now();
@@ -55,11 +55,17 @@ function routes() {
     ["POST", "/blocks/remove", unblockUser],
     ["GET", "/dms", listDMs],
     ["POST", "/dms", openDM],
+    ["POST", "/dms/groups", createGroup],
     ["GET", "/dms/:id/messages", dmMessages],
     ["POST", "/dms/:id/messages", dmSendMessage],
     ["POST", "/dms/:id/read", dmMarkRead],
     ["POST", "/dms/:id/mute", dmMute],
     ["POST", "/dms/:id/archive", dmArchive],
+    ["GET", "/dms/:id/members", groupMembers],
+    ["POST", "/dms/:id/members", groupAddMember],
+    ["DELETE", "/dms/:id/members/:userId", groupRemoveMember],
+    ["POST", "/dms/:id/leave", groupLeave],
+    ["PATCH", "/dms/:id/group", groupEdit],
   ];
 }
 
@@ -362,6 +368,9 @@ async function openDM(ctx) {
   const dm = {
     id,
     participants: [me.id, otherId],
+    /* contagem coerente também na conversa 1:1 (a migração 0004
+       já faz o mesmo backfill nas conversas antigas) */
+    memberCount: 2,
     muted: false,
     reads: {},
     createdAt: now(),
@@ -373,6 +382,381 @@ async function openDM(ctx) {
   /* entre amigos a atividade "só amigos" aparece no cabeçalho */
   P.set(patch, "users", other.id, auth.publicUser(other, me.id, { friend: await R.areFriends(me.id, otherId) }));
   return { status: 201, data: dm, patch };
+}
+
+/* ============================================================
+   GRUPOS PRIVADOS NAS MENSAGENS DIRETAS
+   ------------------------------------------------------------
+   Um grupo É uma conversa da mesma tabela `dms` com is_group = true:
+   participantes continuam em dm_members e o histórico continua em
+   dm_messages — nenhuma tabela nova, nenhum caminho paralelo.
+   Regras (aplicadas AQUI no servidor, nunca só na interface):
+   · mínimo 2 participantes na criação, máximo RÍGIDO de 10;
+   · a vaga é disputada com comparação-e-troca + guarda
+     member_count < 10 no MESMO statement (Postgres serializa por
+     row lock; sqlite por statement atômico) — duas entradas
+     simultâneas nunca passam de 10;
+   · o mesmo usuário nunca conta duas vezes (pré-checagem + índice
+     único em dm_members + reconciliação da contagem);
+   · só o administrador (quem criou, ou quem herdou a administração)
+     adiciona, remove, edita nome/ícone;
+   · sair é livre; se o administrador sair, a administração passa
+     para quem entrou mais cedo (determinístico, sem escolha);
+   · o último membro não sai (grupo órfão não existe);
+   · eventos importantes viram mensagens de sistema (type "system"),
+     geradas só pelo servidor — quem digita não pode forjar.
+   ============================================================ */
+const GROUP_MAX = 10;
+
+/* migração 0004 aplicada? Sem as colunas novas, gravar o grupo
+   seria um falha QUIETA (campos apagados na hora do insert).
+   Aqui vira 503 honesto, igual ao Bot Center. */
+async function assertGroups() {
+  let schema = null;
+  try {
+    schema = await db.schemaFor("dms");
+  } catch (e) {
+    schema = null;
+  }
+  const need = ["is_group", "name", "icon", "admin_id", "member_count"];
+  const missing = need.filter((c) => !schema || !schema.size || !schema.has(c));
+  if (!missing.length) return;
+  throw new ApiError(
+    503,
+    "Os grupos privados ainda não foram implantados no banco: execute a migração " +
+      "supabase/migrations/0004_group_dms.sql no Supabase (faltando: " +
+      missing.join(", ") +
+      "). Enquanto isso nenhum grupo é aberto — e nenhum é fingido como enviado.",
+    "schema_pending"
+  );
+}
+
+async function loadGroup(dmId, userId) {
+  const dm = await loadDM(dmId, userId); /* participante? senão 404 */
+  if (!dm.isGroup) throw notFound("Isto não é um grupo.");
+  return dm;
+}
+
+function isGroupAdmin(dm, userId) {
+  return !!dm.adminId && dm.adminId === userId;
+}
+
+function requireGroupAdmin(dm, userId) {
+  if (!isGroupAdmin(dm, userId))
+    throw forbidden("Somente o administrador do grupo pode fazer isto.");
+}
+
+/* ícone do grupo: mesmo formato do avatar ({emoji,color,image}),
+   validado aqui — imagem só data:image e tamanho de ícone */
+function groupIconOf(raw) {
+  const empty = { emoji: null, color: null, image: null };
+  if (raw === null || raw === undefined) return empty;
+  if (typeof raw !== "object") throw bad("Ícone do grupo inválido.");
+  const out = { emoji: null, color: null, image: null };
+  const emoji = typeof raw.emoji === "string" ? raw.emoji.trim().slice(0, 8) : "";
+  if (emoji) out.emoji = emoji;
+  if (typeof raw.color === "string" && /^#[0-9a-fA-F]{3,8}$/.test(raw.color))
+    out.color = raw.color;
+  const image = typeof raw.image === "string" ? raw.image : "";
+  if (image) {
+    if (!/^data:image\//i.test(image))
+      throw bad("Formato de imagem não suportado para o ícone do grupo.");
+    if (image.length > 250000)
+      throw bad("A imagem do ícone é grande demais (máximo aproximadamente 190 KB).");
+    out.image = image;
+  }
+  return out;
+}
+
+/* mensagem de sistema: gravada pelo SERVIDOR com type "system".
+   O envio normal força type "user" — não existe como uma conta
+   forjar um evento de grupo. */
+async function groupSystemMsg(dm, actorId, content) {
+  const message = {
+    id: u.uid("ms"),
+    channelId: dm.id,
+    conversationId: dm.id,
+    authorId: actorId,
+    senderId: actorId,
+    content: String(content || "").slice(0, 300),
+    type: "system",
+    reactions: {},
+    pinned: false,
+    attachments: [],
+    createdAt: now(),
+    updatedAt: null,
+  };
+  await db.insert("messages", message);
+  return message;
+}
+
+/* contagem REAL (linhas de dm_members = usuários distintos, graças
+   ao índice único) reescrita na conversa: corrige qualquer
+   transiente e mantém a interface em "N/10" verdadeiro */
+async function recountGroup(dmId) {
+  const n = await db.count("dm_members", { where: { conversationId: dmId } });
+  await db.update("dms", { where: { id: dmId } }, { memberCount: n, updatedAt: now() });
+  return n;
+}
+
+/* vaga ATÔMICA: comparação-e-troca (member_count = N que acabamos
+   de ler) E guarda N < 10 no MESMO update. Se outra entrada mexeu
+   entre a leitura e a escrita, o update não casa nenhuma linha e
+   tentamos de novo com o valor fresco. Nunca soma a partir de um
+   valor lido tempos atrás — é isso que impede passar de 10. */
+async function claimGroupSlot(dmId) {
+  for (let i = 0; i < 8; i++) {
+    const rows = await db.select("dms", { where: { id: dmId }, limit: 1 });
+    const cur = rows && rows[0];
+    if (!cur) return false;
+    let count = cur.memberCount;
+    if (count === null || count === undefined || isNaN(Number(count)))
+      count = await recountGroup(dmId);
+    count = Number(count);
+    if (count >= GROUP_MAX) return false;
+    const n = await db.update(
+      "dms",
+      {
+        where: { id: dmId, memberCount: count },
+        op: { memberCount: { lt: GROUP_MAX } },
+      },
+      { memberCount: count + 1, updatedAt: now() }
+    );
+    if (n > 0) return true;
+  }
+  return false;
+}
+
+/* valida a pessoa que vai entrar: existe, é conta de verdade,
+   não há bloqueio e a privacidade de DM dela permite */
+async function assertGroupTarget(me, targetId) {
+  const person = await getUser(targetId);
+  if (!person || !isPerson(person)) throw notFound("Uma das pessoas selecionadas não existe mais.");
+  if (await R.blocksOf(me.id).then((l) => l.indexOf(targetId) !== -1))
+    throw bad("Você bloqueou @" + person.username + " — desbloqueie antes de convidar.");
+  if (await R.blocksOf(targetId).then((l) => l.indexOf(me.id) !== -1))
+    throw bad("@" + person.username + " não pode receber mensagens suas.");
+  if (!(await R.canDM(me.id, targetId))) throw bad(R.dmPrivacyMessage(person));
+  return person;
+}
+
+async function freshGroupPatch(dmId, extra) {
+  const rows = await db.select("dms", { where: { id: dmId }, limit: 1 });
+  const fresh = rows && rows[0] ? rows[0] : null;
+  const patch = P.createPatch();
+  if (fresh) P.set(patch, "dms", dmId, fresh);
+  (extra || []).forEach((msg) => P.set(patch, "messages", msg.id, msg));
+  return { fresh, patch };
+}
+
+async function createGroup(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const body = ctx.body || {};
+  const name = String(body.name || "").trim().slice(0, 64);
+  if (!name) throw bad("Dê um nome ao grupo.");
+  let ids = Array.isArray(body.userIds) ? body.userIds.map(String) : [];
+  ids = ids.filter((x) => x && x !== me.id);
+  ids = ids.filter((x, i) => ids.indexOf(x) === i); /* sem repetido */
+  if (!ids.length)
+    throw bad("Adicione pelo menos uma pessoa — o grupo começa com 2 participantes.");
+  if (ids.length + 1 > GROUP_MAX)
+    throw bad(
+      "O limite é " + GROUP_MAX + " participantes no total (você + " + ids.length + " selecionados)."
+    );
+  for (let i = 0; i < ids.length; i++) await assertGroupTarget(me, ids[i]);
+
+  const id = u.uid("dm");
+  const dm = {
+    id,
+    isGroup: true,
+    name,
+    icon: groupIconOf(body.icon),
+    adminId: me.id,
+    memberCount: ids.length + 1,
+    participants: [me.id].concat(ids),
+    muted: false,
+    reads: {},
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.insert("dms", dm);
+  const sys = await groupSystemMsg(dm, me.id, "criou o grupo.");
+  const out = await freshGroupPatch(id, [sys]);
+  return { status: 201, data: out.fresh || dm, patch: out.patch };
+}
+
+async function groupMembers(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const dm = await loadGroup(ctx.params.id, me.id);
+  const users = await db.select("users", { where: { id: dm.participants }, limit: GROUP_MAX });
+  return {
+    data: {
+      dmId: dm.id,
+      adminId: dm.adminId,
+      memberCount: dm.memberCount,
+      max: GROUP_MAX,
+      participants: dm.participants,
+      users: (users || []).map((x) => auth.publicUser(x, me.id, {})),
+    },
+  };
+}
+
+async function groupAddMember(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const dm = await loadGroup(ctx.params.id, me.id);
+  requireGroupAdmin(dm, me.id);
+  const targetId = String((ctx.body || {}).userId || "");
+  if (!targetId) throw bad("Escolha a pessoa que vai entrar no grupo.");
+  if (targetId === me.id) throw bad("Você já está no grupo.");
+  if (dm.participants.indexOf(targetId) !== -1) {
+    /* idempotente: já é membro — nada muda e nada é contado duas vezes */
+    const out = await freshGroupPatch(dm.id, []);
+    return { data: out.fresh || dm, patch: out.patch };
+  }
+  await assertGroupTarget(me, targetId);
+
+  const ok = await claimGroupSlot(dm.id);
+  if (!ok) throw bad("O grupo já está cheio (10/10 participantes).");
+
+  let joined = false;
+  try {
+    await db.insert("dm_members", {
+      conversationId: dm.id,
+      userId: targetId,
+      joinedAt: now(),
+    });
+    joined = true;
+  } catch (e) {
+    /* corrida: o mesmo usuário acabou de entrar por outra requisição
+       — o índice único segurou; a contagem é reconciliada abaixo */
+  }
+  await recountGroup(dm.id);
+
+  const person = await getUser(targetId);
+  const sys = joined
+    ? await groupSystemMsg(
+        dm,
+        me.id,
+        "adicionou @" + (person ? person.username : targetId) + " ao grupo."
+      )
+    : null;
+  const out = await freshGroupPatch(dm.id, sys ? [sys] : []);
+  return { status: joined ? 201 : 200, data: out.fresh || dm, patch: out.patch };
+}
+
+async function groupRemoveMember(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const dm = await loadGroup(ctx.params.id, me.id);
+  requireGroupAdmin(dm, me.id);
+  const targetId = String(ctx.params.userId || "");
+  if (!targetId) throw bad("Escolha a pessoa que vai sair.");
+  if (targetId === me.id) throw bad("Use “Sair do grupo” para sair você mesmo.");
+  if (dm.participants.indexOf(targetId) === -1)
+    throw notFound("Esta pessoa não está no grupo.");
+
+  await db.remove("dm_members", {
+    where: { conversationId: dm.id, userId: targetId },
+  });
+  await recountGroup(dm.id);
+  const person = await getUser(targetId);
+  const sys = await groupSystemMsg(
+    dm,
+    me.id,
+    "removeu @" + (person ? person.username : targetId) + " do grupo."
+  );
+  const out = await freshGroupPatch(dm.id, [sys]);
+  return { data: out.fresh || dm, patch: out.patch };
+}
+
+async function groupLeave(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const dm = await loadGroup(ctx.params.id, me.id);
+  if (dm.participants.length <= 1)
+    throw bad(
+      "Você é o único membro do grupo. Oculte a conversa da lista em vez de sair — assim o histórico continua guardado."
+    );
+
+  const wasAdmin = isGroupAdmin(dm, me.id);
+  /* sucessor DETERMINÍSTICO da administração: quem entrou mais cedo
+     (empate de horário desempatado pelo id — igual para todos) */
+  let successor = null;
+  if (wasAdmin) {
+    const rows = await db.select("dm_members", { where: { conversationId: dm.id } });
+    const order = (rows || [])
+      .filter((r) => r.userId !== me.id)
+      .sort(
+        (a, b) =>
+          Number(a.joinedAt || 0) - Number(b.joinedAt || 0) ||
+          String(a.userId).localeCompare(String(b.userId))
+      );
+    successor = order[0] || null;
+  }
+
+  await db.remove("dm_members", {
+    where: { conversationId: dm.id, userId: me.id },
+  });
+  await recountGroup(dm.id);
+
+  let sys = null;
+  if (wasAdmin && successor) {
+    await db.update("dms", { where: { id: dm.id } }, {
+      adminId: successor.userId,
+      updatedAt: now(),
+    });
+    const succUser = await getUser(successor.userId);
+    sys = await groupSystemMsg(
+      dm,
+      me.id,
+      "saiu do grupo e passou a administração para @" +
+        (succUser ? succUser.username : successor.userId) +
+        "."
+    );
+  } else {
+    sys = await groupSystemMsg(dm, me.id, "saiu do grupo.");
+  }
+
+  /* quem saiu some da LISTA do próprio cache na hora; a conversa e
+     as mensagens continuam intactas no servidor para os demais */
+  const patch = P.createPatch();
+  P.del(patch, "dms", [dm.id]);
+  if (sys) P.set(patch, "messages", sys.id, sys);
+  return { data: { left: true, dmId: dm.id }, patch };
+}
+
+async function groupEdit(ctx) {
+  const me = await auth.requireUser(ctx.event);
+  await assertGroups();
+  const dm = await loadGroup(ctx.params.id, me.id);
+  requireGroupAdmin(dm, me.id);
+  const body = ctx.body || {};
+  const patchIn = {};
+  let renamed = null;
+  if (body.name !== undefined) {
+    const name = String(body.name || "").trim().slice(0, 64);
+    if (!name) throw bad("O nome do grupo não pode ficar vazio.");
+    if (name !== dm.name) {
+      patchIn.name = name;
+      renamed = name;
+    }
+  }
+  if (body.icon !== undefined)
+    patchIn.icon = body.icon === null
+      ? { emoji: null, color: null, image: null }
+      : groupIconOf(body.icon);
+  if (!Object.keys(patchIn).length) return { data: dm, patch: P.createPatch() };
+  patchIn.updatedAt = now();
+  await db.update("dms", { where: { id: dm.id } }, patchIn);
+
+  const sys = renamed
+    ? await groupSystemMsg(dm, me.id, "mudou o nome do grupo para “" + renamed + "”.")
+    : null;
+  const out = await freshGroupPatch(dm.id, sys ? [sys] : []);
+  return { data: out.fresh || dm, patch: out.patch };
 }
 
 async function dmMessages(ctx) {
@@ -420,19 +804,25 @@ async function dmSendMessage(ctx) {
   if (text.length > 2000)
     throw bad("As mensagens podem ter no máximo 2000 caracteres.");
 
+  /* GRUPO: quem pode falar é quem está no grupo (loadGroup/loadDM
+     acima). Bloqueio e privacidade 1:1 não se aplicam — valem nas
+     mesmas regras dos canais de servidor compartilhados, e já foram
+     conferidos no momento de criar o grupo ou de convidar alguém. */
   const otherId = dm.participants.find((p) => p !== me.id) || null;
-  if (otherId && (await R.blockedBetween(otherId, me.id)))
-    throw bad("Você não pode enviar mensagens para esta pessoa.");
-  if (otherId && (await R.blockedBetween(me.id, otherId)))
-    throw bad("Desbloqueie esta pessoa para voltar a conversar.");
+  if (!dm.isGroup) {
+    if (otherId && (await R.blockedBetween(otherId, me.id)))
+      throw bad("Você não pode enviar mensagens para esta pessoa.");
+    if (otherId && (await R.blockedBetween(me.id, otherId)))
+      throw bad("Desbloqueie esta pessoa para voltar a conversar.");
 
-  /* privacidade revalidada enquanto a conversa não tem histórico */
-  const history = await db.select("messages", {
-    where: { channel_id: dm.id },
-    limit: 1,
-  });
-  if (otherId && (!history || !history.length) && !(await R.canDM(me.id, otherId)))
-    throw bad(R.dmPrivacyMessage(await getUser(otherId)));
+    /* privacidade revalidada enquanto a conversa não tem histórico */
+    const history = await db.select("messages", {
+      where: { channel_id: dm.id },
+      limit: 1,
+    });
+    if (otherId && (!history || !history.length) && !(await R.canDM(me.id, otherId)))
+      throw bad(R.dmPrivacyMessage(await getUser(otherId)));
+  }
 
   const createdAt = now();
   const message = {
@@ -460,15 +850,33 @@ async function dmSendMessage(ctx) {
   P.set(patch, "messages", message.id, message);
   P.set(patch, "dms", dm.id, updatedDM);
 
-  const mutedList = await db.mutedDms(me.id);
-  if (otherId && mutedList.indexOf(dm.id) === -1) {
-    const note = await handlersAuth.createNotification(
-      otherId,
-      "dm",
-      "@" + me.username + " enviou uma mensagem.",
-      { href: "#/mensagens/" + dm.id, actorId: me.id, messageId: message.id }
-    );
-    P.set(patch, "notifications", note.id, note);
+  if (dm.isGroup) {
+    /* GRUPO: cada participante recebe a notificação na própria conta,
+       pulando quem silenciou esta conversa (silêncio é por pessoa) */
+    const others = dm.participants.filter((p) => p !== me.id);
+    for (let i = 0; i < others.length; i++) {
+      const uid = others[i];
+      const theirMuted = await db.mutedDms(uid);
+      if (theirMuted.indexOf(dm.id) !== -1) continue;
+      const note = await handlersAuth.createNotification(
+        uid,
+        "dm",
+        "@" + me.username + " enviou uma mensagem.",
+        { href: "#/mensagens/" + dm.id, actorId: me.id, messageId: message.id }
+      );
+      P.set(patch, "notifications", note.id, note);
+    }
+  } else {
+    const mutedList = await db.mutedDms(me.id);
+    if (otherId && mutedList.indexOf(dm.id) === -1) {
+      const note = await handlersAuth.createNotification(
+        otherId,
+        "dm",
+        "@" + me.username + " enviou uma mensagem.",
+        { href: "#/mensagens/" + dm.id, actorId: me.id, messageId: message.id }
+      );
+      P.set(patch, "notifications", note.id, note);
+    }
   }
   return { status: 201, data: message, patch };
 }

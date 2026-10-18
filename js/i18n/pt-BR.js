@@ -2607,5 +2607,48 @@
   D["np.errProgress"] = "Missão ainda não concluída. O progresso é verificado no servidor.";
   D["np.errAnim"] = "Preferência de animação inválida.";
 
+  /* ---- grupos privados nas DMs ---- */
+  D["grp.novoGrupo"] = "Novo grupo";
+  D["grp.criarGrupo"] = "Criar grupo";
+  D["grp.nomeDoGrupo"] = "Nome do grupo";
+  D["grp.nomeGrupoPh"] = "Ex.: time do rolê";
+  D["grp.nomeVazio"] = "O nome do grupo não pode ficar vazio.";
+  D["grp.semNome"] = "Grupo";
+  D["grp.participantesNoTotal"] = "participantes no total (você inclusive)";
+  D["grp.minimoDuasPessoas"] = "Adicione pelo menos uma pessoa (o grupo começa com 2).";
+  D["grp.limiteAtingido"] = "O limite é de 10 participantes por grupo.";
+  D["grp.membros"] = "membros";
+  D["grp.membrosTitulo"] = "Participantes do grupo";
+  D["grp.admin"] = "administrador";
+  D["grp.voce"] = "você";
+  D["grp.adicionarMembros"] = "Adicionar membros";
+  D["grp.adicionado"] = "Adicionado: ";
+  D["grp.remover"] = "Remover do grupo";
+  D["grp.removerDoGrupo"] = "Remover do grupo?";
+  D["grp.removido"] = "Pessoa removida do grupo.";
+  D["grp.vaiPerderAcesso"] = " vai perder o acesso a estas mensagens e não verá mais o grupo na lista.";
+  D["grp.sairDoGrupo"] = "Sair do grupo";
+  D["grp.sairDoGrupoMsg"] = "Você deixará de ver este grupo na lista. As mensagens continuam guardadas para os outros participantes.";
+  D["grp.sair"] = "Sair";
+  D["grp.voceSaiu"] = "Você saiu do grupo.";
+  D["grp.editar"] = "Editar";
+  D["grp.editarGrupo"] = "Editar grupo";
+  D["grp.atualizado"] = "Grupo atualizado.";
+  D["grp.silenciar"] = "Silenciar";
+  D["grp.ativarNotificacoes"] = "Ativar notificações";
+  D["grp.notificacoesDesligadas"] = "Notificações deste grupo desligadas. Você continua vendo as mensagens.";
+  D["grp.cheio"] = "Grupo cheio: 10/10 membros. Saia alguém para adicionar outra pessoa.";
+  D["grp.inicioGrupo"] = "Este é o início do grupo. Envie a primeira mensagem.";
+  D["grp.administradoPor"] = "Administrador: ";
+  D["grp.somenteAdmin"] = "Somente o administrador do grupo pode fazer isto.";
+  D["grp.useSair"] = "Use \"sair do grupo\" para sair você mesmo.";
+  D["grp.ultimoMembro"] = "Você é o último membro do grupo.";
+  D["grp.emoji"] = "Emoji (opcional, até 8 caracteres)";
+  D["grp.imagem"] = "Imagem do grupo";
+  D["grp.trocarImagem"] = "Enviar imagem";
+  D["grp.removerImagem"] = "Remover imagem";
+  D["grp.erroImagem"] = "Envie uma imagem válida.";
+  D["grp.imagemGrande"] = "Imagem grande demais (máximo 250 KB).";
+
   NX.i18n.register("pt-BR", D);
 })(window.NX);

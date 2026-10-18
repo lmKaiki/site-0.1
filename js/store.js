@@ -690,13 +690,32 @@ window.NX = window.NX || {};
         const last = msgs[msgs.length - 1] || null;
         return { dm: d, other: store.db.users[otherId], last: last, unread: S.dmUnreadFor(d, userId) };
       })
-      /* só conversa entre pessoas: app/bot nunca entra na lista */
-      .filter((x) => x.other && S.isPerson(x.other) && !x.dm.hidden)
+      /* só conversa entre pessoas: app/bot nunca entra na lista.
+         GRUPO é a exceção: ele é uma conversa de verdade, criada
+         por gente — e continua na lista mesmo que o primeiro
+         participante cacheado não seja "o outro lado" de uma 1:1 */
+      .filter((x) => (x.dm.isGroup || (x.other && S.isPerson(x.other))) && !x.dm.hidden)
       .sort((a, b) => {
         const ta = a.last ? a.last.createdAt : a.dm.createdAt;
         const tb = b.last ? b.last.createdAt : b.dm.createdAt;
         return tb - ta;
       });
+
+  /* grupo privado desta conversa (ou null quando é 1:1) */
+  S.dmGroup = (dmId) => {
+    const d = store.db.dms[dmId];
+    return d && d.isGroup ? d : null;
+  };
+
+  /* contagem exibida "N/10" — o BACKEND é quem manda no limite;
+     aqui é só o espelho para a tela (fallback: tamanho real) */
+  S.groupCountLabel = (dm) => {
+    if (!dm) return "";
+    const n =
+      Number(dm.memberCount) ||
+      (Array.isArray(dm.participants) ? dm.participants.length : 0);
+    return n + "/10";
+  };
 
   /* total de mensagens diretas não lidas do usuário (badge do rail) */
   S.dmUnreadCount = (userId) => {
@@ -707,7 +726,9 @@ window.NX = window.NX || {};
       if (d.participants.indexOf(id) === -1 || d.hidden) return false;
       /* mesmo critério da lista: conversa só conta se do outro lado
          tiver uma PESSOA — app, bot ou conta de sistema nunca ganha
-         badge piscando na barra */
+         badge piscando na barra. GRUPO conta sempre: é conversa de
+         gente, criada por gente. */
+      if (d.isGroup) return true;
       const otherId = d.participants.find((p) => p !== id) || d.participants[0];
       const other = store.db.users[otherId];
       return !!other && S.isPerson(other);

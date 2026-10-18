@@ -72,7 +72,12 @@ CREATE TABLE IF NOT EXISTS blocks (
 CREATE TABLE IF NOT EXISTS dms (
   id TEXT PRIMARY KEY,
   created_at TEXT,
-  updated_at TEXT
+  updated_at TEXT,
+  is_group INTEGER,
+  name TEXT,
+  icon TEXT,
+  admin_id TEXT,
+  member_count INTEGER
 );
 CREATE TABLE IF NOT EXISTS dm_members (
   conversation_id TEXT,
@@ -93,7 +98,8 @@ CREATE TABLE IF NOT EXISTS dm_messages (
   content TEXT,
   edited_at TEXT,
   deleted_at TEXT,
-  created_at TEXT
+  created_at TEXT,
+  type TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
@@ -319,6 +325,28 @@ function addColumnIfMissing(table, column, type) {
 function upgradeAdditive() {
   addColumnIfMissing("channels", "created_by", "TEXT");
   addColumnIfMissing("channels", "overrides", "TEXT");
+  /* migração 0004 (grupos privados nas DMs) — equivalente local do
+     ALTER TABLE ADD COLUMN que roda no Supabase */
+  addColumnIfMissing("dms", "is_group", "INTEGER");
+  addColumnIfMissing("dms", "name", "TEXT");
+  addColumnIfMissing("dms", "icon", "TEXT");
+  addColumnIfMissing("dms", "admin_id", "TEXT");
+  addColumnIfMissing("dms", "member_count", "INTEGER");
+  /* mensagens de sistema do grupo precisam do tipo na tabela local */
+  addColumnIfMissing("dm_messages", "type", "TEXT");
+  /* membros duplicados não existem: o índice único é o piso do
+     "não contar o mesmo usuário duas vezes" também no motor local */
+  try {
+    open().exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS ux_dm_members_conv_user " +
+        "ON dm_members (conversation_id, user_id)"
+    );
+  } catch (e) {
+    console.warn(
+      "[nexo/sqlite] índice único de dm_members não criado (há linhas duplicadas?): " +
+        e.message
+    );
+  }
 }
 
 /* objetos viram texto (SQLite não liga objeto em coluna TEXT) */

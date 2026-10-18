@@ -644,6 +644,46 @@ window.NX = window.NX || {};
     const dm = NX.store.db.dms[dmId];
     if (!dm) return;
     const me = S().me();
+
+    /* ---- GRUPO: itens do grupo (abrir, adicionar, editar, sair) ---- */
+    if (dm.isGroup) {
+      const isAdmin = dm.adminId === me.id;
+      const full = Number(dm.memberCount || (dm.participants || []).length) >= 10;
+      const gItems = [
+        {
+          label: NX.i18n.get("view.abrirConversa", "Abrir conversa"),
+          icon: "chat",
+          onClick: () => app.go("#/mensagens/" + dmId),
+        },
+      ];
+      if (isAdmin)
+        gItems.push({
+          label: NX.i18n.get("grp.adicionarMembros", "Adicionar membros"),
+          icon: "userPlus",
+          onClick: () => {
+            if (full) NX.ui.toast(NX.i18n.get("grp.cheio", "Grupo cheio: 10/10 membros. Saia alguém para adicionar outra pessoa."), "warn");
+            else NX.modals.groupAddMembers(dmId);
+          },
+        });
+      if (isAdmin)
+        gItems.push({
+          label: NX.i18n.get("grp.editarGrupo", "Editar grupo"),
+          icon: "settings",
+          onClick: () => NX.modals.groupEdit(dmId),
+        });
+      gItems.push(
+        { divider: true },
+        {
+          label: NX.i18n.get("grp.sairDoGrupo", "Sair do grupo"),
+          icon: "logout",
+          danger: true,
+          onClick: () => A["group-leave"](dmId),
+        }
+      );
+      NX.ui.menu(el, gItems, { align: "end" });
+      return;
+    }
+
     const otherId = (dm.participants || []).find((p) => p !== me.id) || dm.participants[0];
     const other = NX.store.db.users[otherId];
     const items = [
@@ -709,6 +749,73 @@ window.NX = window.NX || {};
   };
 
   A["dm-hidden"] = () => NX.modals.dmHidden();
+
+  /* ================= GRUPOS PRIVADOS NAS DMs ================= */
+  A["new-group"] = () => NX.modals.newGroup();
+
+  /* silenciar/ativar notificações da conversa (grupo ou 1:1) */
+  A["dm-mute"] = async (el) => {
+    const dmId = el.getAttribute("data-id");
+    const dm = NX.store.db.dms[dmId];
+    if (!dm) return;
+    try {
+      await NX.api.muteDM(dmId, !dm.muted);
+    } catch (e) {
+      NX.ui.error(e.message);
+    }
+  };
+
+  A["group-add"] = (el) => NX.modals.groupAddMembers(el.getAttribute("data-id"));
+  A["group-edit"] = (el) => NX.modals.groupEdit(el.getAttribute("data-id"));
+
+  A["group-remove-member"] = async (el) => {
+    const dmId = el.getAttribute("data-id");
+    const userId = el.getAttribute("data-user");
+    const person = S().user(userId);
+    const okRemove = await NX.ui.confirm({
+      title: NX.i18n.get("grp.removerDoGrupo", "Remover do grupo?"),
+      message:
+        (person ? person.displayName : "@") +
+        NX.i18n.get(
+          "grp.vaiPerderAcesso",
+          " vai perder o acesso a estas mensagens e não verá mais o grupo na lista."
+        ),
+      confirmLabel: NX.i18n.get("grp.remover", "Remover"),
+      danger: true,
+      icon: "x",
+    });
+    if (!okRemove) return;
+    try {
+      await NX.api.removeGroupMember(dmId, userId);
+      NX.ui.toast(NX.i18n.get("grp.removido", "Pessoa removida do grupo."), "success");
+    } catch (e) {
+      NX.ui.error(e.message);
+    }
+  };
+
+  /* aceita o botão (data-id) ou o próprio id (menus) */
+  A["group-leave"] = async (el) => {
+    const dmId = typeof el === "string" ? el : el.getAttribute("data-id");
+    const okLeave = await NX.ui.confirm({
+      title: NX.i18n.get("grp.sairDoGrupo", "Sair do grupo?"),
+      message: NX.i18n.get(
+        "grp.sairDoGrupoMsg",
+        "Você deixará de ver este grupo na lista. As mensagens continuam guardadas para os outros participantes."
+      ),
+      confirmLabel: NX.i18n.get("grp.sair", "Sair"),
+      danger: true,
+      icon: "logout",
+    });
+    if (!okLeave) return;
+    try {
+      await NX.api.leaveGroup(dmId);
+      const r = NX.app.route;
+      if (r && r.dmId === dmId) app.go("#/mensagens");
+      NX.ui.toast(NX.i18n.get("grp.voceSaiu", "Você saiu do grupo."), "success");
+    } catch (e) {
+      NX.ui.error(e.message);
+    }
+  };
 
   A["join-explore"] = async (el) => {
     const id = el.getAttribute("data-id");

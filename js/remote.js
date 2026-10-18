@@ -960,6 +960,21 @@ window.NX = window.NX || {};
     ["messages"]
   );
 
+  /* -------------------------- grupos privados -------------------------- */
+  wrap(
+    "createGroup",
+    (name, userIds, icon) =>
+      POST("/dms/groups", { name: name, userIds: userIds || [], icon: icon || null }),
+    ["messages"]
+  );
+  wrap("listGroupMembers", (dmId) => GET("/dms/" + enc(dmId) + "/members"), ["messages"]);
+  wrap("addGroupMember", (dmId, userId) =>
+    POST("/dms/" + enc(dmId) + "/members", { userId: userId }), ["messages"]);
+  wrap("removeGroupMember", (dmId, userId) =>
+    DEL("/dms/" + enc(dmId) + "/members/" + enc(userId)), ["messages"]);
+  wrap("leaveGroup", (dmId) => POST("/dms/" + enc(dmId) + "/leave", {}), ["messages"]);
+  wrap("editGroup", (dmId, patch) => PATCHQ("/dms/" + enc(dmId) + "/group", patch), ["messages"]);
+
   /* marcador de leitura: síncrono para a rota, escrita em segundo
      plano no servidor (a resposta só atualiza o cursor). */
   const origMarkDMRead = NX.api.markDMRead;
