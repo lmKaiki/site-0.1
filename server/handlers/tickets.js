@@ -230,6 +230,7 @@ async function openTicket(ctx) {
 
   const code = await nextCode(serverId);
   const created = await db.insert(T_TICKETS, {
+    id: u.uid("tk"),
     serverId: serverId,
     code: code,
     openerId: me.id,
@@ -324,11 +325,12 @@ async function listTickets(ctx) {
   } else {
     const mineIds = new Set();
     for (const r of rows) {
-      if (r.opener_id === me.id) mineIds.add(r.id);
+      /* db.select devolve camelCase (map.toApp) — openerId, não opener_id */
+      if (r.openerId === me.id) mineIds.add(r.id);
     }
     const parts =
       (await db.select(T_PARTS, { where: { user_id: me.id }, limit: 500 })) || [];
-    parts.forEach((p) => mineIds.add(p.ticket_id));
+    parts.forEach((p) => mineIds.add(p.ticketId));
     out = rows.filter((r) => mineIds.has(r.id)).map(toTicket);
   }
   out.sort((a, b) => msOf(b.createdAt) - msOf(a.createdAt));
@@ -562,13 +564,15 @@ function routes() {
   return [
     ["POST", "/servers/:id/tickets", openTicket],
     ["GET", "/servers/:id/tickets", listTickets],
+    /* "panel" ANTES de ":tid": o router guarda o PRIMEIRO match, e
+       ":tid" casaria com o literal "panel" — tornaria o painel 404. */
+    ["GET", "/servers/:id/tickets/panel", getPanel],
     ["GET", "/servers/:id/tickets/:tid", getTicket],
     ["POST", "/servers/:id/tickets/:tid/assign", assignTicket],
     ["POST", "/servers/:id/tickets/:tid/close", closeTicket],
     ["POST", "/servers/:id/tickets/:tid/reopen", reopenTicket],
     ["GET", "/servers/:id/tickets/:tid/transcript", transcript],
     ["POST", "/servers/:id/tickets/panel", publishPanel],
-    ["GET", "/servers/:id/tickets/panel", getPanel],
   ];
 }
 

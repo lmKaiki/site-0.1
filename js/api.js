@@ -3540,5 +3540,31 @@ window.NX = window.NX || {};
     );
   };
 
+  /* ---------------- tickets do Bot Center ----------------
+     Abrir/gerenciar tickets exige o servidor: um ticket tem canal
+     privado, código TICKET-000N e auditoria — nada disso existe
+     localmente. A versão local recusa de frente, nunca finge. O
+     js/remote.js troca por chamadas reais quando há backend (a
+     tabela é da migração 0003, ainda pendente no Supabase). */
+  const semServidorTickets = async () => {
+    await delay();
+    fail(
+      NX.i18n.get(
+        "help.semServidor",
+        "O Bot Center de tickets precisa de conexão com o servidor do Nexo."
+      )
+    );
+  };
+
+  api.openTicket = semServidorTickets;
+  api.listTickets = semServidorTickets;
+  api.getTicket = semServidorTickets;
+  api.assignTicket = semServidorTickets;
+  api.closeTicket = semServidorTickets;
+  api.reopenTicket = semServidorTickets;
+  api.getTicketTranscript = semServidorTickets;
+  api.publishTicketPanel = semServidorTickets;
+  api.getTicketPanel = semServidorTickets;
+
   NX.api = api;
 })(window.NX);

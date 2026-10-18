@@ -631,11 +631,11 @@
 }
 
 /* ============================================================
-   MEUS BOTS · editor visual de bots criados por usuários
+   MEUS BOTS ï¿½ editor visual de bots criados por usuï¿½rios
    ============================================================ */
 
-/* no editor a busca e as categorias saem de cena: quem está
-   criando não está filtrando o catálogo */
+/* no editor a busca e as categorias saem de cena: quem estï¿½
+   criando nï¿½o estï¿½ filtrando o catï¿½logo */
 .page.bots--nohud .bots-toolbar,
 .page.bots--nohud .bots-cats {
   display: none;
@@ -650,7 +650,7 @@
   color: var(--danger);
 }
 
-/* ---- lista de servidores onde o bot está instalado ---- */
+/* ---- lista de servidores onde o bot estï¿½ instalado ---- */
 .bot-mine__row {
   display: flex;
   flex-wrap: wrap;
@@ -875,7 +875,7 @@
   color: var(--danger);
 }
 
-/* ---- prévia e teste ---- */
+/* ---- prï¿½via e teste ---- */
 .bots-ed__panel {
   padding: 16px;
   border: 1px solid var(--border);
@@ -1012,5 +1012,145 @@
 
   .bots-ed__foot {
     flex-wrap: wrap;
+  }
+}
+
+/* =========================================================
+   TICKETS Â· painel de atendimento
+   ========================================================= */
+.tickets-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 6px 0 16px;
+}
+
+.tickets-head__txt {
+  min-width: 0;
+}
+
+.tickets-head__txt h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tickets-head__txt p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-panel);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ticket-row:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elev);
+}
+
+.ticket-row.is-closed {
+  opacity: 0.72;
+}
+
+.ticket-row__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ticket-row__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(53, 224, 168, 0.3);
+  border-radius: 8px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.ticket-row__subject {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46ch;
+}
+
+.ticket-row__acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag--muted {
+  background: rgba(147, 168, 164, 0.12);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.tickets-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 200, 87, 0.4);
+  border-radius: var(--r-md);
+  background: rgba(255, 200, 87, 0.08);
+  color: #ffc857;
+}
+
+.tickets-alert svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.tickets-alert strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.tickets-alert p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .tickets-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ticket-row__subject {
+    max-width: 100%;
   }
 }

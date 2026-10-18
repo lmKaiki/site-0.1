@@ -154,13 +154,20 @@ async function syncPayload(user) {
 
   /* ---- mensagens: minhas DMs + canais que consigo ver ---- */
   const channelIds = [];
+  /* canal de ticket que eu consigo ver → levo o ticketId junto, para
+     o seletor local mostrar o canal a quem o backend já autorizou
+     (participante transferido, por exemplo — sem conhecê-lo de cor) */
+  const ticketIdByChannel = {};
   const ctxCache = {};
   for (const server of servers) {
     try {
       const ctxS = await acl.loadServer(server.id);
       ctxCache[server.id] = ctxS;
       for (const c of ctxS.channels) {
-        if (await acl.canViewChannel(ctxS, c, user.id)) channelIds.push(c.id);
+        if (await acl.canViewChannel(ctxS, c, user.id)) {
+          channelIds.push(c.id);
+          if (c.ticketId) ticketIdByChannel[c.id] = c.ticketId;
+        }
       }
     } catch (e) {
       /* servidor inacessível: segue sem ele */
@@ -317,6 +324,19 @@ async function syncPayload(user) {
     voice = [];
   }
 
+  /* canais PRIVADOS (tickets) só para quem passa em canViewChannel —
+     o filtro de channelIds acima já protegia as MENSAGENS; sem isto
+     o canal privado (com topic = assunto do chamado) vazava para
+     qualquer membro comum no sync. Falha fechada: se o loadServer
+     de um servidor deu erro, os canais dele também saem. */
+  const visibleChannelIds = new Set(channelIds);
+  const visibleChannels = channels
+    .filter((c) => visibleChannelIds.has(c.id))
+    .map((c) => {
+      if (ticketIdByChannel[c.id]) c.ticketId = ticketIdByChannel[c.id];
+      return c;
+    });
+
   return {
     me: Object.assign(auth.publicUser(user), {
       nameplate: nameplateMap[user.id] || null,
@@ -331,7 +351,7 @@ async function syncPayload(user) {
     ),
     roles: toMap(roles, (r) => r.id),
     categories: toMap(categories, (c) => c.id),
-    channels: toMap(channels, (c) => c.id),
+    channels: toMap(visibleChannels, (c) => c.id),
     invites: invitesMap,
     bans: toMap(bans, (b) => b.id),
     friendRequests: toMap(friendRequests, (r) => r.id),

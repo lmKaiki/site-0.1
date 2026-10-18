@@ -1533,6 +1533,42 @@ window.NX = window.NX || {};
   );
   wrap("listSupportTickets", () => GET("/support"));
 
+  /* ---------------- tickets do Bot Center ----------------
+     Backend real de tickets (migração 0003, ainda pendente no
+     Supabase). Cada operação passa pelo servidor, que valida staff
+     e participante — a interface só espelha. Quando a tabela não
+     existe, o servidor responde 503 schema_pending e a mensagem
+     repassada mostra o estado real (nada de fingir ticket aberto).
+     Sem scopes de cache: ticket é registro de atendimento, aplicado
+     direto no retorno — o painel de tickets chama list ao abrir. */
+  wrap("openTicket", (serverId, payload) =>
+    POST(
+      "/servers/" + serverId + "/tickets",
+      payload && { subject: payload.subject, reason: payload.reason }
+    )
+  );
+  wrap("listTickets", (serverId) => GET("/servers/" + serverId + "/tickets"));
+  wrap("getTicket", (serverId, tid) => GET("/servers/" + serverId + "/tickets/" + tid));
+  wrap("assignTicket", (serverId, tid, userId) =>
+    POST("/servers/" + serverId + "/tickets/" + tid + "/assign", { userId: userId })
+  );
+  wrap("closeTicket", (serverId, tid, reason) =>
+    POST("/servers/" + serverId + "/tickets/" + tid + "/close", { reason: reason })
+  );
+  wrap("reopenTicket", (serverId, tid) =>
+    POST("/servers/" + serverId + "/tickets/" + tid + "/reopen", {})
+  );
+  wrap("getTicketTranscript", (serverId, tid) =>
+    GET("/servers/" + serverId + "/tickets/" + tid + "/transcript")
+  );
+  wrap("publishTicketPanel", (serverId, payload) =>
+    POST(
+      "/servers/" + serverId + "/tickets/panel",
+      payload && { channelId: payload.channelId, title: payload.title }
+    )
+  );
+  wrap("getTicketPanel", (serverId) => GET("/servers/" + serverId + "/tickets/panel"));
+
   /* =========================================================
      8 · status para diagnóstico (nunca expõe credencial)
      ========================================================= */

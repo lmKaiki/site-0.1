@@ -2446,6 +2446,34 @@
   D["bots.cfgTrocaVoto"] = "Permitir trocar o voto na enquete";
   D["bots.cfgTrocaVotoHint"] =
     "Desligado (padrão): cada pessoa tem 1 voto por enquete e votos duplicados são recusados. Ligado: um novo voto substitui o anterior — nunca conta duas vezes.";
+  /* ---------------- tickets (Bot Center) ---------------- */
+  D["bots.tabTickets"] = "Tickets";
+  D["bots.ticketTitulo"] = "Tickets";
+  D["bots.ticketIntro"] = "Chamados abertos pelos membros. Cada um vira um canal privado da equipe.";
+  D["bots.ticketEyebrow"] = "Atendimento";
+  D["bots.ticketNovo"] = "Abrir chamado";
+  D["bots.ticketAbrir"] = "Abrir chamado";
+  D["bots.ticketAssunto"] = "Assunto";
+  D["bots.ticketAssuntoPh"] = "Do que você precisa?";
+  D["bots.ticketMotivo"] = "Motivo";
+  D["bots.ticketMotivoPh"] = "Descreva com detalhe para a equipe ajudar mais rápido.";
+  D["bots.ticketValidacao"] = "Preencha o assunto (mín. 3) e o motivo (mín. 5).";
+  D["bots.ticketErroAbrir"] = "Não foi possível abrir o chamado.";
+  D["bots.ticketErroAcao"] = "Não foi possível concluir a ação.";
+  D["bots.ticketAberto"] = "Aberto";
+  D["bots.ticketFechado"] = "Fechado";
+  D["bots.ticketFechar"] = "Fechar";
+  D["bots.ticketReabrir"] = "Reabrir";
+  D["bots.ticketReaberto"] = "Chamado reaberto.";
+  D["bots.ticketAbrirCanal"] = "Abrir canal";
+  D["bots.ticketMotivoPadrao"] = "Atendimento encerrado pela equipe.";
+  D["bots.ticketErroTitulo"] = "Painel indisponível";
+  D["bots.ticketErro"] = "Não foi possível carregar os tickets.";
+  D["bots.ticketVazioTitulo"] = "Nenhum chamado";
+  D["bots.ticketVazioTexto"] = "Quando um membro abrir um chamado, ele aparece aqui.";
+  D["bots.ticketSemServidorTitulo"] = "Você ainda não está em nenhum servidor";
+  D["bots.ticketSemServidorTexto"] =
+    "Tickets são abertos dentro de um servidor. Entre em um servidor para abrir um chamado para a equipe.";
   D["view.conversasOcultas"] = "Conversas ocultas";
   D["view.verConversasOcultas"] = "Ver conversas ocultas";
   D["view.opcoesDaConversa"] = "Opções da conversa";

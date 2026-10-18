@@ -92,6 +92,7 @@ window.NX = window.NX || {};
     { id: "populares", label: () => t("bots.tabPopulares", "Populares") },
     { id: "meus", label: () => t("bots.tabMeus", "Meus apps") },
     { id: "meusbots", label: () => t("bots.tabMeusBots", "Meus bots") },
+    { id: "tickets", label: () => t("bots.tabTickets", "Tickets") },
     { id: "criar", label: () => t("bots.tabCriar", "Criar um Bot") },
     { id: "catalogo", label: () => t("bots.tabCatalogo", "Catálogo") },
   ];
@@ -153,6 +154,13 @@ window.NX = window.NX || {};
     myBotsLoading: false,
     myBotsError: null,
     editor: null,
+    /* tickets do Bot Center (canal privado por chamado) */
+    ticketsServerId: null,
+    tickets: [],
+    ticketsLoading: false,
+    ticketsError: null,
+    ticketsLoaded: false,
+    panel: null,
   };
 
   /* ---------------- utilidades ---------------- */
@@ -538,6 +546,7 @@ window.NX = window.NX || {};
     if (state.tab === "criar") return editorHTML();
     if (state.tab === "meusbots") return myBotsHTML();
     if (state.tab === "meus") return mineHTML();
+    if (state.tab === "tickets") return ticketsHTML();
     const hasData = catalog().length > 0;
     if (state.loading && !hasData) return loadingHTML();
     if (state.error && !hasData) return errorHTML();
@@ -554,6 +563,142 @@ window.NX = window.NX || {};
     const list = filteredApps();
     if (!list.length) return noMatchHTML();
     return '<div class="bots-grid">' + list.map(cardHTML).join("") + "</div>";
+  }
+
+  /* =========================================================
+     TICKETS · painel de atendimento (Bot Center)
+     Cada chamado vira um canal PRIVADO com código TICKET-000N.
+     Tudo é conferido no backend (staff, participante, migração
+     0003) — aqui só espelhamos o estado real, inclusive o 503
+     "schema_pending" quando a tabela ainda não existe.
+     ========================================================= */
+  function ticketServers() {
+    /* qualquer MEMBRO pode abrir chamado; quem é equipe gerencia
+       (fechar/reabrir/assumir). O backend valida cada ação — aqui
+       só mostramos os servidores em que a pessoa está. */
+    const user = me();
+    if (!user) return [];
+    if (S().serversOf) return S().serversOf(user.id) || [];
+    return managedServers();
+  }
+
+  function isStaff(serverId) {
+    const user = me();
+    if (!user || !serverId) return false;
+    const s = S().server ? S().server(serverId) : null;
+    if (s && s.ownerId === user.id) return true;
+    return !!(S().can && S().can(serverId, user.id, "manageServer"));
+  }
+
+  function ensureTickets(serverId) {
+    if (!serverId) return;
+    if (state.ticketsServerId !== serverId) {
+      state.ticketsServerId = serverId;
+      state.ticketsLoaded = false;
+      state.tickets = [];
+      state.ticketsError = null;
+      state.panel = null;
+    }
+    if (state.ticketsLoading || state.ticketsLoaded) return;
+    state.ticketsLoading = true;
+    state.ticketsError = null;
+    repaint();
+    Promise.all([
+      NX.api.listTickets(serverId).catch((e) => { state.ticketsError = e; return null; }),
+      isStaff(serverId) ? NX.api.getTicketPanel(serverId).catch(() => null) : Promise.resolve(null),
+    ])
+      .then((r) => {
+        if (r[0]) state.tickets = r[0] || [];
+        if (r[1] !== undefined && r[1] !== null) state.panel = r[1];
+      })
+      .finally(() => {
+        state.ticketsLoading = false;
+        state.ticketsLoaded = true;
+        repaint();
+      });
+  }
+
+  function ticketStatusLabel(st) {
+    if (st === "closed") return t("bots.ticketFechado", "Fechado");
+    return t("bots.ticketAberto", "Aberto");
+  }
+
+  function ticketRowHTML(tk) {
+    const staff = isStaff(state.ticketsServerId);
+    const closed = tk.status === "closed";
+    return (
+      '<div class="ticket-row' + (closed ? " is-closed" : "") + '">' +
+      '<div class="ticket-row__main">' +
+      '<span class="ticket-row__code">' + esc(tk.code) + "</span>" +
+      '<span class="ticket-row__subject">' + esc(tk.subject) + "</span>" +
+      '<span class="tag ' + (closed ? "tag--muted" : "tag--ok") + '">' + esc(ticketStatusLabel(tk.status)) + "</span>" +
+      "</div>" +
+      '<div class="ticket-row__acts">' +
+      (staff
+        ? closed
+          ? '<button type="button" class="btn btn--soft btn--sm" data-bot-act="ticket-reopen" data-id="' + esc(tk.id) + '">' +
+              ico("refresh", 15) + "<span>" + esc(t("bots.ticketReabrir", "Reabrir")) + "</span></button>"
+          : '<button type="button" class="btn btn--soft btn--sm" data-bot-act="ticket-close" data-id="' + esc(tk.id) + '">' +
+              ico("check", 15) + "<span>" + esc(t("bots.ticketFechar", "Fechar")) + "</span></button>"
+        : "") +
+      (tk.channelId
+        ? '<button type="button" class="btn btn--ghost btn--sm" data-bot-act="ticket-goto" data-id="' + esc(tk.channelId) + '">' +
+            ico("message", 15) + "<span>" + esc(t("bots.ticketAbrirCanal", "Abrir canal")) + "</span></button>"
+        : "") +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function ticketsHTML() {
+    const servers = ticketServers();
+    if (!servers.length) {
+      return emptyHTML(
+        "ticket",
+        t("bots.ticketSemServidorTitulo", "Você ainda não está em nenhum servidor"),
+        t(
+          "bots.ticketSemServidorTexto",
+          "Tickets são abertos dentro de um servidor. Entre em um servidor para abrir um chamado para a equipe."
+        ),
+        ""
+      );
+    }
+    const sid = state.ticketsServerId || servers[0].id;
+    if (state.ticketsServerId !== sid) { state.ticketsServerId = sid; state.ticketsLoaded = false; }
+
+    const sel =
+      '<label class="field"><span class="field__label">' + esc(t("bots.servidor", "Servidor")) + "</span>" +
+      '<select class="select" data-tickets-server>' +
+      servers
+        .map((s) => '<option value="' + esc(s.id) + '"' + (s.id === sid ? " selected" : "") + ">" + esc(s.name) + "</option>")
+        .join("") +
+      "</select></label>";
+
+    const staff = isStaff(sid);
+    const head =
+      '<div class="tickets-head">' +
+      '<div class="tickets-head__txt"><h2>' + esc(t("bots.ticketTitulo", "Tickets")) + "</h2>" +
+      "<p>" + esc(t("bots.ticketIntro", "Chamados abertos pelos membros. Cada um vira um canal privado da equipe.")) + "</p></div>" +
+      '<button type="button" class="btn btn--primary btn--sm" data-bot-act="ticket-open">' +
+      ico("plus", 16) + "<span>" + esc(t("bots.ticketNovo", "Abrir chamado")) + "</span></button>" +
+      "</div>";
+
+    if (state.ticketsLoading && !state.tickets.length) return head + sel + loadingHTML();
+    if (state.ticketsError) {
+      /* erro honesto: se for schema_pending, a mensagem do servidor
+         (migração 0003) é mostrada como está — nada de fingir lista vazia */
+      const msg = (state.ticketsError && state.ticketsError.message) || t("bots.ticketErro", "Não foi possível carregar os tickets.");
+      return (
+        head + sel +
+        '<div class="tickets-alert">' + ico("alert", 18) +
+        "<div><strong>" + esc(t("bots.ticketErroTitulo", "Painel indisponível")) + "</strong>" +
+        "<p>" + esc(msg) + "</p></div></div>"
+      );
+    }
+    if (!state.tickets.length) {
+      return head + sel + emptyHTML("ticket", t("bots.ticketVazioTitulo", "Nenhum chamado"), t("bots.ticketVazioTexto", "Quando um membro abrir um chamado, ele aparece aqui."), "");
+    }
+    return head + sel + '<div class="tickets-list">' + state.tickets.map(ticketRowHTML).join("") + "</div>";
   }
 
   /* ---------------- cartão de app ---------------- */
@@ -2660,6 +2805,96 @@ window.NX = window.NX || {};
     });
   }
 
+  /* ---------------- tickets: abrir e agir ----------------
+     O modal só coleta assunto/motivo; quem valida é o backend
+     (staff, limite, migração). Se o servidor recusar, a mensagem
+     dele aparece — nada de fingir que o chamado foi aberto. */
+  function openTicketModal() {
+    const sid = state.ticketsServerId;
+    if (!sid) return;
+    const footer = u().el(
+      '<div class="modal__actions">' +
+        '<button class="btn btn--ghost" type="button" data-modal-close>' +
+        esc(t("common.cancel", "Cancelar")) +
+        "</button>" +
+        '<button class="btn btn--primary" type="submit" form="form-ticket-open" data-ticket-submit>' +
+        esc(t("bots.ticketAbrir", "Abrir chamado")) +
+        "</button></div>"
+    );
+    const m = NX.ui.modal({
+      title: t("bots.ticketNovo", "Abrir chamado"),
+      eyebrow: t("bots.ticketEyebrow", "Atendimento"),
+      size: "sm",
+      footer: footer,
+    });
+    m.body.innerHTML =
+      '<form id="form-ticket-open" novalidate>' +
+      '<label class="field"><span class="field__label">' + esc(t("bots.ticketAssunto", "Assunto")) + "</span>" +
+      '<input class="input" name="subject" data-autofocus maxlength="120" placeholder="' +
+      esc(t("bots.ticketAssuntoPh", "Do que você precisa?")) + '" /></label>' +
+      '<label class="field"><span class="field__label">' + esc(t("bots.ticketMotivo", "Motivo")) + "</span>" +
+      '<textarea class="input" name="reason" rows="4" maxlength="2000" placeholder="' +
+      esc(t("bots.ticketMotivoPh", "Descreva com detalhe para a equipe ajudar mais rápido.")) + '"></textarea></label>' +
+      '<div class="form-error" data-ticket-error hidden></div>' +
+      "</form>";
+
+    const form = m.body.querySelector("form");
+    const errBox = m.body.querySelector("[data-ticket-error]");
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const subject = (form.elements.subject.value || "").trim();
+      const reason = (form.elements.reason.value || "").trim();
+      if (subject.length < 3 || reason.length < 5) {
+        errBox.hidden = false;
+        errBox.textContent = t("bots.ticketValidacao", "Preencha o assunto (mín. 3) e o motivo (mín. 5).");
+        return;
+      }
+      errBox.hidden = true;
+      NX.api
+        .openTicket(sid, { subject: subject, reason: reason })
+        .then(() => {
+          NX.ui.toast(t("bots.ticketAberto", "Chamado aberto."), "success");
+          m.close();
+          state.ticketsLoaded = false;
+          ensureTickets(sid);
+        })
+        .catch((e) => {
+          errBox.hidden = false;
+          errBox.textContent = (e && e.message) || t("bots.ticketErroAbrir", "Não foi possível abrir o chamado.");
+        });
+    });
+  }
+
+  function ticketAction(kind, id) {
+    const sid = state.ticketsServerId;
+    if (!sid || !id) return;
+    const close = kind === "close";
+    const run = close
+      ? NX.api.closeTicket(sid, id, t("bots.ticketMotivoPadrao", "Atendimento encerrado pela equipe."))
+      : NX.api.reopenTicket(sid, id);
+    run
+      .then(() => {
+        NX.ui.toast(
+          close ? t("bots.ticketFechado", "Chamado fechado.") : t("bots.ticketReaberto", "Chamado reaberto."),
+          "success"
+        );
+        state.ticketsLoaded = false;
+        ensureTickets(sid);
+      })
+      .catch((e) => NX.ui.error((e && e.message) || t("bots.ticketErroAcao", "Não foi possível concluir a ação.")));
+  }
+
+  /* listener do seletor de servidor do painel de tickets */
+  document.addEventListener("change", (e) => {
+    const el = e && e.target && e.target.closest ? e.target.closest("[data-tickets-server]") : null;
+    if (!el) return;
+    state.ticketsServerId = el.value;
+    state.ticketsLoaded = false;
+    state.tickets = [];
+    state.ticketsError = null;
+    ensureTickets(el.value);
+  });
+
   /* teste rápido de um bot já salvo (mesma lógica fechada do editor) */
   function openTestModal(bot) {
     const commands = Array.isArray(bot.commands) ? bot.commands : [];
@@ -2815,6 +3050,22 @@ window.NX = window.NX || {};
       case "recarregar":
         loadMyBots(true);
         break;
+      /* ---------------- tickets ---------------- */
+      case "ticket-open":
+        openTicketModal();
+        break;
+      case "ticket-close":
+        ticketAction("close", id);
+        break;
+      case "ticket-reopen":
+        ticketAction("reopen", id);
+        break;
+      case "ticket-goto":
+        if (id) {
+          const tk = (state.tickets || []).find((x) => x && x.channelId === id);
+          if (tk && NX.app) NX.app.go("#/s/" + tk.serverId + "/" + id);
+        }
+        break;
       default:
         break;
     }
@@ -2829,6 +3080,10 @@ window.NX = window.NX || {};
     state.appId = null;
     if (tab === "criar" && !state.editor) state.editor = newEditor(null);
     if (tab === "criar" || tab === "meusbots") ensureMyBots();
+    if (tab === "tickets") {
+      const servers = ticketServers();
+      ensureTickets(state.ticketsServerId || (servers[0] && servers[0].id) || null);
+    }
     rerender();
   }
 

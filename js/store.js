@@ -860,6 +860,10 @@ window.NX = window.NX || {};
     if (!S.channelPerm(channel, userId, "viewChannels")) return false;
     const ov = channel.overrides || {};
     if (ov.view === "private") {
+      /* canal de ticket: o backend SÓ entrega no sync quem já passou
+         em canViewChannel (dono/staff/abridor/participante). A marca
+         ticketId vem junto — sem ela o canal nem chegaria aqui. */
+      if (channel.ticketId) return true;
       return (
         channel.createdBy === userId ||
         S.isOwner(serverId, userId) ||

@@ -443,7 +443,14 @@ async function joinServer(ctx) {
     );
   }
 
-  const first = ctxS.channels.find((c) => c.type === "text");
+  /* canal inicial + canais entregues no join: só os que a pessoa
+     CONSEGUE ver — canal privado de ticket não vaza para quem
+     acabou de entrar (mesmo portão do sync: canViewChannel). */
+  let first = null;
+  for (const c of ctxS.channels) {
+    if (c.type !== "text" || first) continue;
+    if (await acl.canViewChannel(ctxS, c, me.id)) first = c;
+  }
   const patch = P.createPatch();
   P.set(patch, "servers", serverId, ctxS.server);
   P.set(patch, "memberships", membership.id, membership);
@@ -453,7 +460,9 @@ async function joinServer(ctx) {
     P.set(patch, "messages", m.id, m)
   );
   ctxS.categories.forEach((c) => P.set(patch, "categories", c.id, c));
-  ctxS.channels.forEach((c) => P.set(patch, "channels", c.id, c));
+  for (const c of ctxS.channels) {
+    if (await acl.canViewChannel(ctxS, c, me.id)) P.set(patch, "channels", c.id, c);
+  }
   ctxS.bans.forEach((b) => P.set(patch, "bans", b.id, b));
   Object.keys(ctxS.roleById).forEach((rid) =>
     P.set(patch, "roles", rid, ctxS.roleById[rid])

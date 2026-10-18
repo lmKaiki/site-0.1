@@ -15,6 +15,7 @@ const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
 const env = require("./env");
+const map = require("./map");
 
 let db = null;
 
@@ -293,7 +294,31 @@ function open() {
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = OFF;");
   db.exec(DDL);
+  upgradeAdditive();
   return db;
+}
+
+/* Upgrade aditivo de bancos locais já existentes.
+   O CREATE TABLE IF NOT EXISTS NÃO acrescenta coluna em tabela que
+   já existe: um tools/.nexo-local.db criado antes da migração 0003
+   ficaria sem channels.created_by/overrides e o Bot Center recusaria
+   (503 schema_pending) mesmo sendo sqlite. É o mesmo que o
+   ALTER TABLE ADD COLUMN da migração 0003 faz no Supabase. */
+function addColumnIfMissing(table, column, type) {
+  try {
+    const cols = open()
+      .prepare('PRAGMA table_info("' + table + '")')
+      .all();
+    if (cols.some((c) => c.name === column)) return;
+    open().exec('ALTER TABLE "' + table + '" ADD COLUMN "' + column + '" ' + type);
+  } catch (e) {
+    /* coluna já existe ou tabela sem permissão: segue — nada a fazer */
+  }
+}
+
+function upgradeAdditive() {
+  addColumnIfMissing("channels", "created_by", "TEXT");
+  addColumnIfMissing("channels", "overrides", "TEXT");
 }
 
 /* objetos viram texto (SQLite não liga objeto em coluna TEXT) */
@@ -424,15 +449,18 @@ const driver = {
   },
 
   upsert(table, obj, conflictCol) {
+    /* o conflictCol chega em formato do APP (camelCase) — o driver
+       Supabase converte com camelToSnake antes de usar; aqui a mesma
+       regra, senão ON CONFLICT("userId") quebra no sqlite real */
+    const col = map.camelToSnake(conflictCol || "id");
     const line = bindRow(obj);
     const cols = Object.keys(line);
-    const target = conflictCol || "id";
     const sql =
       'INSERT INTO "' + table + '" (' +
       cols.map((c) => '"' + c + '"').join(",") +
       ") VALUES (" + cols.map(() => "?").join(",") +
-      ') ON CONFLICT("' + target + '") DO UPDATE SET ' +
-      cols.filter((c) => c !== target).map((c) => '"' + c + '" = excluded."' + c + '"').join(", ");
+      ') ON CONFLICT("' + col + '") DO UPDATE SET ' +
+      cols.filter((c) => c !== col).map((c) => '"' + c + '" = excluded."' + c + '"').join(", ");
     open().prepare(sql).run(...cols.map((c) => line[c]));
     return obj;
   },
