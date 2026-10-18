@@ -46,17 +46,23 @@ window.NX = window.NX || {};
     friendRequests: {}, /* id → {id, senderId, receiverId, status:"pending"|"accepted"|"rejected", createdAt} */
     friendships: {},    /* "<menor>:<maior>" → {id, userAId, userBId, createdAt} */
     friendInvites: {},  /* "<server>:<user>" → {id, serverId, friendId, byId, code, createdAt} */
+    /* convites para chamadas de voz */
+    voiceInvites: {},   /* id → {id, channelId, serverId, toUserId, fromUserId, status, createdAt} */
+    /* apps/bots dos servidores (Bot Center) e chamadas */
+    apps: {},       /* id → {id, name, avatar, category, developer, description, permissions[], commands[], enabled} */
+    serverApps: {}, /* id → {id, serverId, appId, installedBy, permissions[], enabled, configuration} */
+    calls: {},      /* id → {id, peerId, role, state, startedAt, answeredAt, endedAt, reason} */
   });
 
   const store = {
     db: emptyDB(),
-    ui: { lastChannel: {}, collapsed: {}, sidebarOpen: false, membersOpen: true },
+    ui: { lastChannel: {}, collapsed: {}, sidebarOpen: false, membersOpen: true, activeNowCollapsed: false },
     listeners: [],
     ready: false,
   };
 
   /* ---------------- persistência ----------------
-     A causa clássica de "não encontro minha conta" é o banco antigo
+     A causa clássica de (NX.i18n.get("store.naoencontrominhaconta", "não encontro minha conta")) é o banco antigo
      ser descartado em silêncio: aqui procuramos chaves antigas,
      migramos a que tiver mais dados e só zeramos se não houver nada. */
   const LEGACY_KEYS = ["nexo.db.v3", "nexo.db.v2", "nexo.db.v1", "nexo.db"];
@@ -113,7 +119,7 @@ window.NX = window.NX || {};
       this.db.version = 1;
       this.db.auth = this.db.auth || { attempts: {} };
       this.db.auth.attempts = this.db.auth.attempts || {};
-      this.migratedFrom = hasLegacy ? "chaves antigas fundidas" : null;
+      this.migratedFrom = hasLegacy ? NX.i18n.get("store.chavesAntigasFundidas", "chaves antigas fundidas") : null;
       this.loadedUsers = Object.keys(this.db.users || {}).length;
       if (hasLegacy) {
         /* grava a fusão e só apaga as chaves antigas DEPOIS de salva */
@@ -174,6 +180,8 @@ window.NX = window.NX || {};
     db.friendRequests = db.friendRequests || {};
     db.friendships = db.friendships || {};
     db.friendInvites = db.friendInvites || {};
+    /* convites de chamada de voz */
+    db.voiceInvites = db.voiceInvites || {};
 
     /* resquícios do sistema antigo de e-mail/códigos: removidos */
     if (db.auth) {
@@ -190,6 +198,8 @@ window.NX = window.NX || {};
       likes: ["all", "followers", "self"],
       posts: ["public", "followers", "self"],
       friendRequests: ["all", "common", "none"],
+      /* visibilidade do país no perfil */
+      country: ["all", "friends", "none"],
     };
 
     Object.values(db.users || {}).forEach((usr) => {
@@ -202,12 +212,32 @@ window.NX = window.NX || {};
         posts: PRIV.posts.indexOf(p.posts) > -1 ? p.posts : "public",
         friendRequests:
           PRIV.friendRequests.indexOf(p.friendRequests) > -1 ? p.friendRequests : "all",
+        country: PRIV.country.indexOf(p.country) > -1 ? p.country : "all",
       };
       if (!Array.isArray(usr.blocks)) usr.blocks = [];
       usr.followersCount = 0;
       usr.followingCount = 0;
       usr.likesReceived = 0;
       usr.friendsCount = 0;
+
+      /* ---- região: país/fuso horário (o idioma é sempre pt-BR) ----
+         Nada aqui vem de IP/GPS: faltando, o fuso é o do aparelho
+         (o Nexo só exibe horário convertido, nunca regrava datas). */
+      const reg = usr.region || {};
+      const detected = (NX.region && NX.region.detect) ? NX.region.detect() : { timezone: (NX.i18n.get("api.americasaopaulo", "America/Sao_Paulo")), language: "pt-BR" };
+      let zone = reg.timezone || detected.timezone;
+      if (!NX.region || !NX.region.isValidZone(zone)) zone = detected.timezone;
+      if (NX.region && NX.region.ensureZone) NX.region.ensureZone(zone);
+      const country = NX.region && NX.region.country ? NX.region.country(reg.countryCode) : null;
+      usr.region = {
+        countryCode: country ? country.code : "",
+        countryName: country ? country.name : "",
+        countryFlag: country ? country.flag : "",
+        timezone: zone,
+        /* o Nexo é somente pt-BR: idioma nunca muda */
+        language: "pt-BR",
+        showCountry: reg.showCountry !== false,
+      };
     });
 
     /* amizades válidas só entre contas que continuam existindo
@@ -361,6 +391,7 @@ window.NX = window.NX || {};
     delWhere(db.friendRequests, (r) => hasSeedRef(r));
     delWhere(db.friendships, (f) => hasSeedRef(f));
     delWhere(db.friendInvites, (f) => hasSeedRef(f));
+    delWhere(db.voiceInvites, (f) => hasSeedRef(f));
     delWhere(db.posts, (p) => p && (isSeed(p.authorId) || p.demo === true));
     delWhere(db.comments, (c) => c && (isSeed(c.authorId) || c.demo === true || (c.postId && !db.posts[c.postId])));
     delWhere(db.likes, (l) => {
@@ -389,7 +420,7 @@ window.NX = window.NX || {};
     this.migrateSocial();
     this.persist();
     console.info(
-      "[store] DEMO_MODE=false: removidos " + seedCount + " conta(s) fictícia(s) e todos os dados dela(s)."
+      "[store] DEMO_MODE=false: removidos " + seedCount + (" " + NX.i18n.get("store.contasficticiasetodos", "conta(s) fictícia(s) e todos os dados dela(s)."))
     );
     return true;
   };
@@ -398,7 +429,7 @@ window.NX = window.NX || {};
   store.persist = function () {
     const ok = NX.storage.set(DB_KEY, this.db);
     this.persistOk = ok;
-    this.persistError = ok ? null : NX.storage.lastError || "indisponível";
+    this.persistError = ok ? null : NX.storage.lastError || (NX.i18n.get("store.indisponivel", "indisponível"));
     return ok;
   };
 
@@ -410,8 +441,8 @@ window.NX = window.NX || {};
   store.storageWarning = function () {
     if (NX.storage.persistent && this.persistOk !== false) return null;
     return (
-      "Este navegador não está permitindo salvar dados do Nexo. " +
-      "Libere o armazenamento do site (ou desative o bloqueio) para que sua conta e seus servidores não sejam perdidos."
+      (NX.i18n.get("store.estenavegadornaoestapermitindosalvar", "Este navegador não está permitindo salvar dados do Nexo.") + " ") +
+      (NX.i18n.get("store.libereoarmazenamentodositeou", "Libere o armazenamento do site (ou desative o bloqueio) para que sua conta e seus servidores não sejam perdidos."))
     );
   };
 
@@ -420,7 +451,7 @@ window.NX = window.NX || {};
     NX.storage.remove(UI_KEY);
     NX.session.clear();
     this.db = emptyDB();
-    this.ui = { lastChannel: {}, collapsed: {}, sidebarOpen: false, membersOpen: true };
+    this.ui = { lastChannel: {}, collapsed: {}, sidebarOpen: false, membersOpen: true, activeNowCollapsed: false };
     this.persist();
     this.persistUI();
   };
@@ -501,8 +532,14 @@ window.NX = window.NX || {};
       .filter((r) => r.serverId === serverId)
       .sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position);
 
-  S.defaultRole = (serverId) =>
-    Object.values(store.db.roles).find((r) => r.serverId === serverId && r.isDefault) || null;
+  /* Papel padrão: quando a coluna `is_default` não existe no schema,
+     a leitura fica `false` para todo cargo. Sem fallback, quem entra
+     no servidor ganharia associação sem cargo e a tela mostraria
+     permissões erradas — o cargo de menor posição é o "Membros". */
+  S.defaultRole = (serverId) => {
+    const list = Object.values(store.db.roles).filter((r) => r.serverId === serverId);
+    return list.find((r) => r.isDefault) || list.sort((a, b) => (a.position || 0) - (b.position || 0))[0] || null;
+  };
 
   S.membersOf = (serverId) =>
     Object.values(store.db.memberships)
@@ -557,6 +594,45 @@ window.NX = window.NX || {};
 
   S.invite = (code) => (code ? store.db.invites[String(code).toUpperCase()] || null : null);
 
+  /* ---------------- apps/bots e chamadas ---------------- */
+  S.app = (id) => (store.db.apps || {})[id] || null;
+  S.appsList = () =>
+    Object.values(store.db.apps || {}).filter((a) => a && a.enabled !== false);
+  S.installedApps = (serverId) =>
+    Object.values(store.db.serverApps || {}).filter((i) => i && i.serverId === serverId);
+  S.appInstall = (serverId, appId) =>
+    Object.values(store.db.serverApps || {}).find(
+      (i) => i && i.serverId === serverId && i.appId === appId
+    ) || null;
+  /* identidade de um BOT numa mensagem: o conteúdo carrega
+     «bot:<instalação>» — fora disso é pessoa de verdade */
+  S.botFromMessage = (content) => {
+    const m = /^«bot:([^»]+)»/.exec(String(content || ""));
+    if (!m) return null;
+    const install = (store.db.serverApps || {})[m[1]];
+    const app = install ? (store.db.apps || {})[install.appId] : null;
+    return {
+      installId: m[1],
+      install: install || null,
+      app: app || null,
+      text: String(content).replace(/^«bot:[^»]+»\s?/, ""),
+    };
+  };
+  /* texto visível de uma mensagem: sem o marcador interno de bot */
+  S.botTextOf = (content) => {
+    const b = S.botFromMessage(content);
+    return b ? b.text : String(content || "");
+  };
+  S.call = (id) => (store.db.calls || {})[id] || null;
+  S.activeCall = () => {
+    const list = Object.values(store.db.calls || {});
+    return (
+      list.find(
+        (c) => c && (c.state === "ringing" || c.state === "incoming" || c.state === "active")
+      ) || null
+    );
+  };
+
   S.invitesOf = (serverId) =>
     Object.values(store.db.invites)
       .filter((i) => i.serverId === serverId)
@@ -570,6 +646,41 @@ window.NX = window.NX || {};
     return store.db.dms[S.dmId(me.id, userId)] || null;
   };
 
+  /* ---- não lidas: cursor de leitura POR PARTICIPANTE ----
+     dm.reads[userId] = timestamp da última leitura.
+     Campo criado sob demanda (bancos antigos não têm). */
+  S.dmReadAt = (dm, userId) => (dm && dm.reads ? Number(dm.reads[userId]) || 0 : 0);
+
+  /* mensagens da conversa recebidas DEPOIS da última leitura de userId.
+     O que eu envio nunca conta como não lido para mim. */
+  S.dmUnreadFor = (dm, userId) => {
+    if (!dm || !userId) return 0;
+    const since = S.dmReadAt(dm, userId);
+    const msgs = Object.values(store.db.messages);
+    let n = 0;
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (!m || m.channelId !== dm.id) continue;
+      if (m.authorId === userId) continue;
+      if (m.createdAt <= since) continue;
+      n++;
+    }
+    return n;
+  };
+
+  /* Pessoa de verdade: apps/bots têm identidade em `apps` e
+     `server_apps`, nunca em `users`. Ninguém com esses sinais pode
+     aparecer como amigo, conversa ou membro humano. */
+  S.isPerson = (u) => {
+    if (!u || !u.id) return false;
+    if (u.isBot === true || u.kind === "app" || u.type === "app" || u.bot === true) return false;
+    /* conta de SISTEMA da plataforma (dono do Servidor Oficial):
+       nunca aparece como pessoa, amigo ou conversa */
+    if (u.system === true) return false;
+    if (/^(app|bot)_/i.test(String(u.id))) return false;
+    return true;
+  };
+
   S.dmsOf = (userId) =>
     Object.values(store.db.dms)
       .filter((d) => d.participants.indexOf(userId) !== -1)
@@ -577,19 +688,54 @@ window.NX = window.NX || {};
         const otherId = d.participants.find((p) => p !== userId) || d.participants[0];
         const msgs = S.messagesOf(d.id);
         const last = msgs[msgs.length - 1] || null;
-        return { dm: d, other: store.db.users[otherId], last: last };
+        return { dm: d, other: store.db.users[otherId], last: last, unread: S.dmUnreadFor(d, userId) };
       })
-      .filter((x) => x.other)
+      /* só conversa entre pessoas: app/bot nunca entra na lista */
+      .filter((x) => x.other && S.isPerson(x.other) && !x.dm.hidden)
       .sort((a, b) => {
         const ta = a.last ? a.last.createdAt : a.dm.createdAt;
         const tb = b.last ? b.last.createdAt : b.dm.createdAt;
         return tb - ta;
       });
 
-  S.dmUnreadCount = () => 0;
+  /* total de mensagens diretas não lidas do usuário (badge do rail) */
+  S.dmUnreadCount = (userId) => {
+    const id = userId || (S.me() ? S.me().id : null);
+    if (!id) return 0;
+    const dms = Object.values(store.db.dms).filter((d) => {
+      if (!d || !Array.isArray(d.participants)) return false;
+      if (d.participants.indexOf(id) === -1 || d.hidden) return false;
+      /* mesmo critério da lista: conversa só conta se do outro lado
+         tiver uma PESSOA — app, bot ou conta de sistema nunca ganha
+         badge piscando na barra */
+      const otherId = d.participants.find((p) => p !== id) || d.participants[0];
+      const other = store.db.users[otherId];
+      return !!other && S.isPerson(other);
+    });
+    let n = 0;
+    for (let i = 0; i < dms.length; i++) n += S.dmUnreadFor(dms[i], id);
+    return n;
+  };
 
   S.voiceOf = (channelId) =>
     store.db.voice.filter((v) => v.channelId === channelId);
+
+  /* todas as linhas de voz que o servidor me devolveu (já filtradas
+     por privacidade/presença lá no backend) */
+  S.voiceRows = () => store.db.voice || [];
+
+  /* conversas que eu tirei da minha lista (a conversa continua lá) */
+  S.hiddenDmsOf = (userId) =>
+    Object.values(store.db.dms).filter(
+      (d) => d && d.hidden && Array.isArray(d.participants) && d.participants.indexOf(userId) !== -1
+    );
+
+  /* ---- convites para chamadas de voz ---- */
+  S.voiceInvite = (id) => (store.db.voiceInvites || {})[id] || null;
+  S.pendingVoiceInvitesFor = (userId) =>
+    Object.values(store.db.voiceInvites || {}).filter(
+      (v) => v && v.toUserId === userId && v.status === "pending"
+    );
 
   S.voiceChannelOfUser = (userId) => {
     const v = store.db.voice.find((x) => x.userId === userId);
@@ -601,8 +747,18 @@ window.NX = window.NX || {};
       .filter((s) => s.discoverable)
       .sort((a, b) => S.memberCount(b.id) - S.memberCount(a.id));
 
-  S.memberCount = (serverId) =>
-    Object.values(store.db.memberships).filter((m) => m.serverId === serverId).length;
+  /* contagem real vinda do servidor: quando o cache ainda não tem
+     as memberships (ex.: tela de convite de quem não é membro),
+     vale a dica server.memberCount. Com memberships locais, o
+     número local é sempre o mais fresco. */
+  S.memberCount = (serverId) => {
+    const local = Object.values(store.db.memberships).filter(
+      (m) => m.serverId === serverId
+    ).length;
+    if (local) return local;
+    const s = store.db.servers[serverId];
+    return s && typeof s.memberCount === "number" ? s.memberCount : 0;
+  };
 
   /* ---------------- permissões ---------------- */
   function applyPerms(target, source) {
@@ -618,12 +774,16 @@ window.NX = window.NX || {};
     NX.PERM_KEYS.forEach((k) => (out[k] = false));
     const server = S.server(serverId);
     const membership = S.membership(serverId, userId);
-    if (!server || !membership) return out;
+    if (!server || !membership) return out; /* quem não é membro não tem nada */
 
     if (server.ownerId === userId) {
       NX.PERM_KEYS.forEach((k) => (out[k] = true));
       return out;
     }
+
+    /* permissões ligadas por padrão: valem mesmo para cargos antigos
+       (qualquer camada abaixo pode desligar com false explícito) */
+    (NX.DEFAULT_ON_PERMS || []).forEach((k) => (out[k] = true));
 
     applyPerms(out, S.defaultRole(serverId) && S.defaultRole(serverId).permissions);
     const role = store.db.roles[membership.roleId];
@@ -945,6 +1105,28 @@ window.NX = window.NX || {};
   };
 
   /* =========================================================
+     REGIÃO — o país só aparece no perfil se o dono permitir.
+     viewerId === alvoId → sempre vê o próprio país.
+     ========================================================= */
+  S.regionOf = (userId) => {
+    const u = store.db.users[userId];
+    return (u && u.region) || null;
+  };
+
+  S.canSeeCountry = (viewerId, targetId) => {
+    if (!targetId) return false;
+    const target = store.db.users[targetId];
+    if (!target) return false;
+    if (viewerId && viewerId === targetId) return true;
+    const reg = target.region || {};
+    if (reg.showCountry === false || !reg.countryCode) return false;
+    const mode = ((target.privacy || {}).country) || "all";
+    if (mode === "none") return false;
+    if (mode === "friends") return !!(viewerId && S.isFriend(viewerId, targetId));
+    return true;
+  };
+
+  /* =========================================================
      AMIZADES — sistema GLOBAL (a amizade existe independentemente
      de os dois estarem no mesmo servidor)
      ========================================================= */
@@ -1020,20 +1202,20 @@ window.NX = window.NX || {};
 
   /* pode enviar solicitação de amizade? regras do DONO do perfil */
   S.canSendFriendRequest = (viewerId, otherId) => {
-    if (!viewerId || !otherId) return { ok: false, reason: "Usuário não encontrado." };
-    if (viewerId === otherId) return { ok: false, reason: "Você não pode adicionar a si mesmo." };
+    if (!viewerId || !otherId) return { ok: false, reason: NX.i18n.get("api.usuarioNaoEncontrado2", "Usuário não encontrado.") };
+    if (viewerId === otherId) return { ok: false, reason: NX.i18n.get("store.voceNaoPodeAdicionar", "Você não pode adicionar a si mesmo.") };
     if (S.isFriend(viewerId, otherId))
-      return { ok: false, reason: "Vocês já são amigos." };
+      return { ok: false, reason: NX.i18n.get("store.vocesJaSaoAmigos", "Vocês já são amigos.") };
     if (S.friendRequestBetween(viewerId, otherId))
-      return { ok: false, reason: "Já existe uma solicitação de amizade pendente." };
+      return { ok: false, reason: NX.i18n.get("store.jaExisteSolicitacaoAmizade", "Já existe uma solicitação de amizade pendente.") };
     if (S.blockedBetween(viewerId, otherId))
-      return { ok: false, reason: "Não é possível enviar solicitação para esta pessoa." };
+      return { ok: false, reason: NX.i18n.get("store.naoPossivelEnviarSolicitacao", "Não é possível enviar solicitação para esta pessoa.") };
     const other = store.db.users[otherId];
     const mode = (other && other.privacy && other.privacy.friendRequests) || "all";
     if (mode === "none")
-      return { ok: false, reason: "Esta pessoa não aceita solicitações de amizade." };
+      return { ok: false, reason: NX.i18n.get("store.estaPessoaNaoAceita", "Esta pessoa não aceita solicitações de amizade.") };
     if (mode === "common" && S.mutualFriendCount(viewerId, otherId) < 1)
-      return { ok: false, reason: "Esta pessoa só aceita solicitações de amigos em comum." };
+      return { ok: false, reason: NX.i18n.get("store.estaPessoaSoAceita", "Esta pessoa só aceita solicitações de amigos em comum.") };
     return { ok: true, reason: "" };
   };
 
@@ -1045,6 +1227,8 @@ window.NX = window.NX || {};
   S.isRealPerson = (userId) => {
     const u = store.db.users[userId];
     if (!u) return false;
+    /* conta de SISTEMA da plataforma não é pessoa */
+    if (u.system === true) return false;
     if (u.demo && !NX.demoMode()) return false;
     return true;
   };

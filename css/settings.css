@@ -420,17 +420,33 @@
   position: absolute;
   right: -1px;
   bottom: -1px;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 3px solid var(--bg-elev);
-  background: var(--offline);
+  background: var(--bg-elev);
 }
 
-.set-avatar__dot[data-status="online"] { background: var(--online); }
-.set-avatar__dot[data-status="idle"] { background: var(--idle); }
-.set-avatar__dot[data-status="dnd"] { background: var(--dnd); }
-.set-avatar__dot[data-status="offline"] { background: var(--offline); }
+.set-avatar__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0.5px;
+  border-radius: 50%;
+  background: var(--st-color, var(--offline));
+}
+
+.set-avatar__dot[data-status="online"] { --st-color: var(--online); }
+.set-avatar__dot[data-status="idle"] { --st-color: var(--idle); }
+.set-avatar__dot[data-status="dnd"] { --st-color: var(--dnd); }
+.set-avatar__dot[data-status="offline"] { --st-color: var(--offline); }
+
+@supports (mask: url("")) {
+  .set-avatar__dot::after {
+    border-radius: 0;
+    -webkit-mask: var(--st-sym) center / contain no-repeat;
+    mask: var(--st-sym) center / contain no-repeat;
+  }
+}
 
 .set-avatar__meta {
   min-width: 0;
@@ -485,6 +501,15 @@
   background: var(--accent-soft);
 }
 
+/* casa "Padrão": em vez de emoji, a logo do Nexo */
+.set-emoji--none {
+  color: var(--text-muted);
+}
+
+.set-emoji--none.is-on {
+  color: var(--accent);
+}
+
 .set-swatches {
   display: flex;
   flex-wrap: wrap;
@@ -492,13 +517,46 @@
   padding: 3px 0;
 }
 
+/* ---- logo oficial do Nexo no painel de conta ---- */
+.set-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.set-logo__mark {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  overflow: hidden;
+  display: block;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.set-logo__mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .set-swatch {
+  display: grid;
+  place-items: center;
   width: 26px;
   height: 26px;
   border-radius: 50%;
   background: var(--sw);
   border: 2px solid transparent;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+  color: #06231a;
   transition: transform var(--fast) var(--ease), border-color var(--fast);
 }
 
@@ -888,6 +946,342 @@
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+/* ================= APARÊNCIA · COR PRINCIPAL ================= */
+.set-acc {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.set-acc__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.set-acc__label {
+  flex: 0 0 auto;
+  min-width: 150px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.set-acc__color {
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  cursor: pointer;
+}
+
+.set-acc__color::-webkit-color-swatch-wrapper { padding: 3px; }
+.set-acc__color::-webkit-color-swatch { border: none; border-radius: 5px; }
+
+.set-acc__divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.set-acc__hint {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+/* ---- seletor visual: área de saturação/brilho + matiz + hex ---- */
+.set-pick {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.set-pick__area {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 200px;
+  height: 168px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  cursor: crosshair;
+  touch-action: none;
+  background-image:
+    linear-gradient(to top, #000, rgba(0, 0, 0, 0)),
+    linear-gradient(to right, #fff, rgba(255, 255, 255, 0)),
+    linear-gradient(90deg, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
+  background-blend-mode: multiply, screen, normal;
+  background-color: var(--pc, #35e0a8);
+}
+
+.set-pick__dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.set-pick__side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 46px;
+}
+
+.set-pick__hue {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 120px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: none;
+  background-image: linear-gradient(
+    to bottom,
+    hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%)
+  );
+}
+
+.set-pick__knob {
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.set-pick__read {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-pick__chip {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--pc, #35e0a8);
+  border: 1px solid var(--border-strong);
+}
+
+.set-pick__hex {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 7px;
+  font: inherit;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
+.set-pick__hex:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---- cores salvas pelo usuário ---- */
+.set-swatches--cust:empty::after {
+  content: "—";
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.set-cust {
+  position: relative;
+  display: inline-flex;
+}
+
+.set-cust__pick {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--sw, #35e0a8);
+  cursor: pointer;
+}
+
+.set-cust__pick:hover { border-color: var(--text); }
+
+.set-cust__del {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.set-cust:hover .set-cust__del,
+.set-cust__del:focus-visible { opacity: 1; }
+
+.set-cust__del:hover { color: var(--danger, #ff6b6b); }
+
+/* ---- chave liga/desliga dos gradientes ---- */
+.set-toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.set-toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.set-toggle.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.set-toggle.is-on i {
+  transform: translateX(18px);
+  background: var(--accent);
+}
+
+.set-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.set-acc__range {
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    var(--accent) calc(var(--gl, 60) * 1%),
+    var(--bg-elev-2) calc(var(--gl, 60) * 1%),
+    var(--bg-elev-2) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.set-acc__range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-main);
+  box-shadow: var(--shadow-1);
+  cursor: grab;
+}
+
+.set-acc__range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-main);
+  cursor: grab;
+}
+
+.set-acc__pct {
+  min-width: 42px;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* amostra ao vivo: botão, gradiente e chip usam as MESMAS variáveis
+   que o resto do Nexo, então o que você vê aqui é o que você vai ver */
+.set-acc__prev {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  box-shadow: var(--glow);
+}
+
+.set-acc__prev-btn {
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.set-acc__prev-grad {
+  flex: 1 1 60px;
+  min-width: 60px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  background: var(--gradient-brand);
+}
+
+.set-acc__prev-chip {
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ================= APARÊNCIA · AÇÕES ================= */
+.set-card--actions { position: sticky; bottom: 0; z-index: 2; }
+
+.set-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.set-acts .spacer { flex: 1 1 auto; }
 
 /* ================= LISTAS ================= */
 .set-list {
@@ -1302,5 +1696,22 @@
 
   .set-seg--sp .set-seg__btn {
     white-space: nowrap;
+  }
+}
+
+/* linha de switch dentro do painel */
+.set-row--switch {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+.set-btn--sm svg {
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .set-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

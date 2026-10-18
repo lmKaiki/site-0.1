@@ -189,14 +189,22 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease);
+  transition-delay: 0ms; /* some sem atraso ao sair do ícone */
   box-shadow: var(--shadow-2);
   z-index: 70;
 }
 
 .rail__item:hover .rail__tip,
-.rail__profile:hover .rail__tip {
+.rail__profile:hover .rail__tip,
+.rail__item:focus-visible .rail__tip,
+.rail__profile:focus-visible .rail__tip {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
+}
+
+.rail__item:hover .rail__tip,
+.rail__profile:hover .rail__tip {
+  transition-delay: 350ms; /* pequeno atraso antes de aparecer */
 }
 
 .rail__spacer {
@@ -497,6 +505,85 @@
   margin-left: 4px;
 }
 
+/* -------- canal de voz ao vivo (alguém conectado) -------- */
+.chan.is-live {
+  background: var(--accent-soft);
+}
+
+.chan.is-live:hover {
+  background: var(--accent-soft);
+  filter: brightness(1.12);
+}
+
+.chan.is-live .chan__main,
+.chan.is-live .chan__name,
+.chan.is-live .chan__ico {
+  color: var(--accent);
+}
+
+.chan.is-live .chan__ico {
+  opacity: 1;
+}
+
+.chan__live {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: chan-live 2.4s ease-in-out infinite;
+}
+
+@keyframes chan-live {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+}
+
+/* eu estou na call: destaque mais forte + "Conectado" */
+.chan.is-connected {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
+}
+
+.chan.is-connected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  height: 56%;
+  width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+.chan.is-connected .chan__name {
+  font-weight: 700;
+}
+
+.chan__conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg-sidebar);
+  border: 1px solid var(--accent-soft);
+}
+
 /* doca de voz */
 .voice-dock {
   margin: 8px;
@@ -511,6 +598,17 @@
   align-items: center;
   gap: 8px;
   color: var(--accent);
+}
+
+/* ponto verde pulsante da conexão ativa */
+.voice-dock__live {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: chan-live 2.4s ease-in-out infinite;
 }
 
 .voice-dock__txt {
@@ -532,6 +630,68 @@
   font-size: 11.5px;
   color: var(--text-dim);
   margin: 6px 0 8px;
+}
+
+/* estado real da mídia + ações essenciais (o dock é um atalho da
+   mesma sala: nada aqui decide sozinho) */
+.voice-dock__share {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: -2px 0 8px;
+}
+
+.voice-dock__acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-dock__btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(53, 224, 168, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.voice-dock__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(53, 224, 168, 0.55);
+  transform: translateY(-1px);
+}
+
+.voice-dock__btn:active {
+  transform: translateY(0);
+}
+
+.voice-dock__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.voice-dock__btn.is-off {
+  border-color: rgba(224, 66, 82, 0.45);
+  background: rgba(224, 66, 82, 0.16);
+}
+
+.voice-dock__leave {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* navegação da home */
@@ -726,6 +886,7 @@
 
 .dm-row__txt {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   line-height: 1.3;
@@ -739,6 +900,93 @@
 .dm-row__txt small {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+/* horário + contador de não lidas */
+.dm-row__meta {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dm-row__meta time {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* cabeçalho da seção com ações à direita (ex.: conversas ocultas) */
+.side-section__acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* botão "…" de opções da conversa: fica por cima da linha (que é um
+   <button>) e o clique cai nele, não na conversa */
+.dm-row {
+  position: relative;
+  padding-right: 30px;
+}
+
+/* linha da lista "Conversas ocultas": é uma <div> com botão próprio */
+.dm-row--hidden {
+  padding-right: 8px;
+  cursor: default;
+}
+
+.dm-row__more {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-xs, 6px);
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity var(--fast), background var(--fast);
+  cursor: pointer;
+}
+
+.dm-row:hover .dm-row__more,
+.dm-row:focus-within .dm-row__more,
+.dm-row__more:focus-visible,
+.dm-row__more:hover {
+  opacity: 1;
+}
+
+.dm-row__more:hover,
+.dm-row__more:focus-visible {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+@media (hover: none) {
+  .dm-row__more {
+    opacity: 0.75;
+  }
+}
+
+.dm-row.is-unread .dm-row__txt strong {
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+.dm-row__dot {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 /* ================= MAIN ================= */
@@ -765,7 +1013,14 @@
 }
 
 .header__burger {
-  display: none;
+  display: grid;
+}
+
+/* menu fechado/recolhido: o botão sinaliza que a barra lateral
+   está escondida (estado visual além do aria-expanded) */
+.header__burger[aria-expanded="false"] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .header__ico {
@@ -1203,11 +1458,34 @@
   gap: 10px;
 }
 
-.voice-room__note {
-  font-size: 12px;
-  color: var(--text-dim);
-  max-width: 420px;
-  text-align: center;
+.voice-room__actions .btn {
+  min-width: 230px;
+  justify-content: center;
+}
+
+/* linha de estado da sala aberta (conexão / tela / mudo) */
+.voice-room__live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 0;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(53, 224, 168, 0.1);
+  border: 1px solid rgba(53, 224, 168, 0.32);
+}
+
+.voice-card.is-me {
+  border-color: rgba(53, 224, 168, 0.45);
+  background: linear-gradient(160deg, rgba(53, 224, 168, 0.1), var(--bg-panel));
+}
+
+.voice-card.is-speaking {
+  border-color: rgba(53, 224, 168, 0.6);
+  box-shadow: 0 0 24px rgba(53, 224, 168, 0.16);
 }
 
 /* ================= MEMBROS ================= */
@@ -1255,6 +1533,98 @@
 
 .members__group[style] {
   color: var(--gc);
+}
+
+/* ---- "Ativo agora": amigos em canal de voz (coluna direita) ---- */
+.active-now {
+  margin: 2px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+
+.active-now__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  transition: color var(--fast);
+}
+
+.active-now__head:hover { color: var(--text); }
+.active-now__chev { display: inline-flex; opacity: 0.7; }
+
+.active-now__body { padding: 2px 6px 6px; }
+
+.active-now__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  text-align: left;
+  transition: background var(--fast);
+}
+
+.active-now__row:hover { background: var(--bg-hover); }
+
+.active-now__txt {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.active-now__txt strong {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.active-now__txt small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.active-now__txt small svg { flex: 0 0 auto; }
+
+.active-now__txt em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.active-now__stack {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.active-now__stack .avatar {
+  margin-left: -7px;
+  box-shadow: 0 0 0 2px var(--bg-elev);
+}
+
+.active-now__stack .avatar:first-child { margin-left: 0; }
+.active-now__stack .chan__more { margin-left: 4px; }
+
+/* ---- telas estreitas: a coluna de membros vira gaveta ---- */
+@media (max-width: 900px) {
+  .active-now__stack { display: none; }
 }
 
 .member {
@@ -1445,6 +1815,14 @@
   backdrop-filter: blur(2px);
 }
 
+/* desktop: a barra lateral recolhe de verdade (mesmo espírito do
+   members-off); o <main> é flex e ocupa o espaço que ela devolve */
+@media (min-width: 900px) {
+  .app-shell.sidebar-off .sidebar {
+    display: none;
+  }
+}
+
 @media (min-width: 1200px) {
   .app-shell.members-off .members {
     display: none;
@@ -1503,10 +1881,6 @@
 
   .app-shell.sidebar-open .sidebar {
     transform: none;
-  }
-
-  .header__burger {
-    display: grid;
   }
 
   .header__actions .btn span {

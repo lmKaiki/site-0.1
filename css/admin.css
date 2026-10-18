@@ -385,10 +385,38 @@
 }
 
 .adm-preset.is-fixed { opacity: 0.75; cursor: not-allowed; border-style: dashed; }
-.adm-preset__ico { font-size: 19px; line-height: 1; }
+.adm-preset__ico { display: grid; place-items: center; font-size: 19px; line-height: 1; }
 .adm-preset span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .adm-preset strong { font-size: 12.5px; letter-spacing: 0.06em; color: var(--text); }
 .adm-preset small { font-size: 10.5px; color: var(--text-dim); }
+
+/* ---- seletor de ícone de cargo (SVG do Nexo; emoji continua opcional) ---- */
+.adm-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.adm-icon-grid__item {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  transition: border-color var(--fast), background var(--fast), color var(--fast), transform var(--fast);
+}
+.adm-icon-grid__item:hover { transform: translateY(-2px); color: var(--text); border-color: var(--border-strong); }
+.adm-icon-grid__item.is-on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.role-ico { display: inline-grid; place-items: center; line-height: 1; }
+.role-ico--emoji { font-size: 15px; }
+.adm-chip span:last-child { min-width: 0; }
 
 .adm-roles { display: flex; flex-direction: column; gap: 8px; }
 

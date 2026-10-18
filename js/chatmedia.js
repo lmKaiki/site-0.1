@@ -55,8 +55,8 @@ window.NX = window.NX || {};
   function fmtSize(n) {
     n = Number(n) || 0;
     if (n < 1024) return n + " B";
-    if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + " KB";
-    return (n / (1024 * 1024)).toFixed(1) + " MB";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + (" " + NX.i18n.get("chat.kb", "KB"));
+    return (n / (1024 * 1024)).toFixed(1) + (" " + NX.i18n.get("chat.mb", "MB"));
   }
 
   function bytesOf(url) {
@@ -168,9 +168,9 @@ window.NX = window.NX || {};
       return (
         '<button type="button" class="cm-att cm-att--img' + (type === "gif" ? " is-gif" : "") +
         '" data-action="chat-preview" data-id="' + id + '" data-idx="' + idx +
-        '" aria-label="Ampliar ' + name + '">' +
+        '" aria-label="' + NX.i18n.get("ui.a11yampliar", "Ampliar ") + name + '">' +
         '<img class="cm-att__img" src="' + url + '" alt="' + name + '" loading="lazy" decoding="async">' +
-        (type === "gif" ? '<span class="cm-att__badge">GIF</span>' : "") +
+        (type === "gif" ? ("<span class=\"cm-att__badge\">" + NX.i18n.get("chat.gif", "GIF") + "</span>") : "") +
         '<span class="cm-att__zoom" aria-hidden="true">' + NX.icon("search", "", 15) + "</span>" +
         "</button>"
       );
@@ -188,7 +188,7 @@ window.NX = window.NX || {};
 
     return (
       '<button type="button" class="cm-att cm-att--file" data-action="chat-preview" data-id="' + id +
-      '" data-idx="' + idx + '" aria-label="Abrir arquivo ' + name + '">' +
+      '" data-idx="' + idx + '" aria-label="' + NX.i18n.get("ui.a11yabrirarquivo", "Abrir arquivo ") + name + '">' +
       '<span class="cm-att__ico">' + NX.icon("folder", "", 20) + "</span>" +
       '<span class="cm-att__meta"><strong class="truncate">' + name + "</strong><small>" +
       fmtSize((a && a.size) || 0) + "</small></span>" +
@@ -216,13 +216,13 @@ window.NX = window.NX || {};
         "</strong><small>" + fmtSize(a.size || 0) + "</small></span></div>" +
         (/^(https?:|data:|blob:)/i.test(a.url || "")
           ? '<p class="cm-view__note"><a href="' + u().h(a.url) +
-            '" target="_blank" rel="noopener noreferrer">Abrir em nova aba</a></p>'
+            ("\" target=\"_blank\" rel=\"noopener noreferrer\">" + NX.i18n.get("chat.abriremnovaaba", "Abrir em nova aba") + "</a></p>")
           : "");
     }
     const m = NX.ui.modal({
       title: name,
       size: "md",
-      eyebrow: a.type === "gif" ? "GIF" : a.type === "video" ? "Vídeo" : a.type === "image" ? "Imagem" : "Arquivo",
+      eyebrow: a.type === "gif" ? (NX.i18n.get("chat.gif", "GIF")) : a.type === "video" ? (NX.i18n.get("chat.video", "Vídeo")) : a.type === "image" ? (NX.i18n.get("chat.imagem", "Imagem")) : (NX.i18n.get("chat.arquivo", "Arquivo")),
     });
     m.body.innerHTML = inner;
   }
@@ -269,7 +269,7 @@ window.NX = window.NX || {};
           '" data-action="chat-react" data-id="' + u().h(msg.id) +
           '" data-emoji="' + u().h(r.emoji) + '" aria-pressed="' + (r.mine ? "true" : "false") +
           '" aria-label="Reagir com ' + u().h(r.emoji) + " · " + r.count +
-          (r.count === 1 ? " reação" : " reações") + '"' +
+          (r.count === 1 ? (" " + NX.i18n.get("chat.reacao", "reação")) : (" " + NX.i18n.get("chat.reacoes", "reações"))) + '"' +
           (canReact ? "" : " disabled") +
           '><span class="cm-react__e">' + face +
           '</span><b class="cm-react__n">' + r.count + "</b></button>"
@@ -279,7 +279,7 @@ window.NX = window.NX || {};
 
     const add = canReact
       ? '<button type="button" class="cm-react cm-react--add" data-action="chat-react-add" data-id="' +
-        u().h(msg.id) + '" aria-label="Adicionar reação" title="Adicionar reação">➕</button>'
+        u().h(msg.id) + '" aria-label="' + NX.i18n.get("ui.adicionarreacao", "Adicionar reação") + '" title="' + NX.i18n.get("ui.chatmedia.adicionarreacao", "Adicionar reação") + '">' + NX.icon("plus", "", 14) + "</button>"
       : "";
 
     return '<div class="cm-reacts">' + chips + add + "</div>";
@@ -316,7 +316,7 @@ window.NX = window.NX || {};
     if (canReply) {
       items.push({
         icon: "chat",
-        label: "Responder",
+        label: (NX.i18n.get("chat.responder", "Responder")),
         onClick: () => chat.setReply(msg, ctx),
       });
     }
@@ -324,13 +324,13 @@ window.NX = window.NX || {};
     if (canReact) {
       items.push({
         icon: "smile",
-        label: "Reagir",
+        label: (NX.i18n.get("chat.reagir", "Reagir")),
         onClick: () =>
           chat.openEmojiPicker(
             anchor,
             (emoji) => {
               NX.api.toggleReaction(msg.id, emoji).catch((e) => {
-                NX.ui.error((e && e.message) || "Não foi possível reagir.");
+                NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelReagir3", "Não foi possível reagir."));
               });
             },
             { serverId: serverId }
@@ -340,13 +340,13 @@ window.NX = window.NX || {};
 
     items.push({
       icon: "copy",
-      label: "Copiar texto",
+      label: NX.i18n.get("chat.copiarTexto", "Copiar texto"),
       onClick: () => {
         u()
-          .copy(msg.content || "")
+          .copy(S().botTextOf(msg.content || ""))
           .then((ok) => {
-            if (ok) NX.ui.success("Mensagem copiada.");
-            else NX.ui.error("Não foi possível copiar.");
+            if (ok) NX.ui.success(NX.i18n.get("chat.mensagemCopiada", "Mensagem copiada."));
+            else NX.ui.error(NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."));
           });
       },
     });
@@ -356,7 +356,7 @@ window.NX = window.NX || {};
     if (canEdit) {
       items.push({
         icon: "pencil",
-        label: "Editar",
+        label: (NX.i18n.get("common.edit", "Editar")),
         onClick: () => {
           if (!NX.views) return;
           NX.views.editingMessageId = msg.id;
@@ -368,21 +368,21 @@ window.NX = window.NX || {};
     if (hasChannel && canPin) {
       items.push({
         icon: "star",
-        label: msg.pinned ? "Desfixar" : "Fixar mensagem",
+        label: msg.pinned ? (NX.i18n.get("chat.desfixar", "Desfixar")) : NX.i18n.get("chat.fixarMensagem", "Fixar mensagem"),
         onClick: async () => {
           const next = !msg.pinned;
           try {
             await NX.api.pinMessage(msg.id, next);
-            NX.ui.toast(next ? "Mensagem fixada no canal." : "Mensagem desfixada.", "success");
+            NX.ui.toast(next ? NX.i18n.get("chat.mensagemFixadaCanal", "Mensagem fixada no canal.") : NX.i18n.get("chat.mensagemDesfixada", "Mensagem desfixada."), "success");
           } catch (e) {
-            NX.ui.error((e && e.message) || "Não foi possível fixar a mensagem.");
+            NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelFixar", "Não foi possível fixar a mensagem."));
           }
         },
       });
     }
 
     if (!mine) {
-      items.push({ icon: "alert", label: "Denunciar", onClick: () => openReport(msg) });
+      items.push({ icon: "alert", label: (NX.i18n.get("chat.denunciar", "Denunciar")), onClick: () => openReport(msg) });
     }
 
     items.push({ divider: true });
@@ -390,22 +390,22 @@ window.NX = window.NX || {};
     if (canDelete) {
       items.push({
         icon: "trash",
-        label: "Excluir",
+        label: (NX.i18n.get("common.delete", "Excluir")),
         danger: true,
         onClick: async () => {
           const ok = await NX.ui.confirm({
-            title: "Apagar mensagem",
-            message: "Esta mensagem será apagada para todos. Não dá para desfazer.",
-            confirmLabel: "Apagar",
+            title: NX.i18n.get("app.apagarMensagem", "Apagar mensagem"),
+            message: NX.i18n.get("app.estaMensagemSeraApagada", "Esta mensagem será apagada para todos. Não dá para desfazer."),
+            confirmLabel: (NX.i18n.get("app.apagar", "Apagar")),
             danger: true,
             icon: "trash",
           });
           if (!ok) return;
           try {
             await NX.api.deleteMessage(msg.id);
-            NX.ui.toast("Mensagem apagada.", "success");
+            NX.ui.toast(NX.i18n.get("app.mensagemApagada", "Mensagem apagada."), "success");
           } catch (e) {
-            NX.ui.error((e && e.message) || "Não foi possível apagar.");
+            NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelApagar", "Não foi possível apagar."));
           }
         },
       });
@@ -417,31 +417,31 @@ window.NX = window.NX || {};
 
   function openReport(msg) {
     const actions = u().el('<div class="modal__actions"></div>');
-    const cancel = u().el('<button class="btn btn--ghost" type="button">Cancelar</button>');
-    const send = u().el('<button class="btn btn--primary" type="button">Enviar denúncia</button>');
+    const cancel = u().el(("<button class=\"btn btn--ghost\" type=\"button\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>"));
+    const send = u().el(("<button class=\"btn btn--primary\" type=\"button\">" + NX.i18n.get("chat.enviardenuncia", "Enviar denúncia") + "</button>"));
     actions.appendChild(cancel);
     actions.appendChild(send);
 
     const m = NX.ui.modal({
-      title: "Denunciar mensagem",
-      eyebrow: "Moderação",
+      title: NX.i18n.get("chat.denunciarMensagem", "Denunciar mensagem"),
+      eyebrow: (NX.i18n.get("adm.moderacao", "Moderação")),
       size: "sm",
       footer: actions,
     });
 
     m.body.innerHTML =
-      '<p class="cm-report__lead">Conte o que aconteceu. A equipe do servidor recebe sua denúncia e decide o próximo passo.</p>' +
-      '<div class="field"><label class="field__label" for="cm-report-reason">Motivo <em>obrigatório</em></label>' +
+      ("<p class=\"cm-report__lead\">" + NX.i18n.get("chat.conteoqueaconteceuaequipe", "Conte o que aconteceu. A equipe do servidor recebe sua denúncia e decide o próximo passo.") + "</p>") +
+      ("<div class=\"field\"><label class=\"field__label\" for=\"cm-report-reason\">" + NX.i18n.get("adm.motivo", "Motivo") + " " + "<em>" + NX.i18n.get("chat.obrigatorio", "obrigatório") + "</em></label>") +
       '<textarea class="input--area" id="cm-report-reason" data-autofocus maxlength="200" ' +
-      'placeholder="Ex.: spam, conteúdo impróprio, assédio..."></textarea>' +
-      '<div class="field__hint">Até 200 caracteres.</div></div>';
+      'placeholder="' + NX.i18n.get("ui.exspamconteudoimproprioassedio", "Ex.: spam, conteúdo impróprio, assédio...") + '"></textarea>' +
+      ("<div class=\"field__hint\">" + NX.i18n.get("chat.ate200caracteres", "Até 200 caracteres.") + "</div></div>");
 
     cancel.addEventListener("click", () => m.close());
     send.addEventListener("click", async () => {
       const ta = m.body.querySelector("#cm-report-reason");
       const reason = ((ta && ta.value) || "").trim();
       if (!reason) {
-        NX.ui.error("Escreva o motivo da denúncia.");
+        NX.ui.error(NX.i18n.get("chat.escrevaMotivoDenuncia", "Escreva o motivo da denúncia."));
         if (ta) ta.focus();
         return;
       }
@@ -449,10 +449,10 @@ window.NX = window.NX || {};
       try {
         await NX.api.reportMessage(msg.id, reason);
         m.close();
-        NX.ui.success("Denúncia enviada. Obrigado!");
+        NX.ui.success(NX.i18n.get("chat.denunciaEnviadaObrigado", "Denúncia enviada. Obrigado!"));
       } catch (e) {
         send.disabled = false;
-        NX.ui.error((e && e.message) || "Não foi possível enviar a denúncia.");
+        NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelEnviar", "Não foi possível enviar a denúncia."));
       }
     });
   }
@@ -463,281 +463,281 @@ window.NX = window.NX || {};
   const EMOJI_CATS = [
     {
       id: "rostos",
-      icon: "😀",
-      label: "Rostos",
+      icon: "smile",
+      label: (NX.i18n.get("chat.rostos", "Rostos")),
       items: [
-        "😀|grinning riso sorrindo smile",
-        "😃|sorriso grande happy",
-        "😄|riso alegre laugh",
-        "😁|sorrindo grin",
-        "😆|risada XD laugh",
-        "😂|chorando de rir funny lloro",
-        "🤣|morrendo de rir rofl",
-        "😅|suor alivio relief",
-        "😉|piscada wink",
-        "😊|sorrizo blush",
-        "😇|anjo angel",
-        "🙂|meio sorrindo slight smile",
-        "🙃|de cabeca pra baixo upside",
-        "🤪|doido zany maluco",
-        "😜|piscando lingua silly",
-        "😝|boca aberta playful",
-        "😎|legal cool",
-        "🤓|nerd inteligente",
-        "🥳|festa party aniversario",
-        "😴|dormindo sleep sono",
-        "😤|tirando vapor frustrated",
-        "😡|raiva angry bravo",
-        "😭|chorando sad triste",
-        "🥺|implorando pleading olhos",
+        (NX.i18n.get("chat.grinningrisosorrindosmile", "😀|grinning riso sorrindo smile")),
+        (NX.i18n.get("chat.sorrisograndehappy", "😃|sorriso grande happy")),
+        (NX.i18n.get("chat.risoalegrelaugh", "😄|riso alegre laugh")),
+        (NX.i18n.get("chat.sorrindogrin", "😁|sorrindo grin")),
+        (NX.i18n.get("chat.risadaxdlaugh", "😆|risada XD laugh")),
+        (NX.i18n.get("chat.chorandoderirfunnylloro", "😂|chorando de rir funny lloro")),
+        (NX.i18n.get("chat.morrendoderirrofl", "🤣|morrendo de rir rofl")),
+        (NX.i18n.get("chat.suoraliviorelief", "😅|suor alivio relief")),
+        (NX.i18n.get("chat.piscadawink", "😉|piscada wink")),
+        (NX.i18n.get("chat.sorrizoblush", "😊|sorrizo blush")),
+        (NX.i18n.get("chat.anjoangel", "😇|anjo angel")),
+        (NX.i18n.get("chat.meiosorrindoslightsmile", "🙂|meio sorrindo slight smile")),
+        (NX.i18n.get("chat.decabecaprabaixoupside", "🙃|de cabeca pra baixo upside")),
+        (NX.i18n.get("chat.doidozanymaluco", "🤪|doido zany maluco")),
+        (NX.i18n.get("chat.piscandolinguasilly", "😜|piscando lingua silly")),
+        (NX.i18n.get("chat.bocaabertaplayful", "😝|boca aberta playful")),
+        (NX.i18n.get("chat.legalcool", "😎|legal cool")),
+        (NX.i18n.get("chat.nerdinteligente", "🤓|nerd inteligente")),
+        (NX.i18n.get("chat.festapartyaniversario", "🥳|festa party aniversario")),
+        (NX.i18n.get("chat.dormindosleepsono", "😴|dormindo sleep sono")),
+        (NX.i18n.get("chat.tirandovaporfrustrated", "😤|tirando vapor frustrated")),
+        (NX.i18n.get("chat.raivaangrybravo", "😡|raiva angry bravo")),
+        (NX.i18n.get("chat.chorandosadtriste", "😭|chorando sad triste")),
+        (NX.i18n.get("chat.implorandopleadingolhos", "🥺|implorando pleading olhos")),
       ],
     },
     {
       id: "emocoes",
-      icon: "❤️",
-      label: "Emoções",
+      icon: "heart",
+      label: (NX.i18n.get("chat.emocoes", "Emoções")),
       items: [
-        "❤️|coracao love vermelho",
-        "🧡|coracao laranja",
-        "💛|coracao amarelo",
-        "💚|coracao verde",
-        "💙|coracao azul",
-        "💜|coracao roxo",
-        "🖤|coracao preto",
-        "🤍|coracao branco",
-        "💔|coracao partido broken",
-        "💖|coracao brilhante sparkle",
-        "💗|coracao crescente growing",
-        "💕|dois coracoes love",
-        "💞|coracoes orbitando",
-        "💓|coracao pulsante beating",
-        "💌|carta amor letter",
-        "😍|apaixonado crush amor",
-        "🥰|abraco carinho cute",
-        "😘|beijo kiss",
-        "🥺|saudade sentimental",
-        "😱|grito surpresa shock",
-        "🤩|olhos de estrela starry",
-        "😇|gratidao thanks",
-        "🔥|fogo fire",
-        "✨|brilhos sparkles",
+        (NX.i18n.get("chat.coracaolovevermelho", "❤️|coracao love vermelho")),
+        (NX.i18n.get("chat.coracaolaranja", "🧡|coracao laranja")),
+        (NX.i18n.get("chat.coracaoamarelo", "💛|coracao amarelo")),
+        (NX.i18n.get("chat.coracaoverde", "💚|coracao verde")),
+        (NX.i18n.get("chat.coracaoazul", "💙|coracao azul")),
+        (NX.i18n.get("chat.coracaoroxo", "💜|coracao roxo")),
+        (NX.i18n.get("chat.coracaopreto", "🖤|coracao preto")),
+        (NX.i18n.get("chat.coracaobranco", "🤍|coracao branco")),
+        (NX.i18n.get("chat.coracaopartidobroken", "💔|coracao partido broken")),
+        (NX.i18n.get("chat.coracaobrilhantesparkle", "💖|coracao brilhante sparkle")),
+        (NX.i18n.get("chat.coracaocrescentegrowing", "💗|coracao crescente growing")),
+        (NX.i18n.get("chat.doiscoracoeslove", "💕|dois coracoes love")),
+        (NX.i18n.get("chat.coracoesorbitando", "💞|coracoes orbitando")),
+        (NX.i18n.get("chat.coracaopulsantebeating", "💓|coracao pulsante beating")),
+        (NX.i18n.get("chat.cartaamorletter", "💌|carta amor letter")),
+        (NX.i18n.get("chat.apaixonadocrushamor", "😍|apaixonado crush amor")),
+        (NX.i18n.get("chat.abracocarinhocute", "🥰|abraco carinho cute")),
+        (NX.i18n.get("chat.beijokiss", "😘|beijo kiss")),
+        (NX.i18n.get("chat.saudadesentimental", "🥺|saudade sentimental")),
+        (NX.i18n.get("chat.gritosurpresashock", "😱|grito surpresa shock")),
+        (NX.i18n.get("chat.olhosdeestrelastarry", "🤩|olhos de estrela starry")),
+        (NX.i18n.get("chat.gratidaothanks", "😇|gratidao thanks")),
+        (NX.i18n.get("chat.fogofire", "🔥|fogo fire")),
+        (NX.i18n.get("chat.brilhossparkles", "✨|brilhos sparkles")),
       ],
     },
     {
       id: "gestos",
-      icon: "👍",
-      label: "Gestos",
+      icon: "thumb",
+      label: (NX.i18n.get("chat.gestos", "Gestos")),
       items: [
-        "👍|sim ok aprovar like polegar",
-        "👎|nao desaprovar nope",
-        "👌|ok perfeito",
-        "✌️|paz vitoria peace",
-        "🤞|dedos cruzados luck",
-        "🤘|rock chifres",
-        "🤙|me liga call",
-        "👈|esquerda apontar",
-        "👉|direita apontar",
-        "☝️|pra cima index",
-        "🫶|coracao maos heart hands",
-        "👏|palmas aplausos clap",
-        "🙏|obrigado por favor please namaste",
-        "🤝|aperto de maos handshake",
-        "💪|forca muscle treino",
-        "✋|mao aberta stop",
-        "🖐️|mao com dedos",
-        "👋|acenar wave oi",
-        "🤚|palma levantada",
-        "🤌|aperto de dedos",
-        "🫰|dinheiro money",
-        "🙆|sim pessoa ok",
-        "🙅|nao pessoa no",
-        "🙋|mao levantada pergunta",
+        (NX.i18n.get("chat.simokaprovarlikepolegar", "👍|sim ok aprovar like polegar")),
+        (NX.i18n.get("chat.naodesaprovarnope", "👎|nao desaprovar nope")),
+        (NX.i18n.get("chat.okperfeito", "👌|ok perfeito")),
+        (NX.i18n.get("chat.pazvitoriapeace", "✌️|paz vitoria peace")),
+        (NX.i18n.get("chat.dedoscruzadosluck", "🤞|dedos cruzados luck")),
+        (NX.i18n.get("chat.rockchifres", "🤘|rock chifres")),
+        (NX.i18n.get("chat.meligacall", "🤙|me liga call")),
+        (NX.i18n.get("chat.esquerdaapontar", "👈|esquerda apontar")),
+        (NX.i18n.get("chat.direitaapontar", "👉|direita apontar")),
+        (NX.i18n.get("chat.pracimaindex", "☝️|pra cima index")),
+        (NX.i18n.get("chat.coracaomaoshearthands", "🫶|coracao maos heart hands")),
+        (NX.i18n.get("chat.palmasaplausosclap", "👏|palmas aplausos clap")),
+        (NX.i18n.get("chat.obrigadoporfavorpleasenamaste", "🙏|obrigado por favor please namaste")),
+        (NX.i18n.get("chat.apertodemaoshandshake", "🤝|aperto de maos handshake")),
+        (NX.i18n.get("chat.forcamuscletreino", "💪|forca muscle treino")),
+        (NX.i18n.get("chat.maoabertastop", "✋|mao aberta stop")),
+        (NX.i18n.get("chat.maocomdedos", "🖐️|mao com dedos")),
+        (NX.i18n.get("chat.acenarwaveoi", "👋|acenar wave oi")),
+        (NX.i18n.get("chat.palmalevantada", "🤚|palma levantada")),
+        (NX.i18n.get("chat.apertodededos", "🤌|aperto de dedos")),
+        (NX.i18n.get("chat.dinheiromoney", "🫰|dinheiro money")),
+        (NX.i18n.get("chat.simpessoaok", "🙆|sim pessoa ok")),
+        (NX.i18n.get("chat.naopessoano", "🙅|nao pessoa no")),
+        (NX.i18n.get("chat.maolevantadapergunta", "🙋|mao levantada pergunta")),
       ],
     },
     {
       id: "animais",
-      icon: "🐶",
-      label: "Animais",
+      icon: "paw",
+      label: (NX.i18n.get("chat.animais", "Animais")),
       items: [
-        "🐶|cachorro dog pet",
-        "🐱|gato cat pet",
-        "🐭|rato mouse",
+        (NX.i18n.get("chat.cachorrodogpet", "🐶|cachorro dog pet")),
+        (NX.i18n.get("chat.gatocatpet", "🐱|gato cat pet")),
+        (NX.i18n.get("chat.ratomouse", "🐭|rato mouse")),
         "🐹|hamster",
-        "🐰|coelho rabbit",
-        "🦊|raposa fox",
-        "🐻|urso bear",
+        (NX.i18n.get("chat.coelhorabbit", "🐰|coelho rabbit")),
+        (NX.i18n.get("chat.raposafox", "🦊|raposa fox")),
+        (NX.i18n.get("chat.ursobear", "🐻|urso bear")),
         "🐼|panda",
         "🐨|koala",
-        "🐯|tigre tiger",
-        "🦁|leao lion",
-        "🐮|vaca cow",
-        "🐷|porco pig",
-        "🐸|sapo frog",
-        "🐔|galinha chicken",
-        "🐧|pinguim penguin",
-        "🐦|passaro bird",
-        "🦅|aguia eagle",
-        "🦉|coruja owl",
-        "🦋|borboleta butterfly",
-        "🐝|abelha bee",
-        "🐞|joaninha ladybug",
-        "🐢|tartaruga turtle",
-        "🐙|polvo octopus",
+        (NX.i18n.get("chat.tigretiger", "🐯|tigre tiger")),
+        (NX.i18n.get("chat.leaolion", "🦁|leao lion")),
+        (NX.i18n.get("chat.vacacow", "🐮|vaca cow")),
+        (NX.i18n.get("chat.porcopig", "🐷|porco pig")),
+        (NX.i18n.get("chat.sapofrog", "🐸|sapo frog")),
+        (NX.i18n.get("chat.galinhachicken", "🐔|galinha chicken")),
+        (NX.i18n.get("chat.pinguimpenguin", "🐧|pinguim penguin")),
+        (NX.i18n.get("chat.passarobird", "🐦|passaro bird")),
+        (NX.i18n.get("chat.aguiaeagle", "🦅|aguia eagle")),
+        (NX.i18n.get("chat.corujaowl", "🦉|coruja owl")),
+        (NX.i18n.get("chat.borboletabutterfly", "🦋|borboleta butterfly")),
+        (NX.i18n.get("chat.abelhabee", "🐝|abelha bee")),
+        (NX.i18n.get("chat.joaninhaladybug", "🐞|joaninha ladybug")),
+        (NX.i18n.get("chat.tartarugaturtle", "🐢|tartaruga turtle")),
+        (NX.i18n.get("chat.polvooctopus", "🐙|polvo octopus")),
       ],
     },
     {
       id: "comida",
-      icon: "🍔",
-      label: "Comida",
+      icon: "cup",
+      label: (NX.i18n.get("chat.comida", "Comida")),
       items: [
-        "🍔|hamburguer burger",
-        "🍟|batata frita fries",
+        (NX.i18n.get("chat.hamburguerburger", "🍔|hamburguer burger")),
+        (NX.i18n.get("chat.batatafritafries", "🍟|batata frita fries")),
         "🍕|pizza",
-        "🌭|cachorro quente hotdog",
-        "🥪|sanduiche sandwich",
+        (NX.i18n.get("chat.cachorroquentehotdog", "🌭|cachorro quente hotdog")),
+        (NX.i18n.get("chat.sanduichesandwich", "🥪|sanduiche sandwich")),
         "🌮|taco",
         "🌯|burrito",
-        "🥙|pita wrap",
-        "🍜|ramen macarrao",
+        (NX.i18n.get("chat.pitawrap", "🥙|pita wrap")),
+        (NX.i18n.get("chat.ramenmacarrao", "🍜|ramen macarrao")),
         "🍣|sushi",
         "🍛|curry",
-        "🍚|arroz rice",
-        "🍢|espetinho yakitori",
-        "🍩|donut rosca",
-        "🍰|bolo cake",
-        "🍪|biscoito cookie",
+        (NX.i18n.get("chat.arrozrice", "🍚|arroz rice")),
+        (NX.i18n.get("chat.espetinhoyakitori", "🍢|espetinho yakitori")),
+        (NX.i18n.get("chat.donutrosca", "🍩|donut rosca")),
+        (NX.i18n.get("chat.bolocake", "🍰|bolo cake")),
+        (NX.i18n.get("chat.biscoitocookie", "🍪|biscoito cookie")),
         "🍫|chocolate",
-        "🍬|bala candy",
-        "🍭|pirulito lollipop",
-        "☕|cafe coffee",
-        "🧋|bubble cha milktea",
-        "🥤|refrigerante drink",
-        "🍺|cerveja beer",
-        "🍦|sorvete icecream",
+        (NX.i18n.get("chat.balacandy", "🍬|bala candy")),
+        (NX.i18n.get("chat.pirulitolollipop", "🍭|pirulito lollipop")),
+        (NX.i18n.get("chat.cafecoffee", "☕|cafe coffee")),
+        (NX.i18n.get("chat.bubblechamilktea", "🧋|bubble cha milktea")),
+        (NX.i18n.get("chat.refrigerantedrink", "🥤|refrigerante drink")),
+        (NX.i18n.get("chat.cervejabeer", "🍺|cerveja beer")),
+        (NX.i18n.get("chat.sorveteicecream", "🍦|sorvete icecream")),
       ],
     },
     {
       id: "esportes",
-      icon: "⚽",
-      label: "Esportes",
+      icon: "ball",
+      label: (NX.i18n.get("chat.esportes", "Esportes")),
       items: [
-        "⚽|futebol soccer bola",
-        "🏀|basquete basketball",
-        "🏈|futebol americano",
-        "⚾|beisebol baseball",
-        "🎾|tenis tennis bola",
+        (NX.i18n.get("chat.futebolsoccerbola", "⚽|futebol soccer bola")),
+        (NX.i18n.get("chat.basquetebasketball", "🏀|basquete basketball")),
+        (NX.i18n.get("chat.futebolamericano", "🏈|futebol americano")),
+        (NX.i18n.get("chat.beisebolbaseball", "⚾|beisebol baseball")),
+        (NX.i18n.get("chat.tenistennisbola", "🎾|tenis tennis bola")),
         "🏸|badminton",
-        "🎿|esqui ski",
-        "⛷️|esqui alpino",
+        (NX.i18n.get("chat.esquiski", "🎿|esqui ski")),
+        (NX.i18n.get("chat.esquialpino", "⛷️|esqui alpino")),
         "🏂|snowboard",
         "🏄|surf",
-        "🏊|natacao swim",
-        "🚴|bicicleta bike",
-        "🥊|boxe boxing luvas",
-        "🏋️|musculacao peso",
+        (NX.i18n.get("chat.natacaoswim", "🏊|natacao swim")),
+        (NX.i18n.get("chat.bicicletabike", "🚴|bicicleta bike")),
+        (NX.i18n.get("chat.boxeboxingluvas", "🥊|boxe boxing luvas")),
+        (NX.i18n.get("chat.musculacaopeso", "🏋️|musculacao peso")),
         "🤸|ginastica",
-        "🎯|dardo alvo target",
-        "🎳|boliche bowling",
-        "🤼|luta wrestling",
-        "🏆|trofeu trofeo",
-        "🥇|medalha ouro gold",
-        "🥈|medalha prata silver",
-        "🥉|medalha bronze",
-        "🏅|medalha medal",
-        "🥅|gol goal rede",
+        (NX.i18n.get("chat.dardoalvotarget", "🎯|dardo alvo target")),
+        (NX.i18n.get("chat.bolichebowling", "🎳|boliche bowling")),
+        (NX.i18n.get("chat.lutawrestling", "🤼|luta wrestling")),
+        (NX.i18n.get("chat.trofeutrofeo", "🏆|trofeu trofeo")),
+        (NX.i18n.get("chat.medalhaourogold", "🥇|medalha ouro gold")),
+        (NX.i18n.get("chat.medalhapratasilver", "🥈|medalha prata silver")),
+        (NX.i18n.get("chat.medalhabronze", "🥉|medalha bronze")),
+        (NX.i18n.get("chat.medalhamedal", "🏅|medalha medal")),
+        (NX.i18n.get("chat.golgoalrede", "🥅|gol goal rede")),
       ],
     },
     {
       id: "jogos",
-      icon: "🎮",
-      label: "Jogos",
+      icon: "gamepad",
+      label: (NX.i18n.get("chat.jogos", "Jogos")),
       items: [
-        "🎮|controle game gamer",
-        "🕹️|joystick arcade",
-        "🎲|dado dice sorte",
-        "🎯|alvo darts",
-        "🧩|quebra cabeca puzzle",
-        "🃏|cartas joker",
-        "♟️|xadrez chess",
-        "🎱|bola oito pool",
-        "🎣|pescaria fishing",
-        "🏹|arco arrow",
-        "⚔️|espadas sword batalha",
-        "🛡️|escudo shield",
-        "🗡️|adaga dagger",
-        "🪄|varinha magic",
-        "🔮|bola de cristal",
-        "🎪|circo circus",
-        "🎡|roda gigante",
+        (NX.i18n.get("chat.controlegamegamer", "🎮|controle game gamer")),
+        (NX.i18n.get("chat.joystickarcade", "🕹️|joystick arcade")),
+        (NX.i18n.get("chat.dadodicesorte", "🎲|dado dice sorte")),
+        (NX.i18n.get("chat.alvodarts", "🎯|alvo darts")),
+        (NX.i18n.get("chat.quebracabecapuzzle", "🧩|quebra cabeca puzzle")),
+        (NX.i18n.get("chat.cartasjoker", "🃏|cartas joker")),
+        (NX.i18n.get("chat.xadrezchess", "♟️|xadrez chess")),
+        (NX.i18n.get("chat.bolaoitopool", "🎱|bola oito pool")),
+        (NX.i18n.get("chat.pescariafishing", "🎣|pescaria fishing")),
+        (NX.i18n.get("chat.arcoarrow", "🏹|arco arrow")),
+        (NX.i18n.get("chat.espadasswordbatalha", "⚔️|espadas sword batalha")),
+        (NX.i18n.get("chat.escudoshield", "🛡️|escudo shield")),
+        (NX.i18n.get("chat.adagadagger", "🗡️|adaga dagger")),
+        (NX.i18n.get("chat.varinhamagic", "🪄|varinha magic")),
+        (NX.i18n.get("chat.boladecristal", "🔮|bola de cristal")),
+        (NX.i18n.get("chat.circocircus", "🎪|circo circus")),
+        (NX.i18n.get("chat.rodagigante", "🎡|roda gigante")),
         "🎠|carrossel",
-        "🎢|montanha russa",
-        "🎰|caça niquel luck",
-        "🪀|io io",
-        "🎫|ingresso ticket",
-        "🪁|pipa kite",
-        "🪩|disco ball festa",
+        (NX.i18n.get("chat.montanharussa", "🎢|montanha russa")),
+        (NX.i18n.get("chat.cacaniquelluck", "🎰|caça niquel luck")),
+        (NX.i18n.get("chat.ioio", "🪀|io io")),
+        (NX.i18n.get("chat.ingressoticket", "🎫|ingresso ticket")),
+        (NX.i18n.get("chat.pipakite", "🪁|pipa kite")),
+        (NX.i18n.get("chat.discoballfesta", "🪩|disco ball festa")),
       ],
     },
     {
       id: "objetos",
-      icon: "🚗",
-      label: "Objetos",
+      icon: "box",
+      label: (NX.i18n.get("chat.objetos", "Objetos")),
       items: [
-        "🚗|carro car",
+        (NX.i18n.get("chat.carrocar", "🚗|carro car")),
         "🚕|taxi",
-        "🚙|suv carro",
-        "🚌|onibus bus",
-        "🚚|caminhao truck",
-        "🚛|caminhao grande",
-        "🏍️|moto motoqueiro",
-        "🚲|bicicleta bike",
-        "✈️|aviao plane viagem",
-        "🚀|foguete rocket",
-        "🛸|ovni ufo",
+        (NX.i18n.get("chat.suvcarro", "🚙|suv carro")),
+        (NX.i18n.get("chat.onibusbus", "🚌|onibus bus")),
+        (NX.i18n.get("chat.caminhaotruck", "🚚|caminhao truck")),
+        (NX.i18n.get("chat.caminhaogrande", "🚛|caminhao grande")),
+        (NX.i18n.get("chat.motomotoqueiro", "🏍️|moto motoqueiro")),
+        (NX.i18n.get("chat.bicicletabike2", "🚲|bicicleta bike")),
+        (NX.i18n.get("chat.aviaoplaneviagem", "✈️|aviao plane viagem")),
+        (NX.i18n.get("chat.fogueterocket", "🚀|foguete rocket")),
+        (NX.i18n.get("chat.ovniufo", "🛸|ovni ufo")),
         "🚁|helicoptero",
-        "⛵|barco a vela",
-        "🚢|navio ship",
+        (NX.i18n.get("chat.barcoavela", "⛵|barco a vela")),
+        (NX.i18n.get("chat.navioship", "🚢|navio ship")),
         "🗺️|mapa",
-        "📷|camera foto",
-        "📱|celular phone",
-        "💻|notebook laptop",
-        "⌨️|teclado keyboard",
-        "🖱️|mouse clique",
-        "💡|lampada ideia light",
-        "🔑|chave key",
-        "⏰|despertador relogio",
-        "🎁|presente gift",
+        (NX.i18n.get("chat.camerafoto", "📷|camera foto")),
+        (NX.i18n.get("chat.celularphone", "📱|celular phone")),
+        (NX.i18n.get("chat.notebooklaptop", "💻|notebook laptop")),
+        (NX.i18n.get("chat.tecladokeyboard", "⌨️|teclado keyboard")),
+        (NX.i18n.get("chat.mouseclique", "🖱️|mouse clique")),
+        (NX.i18n.get("chat.lampadaideialight", "💡|lampada ideia light")),
+        (NX.i18n.get("chat.chavekey", "🔑|chave key")),
+        (NX.i18n.get("chat.despertadorrelogio", "⏰|despertador relogio")),
+        (NX.i18n.get("chat.presentegift", "🎁|presente gift")),
       ],
     },
     {
       id: "outros",
-      icon: "✨",
-      label: "Outros",
+      icon: "sparkles",
+      label: (NX.i18n.get("chat.outros", "Outros")),
       items: [
-        "✨|brilhos sparkles",
-        "🌈|arco iris rainbow",
-        "⭐|estrela star",
-        "🌟|estrela brilhante",
-        "💫|girando dizzy",
-        "🌙|lua moon",
-        "☀️|sol sun",
-        "⛅|nuvem tempo",
-        "❄️|neve snow frio",
-        "🌊|onda wave mar",
-        "🌱|broto plant",
+        (NX.i18n.get("chat.brilhossparkles", "✨|brilhos sparkles")),
+        (NX.i18n.get("chat.arcoirisrainbow", "🌈|arco iris rainbow")),
+        (NX.i18n.get("chat.estrelastar", "⭐|estrela star")),
+        (NX.i18n.get("chat.estrelabrilhante", "🌟|estrela brilhante")),
+        (NX.i18n.get("chat.girandodizzy", "💫|girando dizzy")),
+        (NX.i18n.get("chat.luamoon", "🌙|lua moon")),
+        (NX.i18n.get("chat.solsun", "☀️|sol sun")),
+        (NX.i18n.get("chat.nuvemtempo", "⛅|nuvem tempo")),
+        (NX.i18n.get("chat.nevesnowfrio", "❄️|neve snow frio")),
+        (NX.i18n.get("chat.ondawavemar", "🌊|onda wave mar")),
+        (NX.i18n.get("chat.brotoplant", "🌱|broto plant")),
         "🌵|cacto",
         "🌴|palmeira",
-        "🔥|fogo fire",
-        "💧|gota agua",
-        "⚡|raio lightning",
-        "🌍|terra world",
-        "🪐|planeta saturno",
+        (NX.i18n.get("chat.fogofire", "🔥|fogo fire")),
+        (NX.i18n.get("chat.gotaagua", "💧|gota agua")),
+        (NX.i18n.get("chat.raiolightning", "⚡|raio lightning")),
+        (NX.i18n.get("chat.terraworld", "🌍|terra world")),
+        (NX.i18n.get("chat.planetasaturno", "🪐|planeta saturno")),
         "🛰️|satelite",
         "🔭|telescopio",
-        "🧠|cerebro brain",
-        "🤖|roboto robot",
-        "💎|diamante gem",
-        "🎵|musica music",
+        (NX.i18n.get("chat.cerebrobrain", "🧠|cerebro brain")),
+        (NX.i18n.get("chat.robotorobot", "🤖|roboto robot")),
+        (NX.i18n.get("chat.diamantegem", "💎|diamante gem")),
+        (NX.i18n.get("chat.musicamusic", "🎵|musica music")),
       ],
     },
   ];
@@ -782,9 +782,9 @@ window.NX = window.NX || {};
 
     if (tab === "server" && !showServer) tab = "geral";
 
-    const tabs = [{ id: "geral", icon: "😀", label: "Rostos e categorias" }].concat(
+    const tabs = [{ id: "geral", icon: "smile", label: NX.i18n.get("chat.rostosCategorias", "Rostos e categorias") }].concat(
       EMOJI_CATS.slice(1).map((c) => ({ id: c.id, icon: c.icon, label: c.label })),
-      showServer ? [{ id: "server", icon: "⭐", label: "Do servidor" }] : []
+      showServer ? [{ id: "server", icon: "star", label: NX.i18n.get("chat.servidor", "Do servidor") }] : []
     );
 
     const tabsHTML = tabs
@@ -793,21 +793,21 @@ window.NX = window.NX || {};
           '<button type="button" class="cm-picker__tab' + (t.id === tab ? " is-on" : "") +
           '" role="tab" data-cat="' + t.id + '" aria-selected="' + (t.id === tab ? "true" : "false") +
           '" aria-label="' + u().h(t.label) + '" title="' + u().h(t.label) + '">' +
-          '<span aria-hidden="true">' + t.icon + "</span></button>"
+          '<span aria-hidden="true">' + (NX.hasIcon(t.icon) ? NX.icon(t.icon, "", 17) : u().h(t.icon || "")) + "</span></button>"
       )
       .join("");
 
     const html =
-      '<div class="cm-picker" role="dialog" aria-label="Seletor de emojis">' +
+      '<div class="cm-picker" role="dialog" aria-label="' + NX.i18n.get("ui.seletordeemojis", "Seletor de emojis") + '">' +
       '<div class="cm-picker__head"><div class="cm-search">' +
       NX.icon("search", "cm-search__ico", 16) +
-      '<input type="search" class="cm-search__input" data-cm-search placeholder="Buscar emoji" ' +
-      'aria-label="Buscar emoji" autocomplete="off" spellcheck="false"></div></div>' +
-      '<div class="cm-picker__tabs" role="tablist" aria-label="Categorias de emoji">' + tabsHTML + "</div>" +
+      '<input type="search" class="cm-search__input" data-cm-search placeholder="' + NX.i18n.get("ui.buscaremoji", "Buscar emoji") + '" ' +
+      'aria-label="' + NX.i18n.get("ui.chatmedia.buscaremoji", "Buscar emoji") + '" autocomplete="off" spellcheck="false"></div></div>' +
+      '<div class="cm-picker__tabs" role="tablist" aria-label="' + NX.i18n.get("ui.categoriasdeemoji", "Categorias de emoji") + '">' + tabsHTML + "</div>" +
       '<div class="cm-picker__body"><div class="cm-picker__grid" data-cm-grid role="grid" ' +
-      'aria-label="Emojis"></div></div>' +
+      'aria-label="' + NX.i18n.get("adm.emojis", "Emojis") + '"></div></div>' +
       '<div class="cm-picker__foot"><span class="cm-picker__preview" data-cm-preview aria-live="polite">' +
-      "Escolha um emoji</span></div>" +
+      (NX.i18n.get("chat.escolhaumemoji", "Escolha um emoji") + "</span></div>") +
       "</div>";
 
     const el = NX.ui.popout(anchor, html, {
@@ -857,14 +857,14 @@ window.NX = window.NX || {};
         cells = sv.map(serverCellHTML).join("");
         if (!sv.length) {
           grid.innerHTML =
-            '<div class="cm-empty">Nenhum emoji personalizado neste servidor ainda.</div>';
+            ("<div class=\"cm-empty\">" + NX.i18n.get("chat.nenhumemojipersonalizadonesteservidorainda", "Nenhum emoji personalizado neste servidor ainda.") + "</div>");
           return;
         }
       } else {
         const cat = EMOJI_CATS.filter((c) => c.id === tab)[0] || EMOJI_CATS[0];
         cells = EMOJI_INDEX.filter((e) => e.cat === cat.id).map(cellHTML).join("");
       }
-      grid.innerHTML = cells || '<div class="cm-empty">Nenhum emoji encontrado.</div>';
+      grid.innerHTML = cells || ("<div class=\"cm-empty\">" + NX.i18n.get("chat.nenhumemojiencontrado", "Nenhum emoji encontrado.") + "</div>");
     }
 
     grid.addEventListener("click", (e) => {
@@ -918,22 +918,22 @@ window.NX = window.NX || {};
      7 · GIFs — provedor com fixture local
      ========================================================= */
   const GIF_FIXTURE = [
-    { id: "g1", name: "boa noite", tags: "lua sono sleep night", kind: "moon", c1: "#8f83ff", c2: "#4cc9f0" },
-    { id: "g2", name: "parabéns", tags: "festa aniversario confetti", kind: "confetti", c1: "#35e0a8", c2: "#ffc857" },
-    { id: "g3", name: "vamos lá", tags: "bora sim vamos go", kind: "bars", c1: "#35e0a8", c2: "#8f83ff" },
-    { id: "g4", name: "obrigado", tags: "valeu thanks grato", kind: "heart", c1: "#ff7ab6", c2: "#ff6b7a" },
-    { id: "g5", name: "boa sorte", tags: "sorte luck trevo", kind: "spin", c1: "#a0e548", c2: "#35e0a8" },
-    { id: "g6", name: "kkkk", tags: "riso meme hahaha", kind: "shake", c1: "#ffc857", c2: "#f0956b" },
-    { id: "g7", name: "café?", tags: "cafe coffee pausa", kind: "steam", c1: "#f0956b", c2: "#ffc857" },
-    { id: "g8", name: "combinado", tags: "sim ok check approve", kind: "check", c1: "#35e0a8", c2: "#17c98e" },
-    { id: "g9", name: "agora não", tags: "nao no stop recusa", kind: "cross", c1: "#ff6b7a", c2: "#ff7ab6" },
-    { id: "g10", name: "é uma festa", tags: "disco party balanco", kind: "disco", c1: "#8f83ff", c2: "#ff7ab6" },
-    { id: "g11", name: "esperando...", tags: "wait espera loading", kind: "dots", c1: "#4cc9f0", c2: "#8f83ff" },
-    { id: "g12", name: "carinho", tags: "amor love abraco", kind: "orbit", c1: "#ff7ab6", c2: "#8f83ff" },
-    { id: "g13", name: "boa ideia", tags: "ideia lightbulb luz", kind: "pulse", c1: "#ffc857", c2: "#35e0a8" },
-    { id: "g14", name: "sucesso", tags: "vitoria win campeao", kind: "check", c1: "#4cc9f0", c2: "#35e0a8" },
-    { id: "g15", name: "manda balão", tags: "bolao emoji react", kind: "orbit", c1: "#35e0a8", c2: "#4cc9f0" },
-    { id: "g16", name: "modo foco", tags: "foco focus serio", kind: "bars", c1: "#8f83ff", c2: "#4cc9f0" },
+    { id: "g1", name: NX.i18n.get("chat.boaNoite", "boa noite"), tags: NX.i18n.get("chat.luaSonoSleepNight", "lua sono sleep night"), kind: "moon", c1: "#8f83ff", c2: "#4cc9f0" },
+    { id: "g2", name: (NX.i18n.get("chat.parabens", "parabéns")), tags: NX.i18n.get("chat.festaAniversarioConfetti", "festa aniversario confetti"), kind: "confetti", c1: "#35e0a8", c2: "#ffc857" },
+    { id: "g3", name: NX.i18n.get("chat.vamosLa", "vamos lá"), tags: NX.i18n.get("chat.boraSimVamosGo", "bora sim vamos go"), kind: "bars", c1: "#35e0a8", c2: "#8f83ff" },
+    { id: "g4", name: "obrigado", tags: NX.i18n.get("chat.valeuThanksGrato", "valeu thanks grato"), kind: "heart", c1: "#ff7ab6", c2: "#ff6b7a" },
+    { id: "g5", name: NX.i18n.get("chat.boaSorte", "boa sorte"), tags: NX.i18n.get("chat.sorteLuckTrevo", "sorte luck trevo"), kind: "spin", c1: "#a0e548", c2: "#35e0a8" },
+    { id: "g6", name: "kkkk", tags: NX.i18n.get("chat.risoMemeHahaha", "riso meme hahaha"), kind: "shake", c1: "#ffc857", c2: "#f0956b" },
+    { id: "g7", name: (NX.i18n.get("chat.cafe", "café?")), tags: NX.i18n.get("chat.cafeCoffeePausa", "cafe coffee pausa"), kind: "steam", c1: "#f0956b", c2: "#ffc857" },
+    { id: "g8", name: "combinado", tags: NX.i18n.get("chat.simOkCheckApprove", "sim ok check approve"), kind: "check", c1: "#35e0a8", c2: "#17c98e" },
+    { id: "g9", name: NX.i18n.get("chat.agoraNao", "agora não"), tags: NX.i18n.get("chat.naoStopRecusa", "nao no stop recusa"), kind: "cross", c1: "#ff6b7a", c2: "#ff7ab6" },
+    { id: "g10", name: NX.i18n.get("chat.festa", "é uma festa"), tags: NX.i18n.get("chat.discoPartyBalanco", "disco party balanco"), kind: "disco", c1: "#8f83ff", c2: "#ff7ab6" },
+    { id: "g11", name: "esperando...", tags: NX.i18n.get("chat.waitEsperaLoading", "wait espera loading"), kind: "dots", c1: "#4cc9f0", c2: "#8f83ff" },
+    { id: "g12", name: "carinho", tags: NX.i18n.get("chat.amorLoveAbraco", "amor love abraco"), kind: "orbit", c1: "#ff7ab6", c2: "#8f83ff" },
+    { id: "g13", name: NX.i18n.get("chat.boaIdeia", "boa ideia"), tags: NX.i18n.get("chat.ideiaLightbulbLuz", "ideia lightbulb luz"), kind: "pulse", c1: "#ffc857", c2: "#35e0a8" },
+    { id: "g14", name: "sucesso", tags: NX.i18n.get("chat.vitoriaWinCampeao", "vitoria win campeao"), kind: "check", c1: "#4cc9f0", c2: "#35e0a8" },
+    { id: "g15", name: NX.i18n.get("chat.mandaBalao", "manda balão"), tags: NX.i18n.get("chat.bolaoEmojiReact", "bolao emoji react"), kind: "orbit", c1: "#35e0a8", c2: "#4cc9f0" },
+    { id: "g16", name: NX.i18n.get("chat.modoFoco", "modo foco"), tags: NX.i18n.get("chat.focoFocusSerio", "foco focus serio"), kind: "bars", c1: "#8f83ff", c2: "#4cc9f0" },
   ];
 
   const GW = 360;
@@ -1006,7 +1006,7 @@ window.NX = window.NX || {};
         return (
           '<g><animateTransform attributeName="transform" type="translate" values="0 0;-9 0;9 0;0 0" dur="0.34s" repeatCount="indefinite"/>' +
           '<text x="180" y="118" font-family="system-ui" font-weight="700" font-size="54" fill="' +
-          c1 + '" text-anchor="middle">kkkk</text></g>' +
+          c1 + ("\" text-anchor=\"middle\">" + NX.i18n.get("chat.kkkk", "kkkk") + "</text></g>") +
           '<text x="180" y="172" font-family="system-ui" font-size="17" fill="#e8f3f0" text-anchor="middle">' +
           g.name + "</text>"
         );
@@ -1143,16 +1143,16 @@ window.NX = window.NX || {};
     opts = opts || {};
 
     const html =
-      '<div class="cm-gifs" role="dialog" aria-label="Escolher um GIF">' +
+      '<div class="cm-gifs" role="dialog" aria-label="' + NX.i18n.get("ui.escolherumgif", "Escolher um GIF") + '">' +
       '<div class="cm-gifs__head"><div class="cm-search">' +
       NX.icon("search", "cm-search__ico", 16) +
-      '<input type="search" class="cm-search__input" data-cm-gifsearch placeholder="Buscar GIFs" ' +
-      'aria-label="Buscar GIFs" autocomplete="off" spellcheck="false"></div></div>' +
+      '<input type="search" class="cm-search__input" data-cm-gifsearch placeholder="' + NX.i18n.get("ui.buscargifs", "Buscar GIFs") + '" ' +
+      'aria-label="' + NX.i18n.get("ui.chatmedia.buscargifs", "Buscar GIFs") + '" autocomplete="off" spellcheck="false"></div></div>' +
       '<div class="cm-gifs__body"><div class="cm-gifs__grid" data-cm-gifgrid>' +
-      '<div class="cm-empty">Carregando…</div></div></div>' +
+      ("<div class=\"cm-empty\">" + NX.i18n.get("common.loading", "Carregando…") + "</div></div></div>") +
       '<div class="cm-gifs__foot"><span class="cm-gifs__info" data-cm-gifinfo aria-live="polite">' +
-      'Passe o mouse para visualizar</span>' +
-      '<button type="button" class="btn btn--primary btn--sm" data-cm-gifsend disabled>Enviar</button>' +
+      (NX.i18n.get("chat.passeMouseVisualizar", "Passe o mouse para visualizar") + "</span>") +
+      ("<button type=\"button\" class=\"btn btn--primary btn--sm\" data-cm-gifsend disabled>" + NX.i18n.get("chat.enviar", "Enviar") + "</button>") +
       "</div></div>";
 
     const el = NX.ui.popout(anchor, html, {
@@ -1174,7 +1174,7 @@ window.NX = window.NX || {};
 
     function setCurrent(it, label) {
       current = it;
-      if (info) info.innerHTML = label || (it ? u().h(it.name) : "Passe o mouse para visualizar");
+      if (info) info.innerHTML = label || (it ? u().h(it.name) : NX.i18n.get("chat.passeMouseVisualizar", "Passe o mouse para visualizar"));
       if (sendBtn) sendBtn.disabled = !it;
     }
 
@@ -1186,7 +1186,7 @@ window.NX = window.NX || {};
 
     async function load(q) {
       const my = ++seq;
-      grid.innerHTML = '<div class="cm-empty">Carregando…</div>';
+      grid.innerHTML = ("<div class=\"cm-empty\">" + NX.i18n.get("common.loading", "Carregando…") + "</div>");
       let list = [];
       try {
         list = (await chat.gifProvider.search(q)) || [];
@@ -1198,13 +1198,13 @@ window.NX = window.NX || {};
       setCurrent(null);
       if (!list.length) {
         grid.innerHTML =
-          '<div class="cm-empty">Nenhum GIF para “' + u().h(q || "tudo") + '”. Tente outra palavra.</div>';
+          ("<div class=\"cm-empty\">" + NX.i18n.get("chat.nenhumgifpara", "Nenhum GIF para “")) + u().h(q || "tudo") + (NX.i18n.get("chat.tenteoutrapalavra", "”. Tente outra palavra.") + "</div>");
         return;
       }
       grid.innerHTML = list
         .map(
           (it, i) =>
-            '<button type="button" class="cm-gif" data-i="' + i + '" aria-label="Ver GIF ' +
+            '<button type="button" class="cm-gif" data-i="' + i + '" aria-label="' + NX.i18n.get("ui.a11yvergif", "Ver GIF ") +
             u().h(it.name) + '">' +
             '<img class="cm-gif__img" src="' + u().h(it.preview || it.url) +
             '" alt="" loading="lazy" decoding="async" data-full="' + u().h(it.url) + '">' +
@@ -1243,16 +1243,16 @@ window.NX = window.NX || {};
       setCurrent(it);
 
       const actions = u().el('<div class="modal__actions"></div>');
-      const cancel = u().el('<button class="btn btn--ghost" type="button">Cancelar</button>');
-      const ok = u().el('<button class="btn btn--primary" type="button">Enviar GIF</button>');
+      const cancel = u().el(("<button class=\"btn btn--ghost\" type=\"button\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>"));
+      const ok = u().el(("<button class=\"btn btn--primary\" type=\"button\">" + NX.i18n.get("chat.enviargif", "Enviar GIF") + "</button>"));
       actions.appendChild(cancel);
       actions.appendChild(ok);
 
-      const m = NX.ui.modal({ title: it.name, eyebrow: "GIF", size: "sm", footer: actions });
+      const m = NX.ui.modal({ title: it.name, eyebrow: (NX.i18n.get("chat.gif", "GIF")), size: "sm", footer: actions });
       m.body.innerHTML =
         '<div class="cm-view"><img class="cm-view__img cm-view__img--gif" src="' +
         u().h(it.url) + '" alt="' + u().h(it.name) + '"></div>' +
-        '<p class="cm-view__note">Sera enviado como anexo do tipo GIF.</p>';
+        ("<p class=\"cm-view__note\">" + NX.i18n.get("chat.seraenviadocomoanexodotipo", "Sera enviado como anexo do tipo GIF.") + "</p>");
       cancel.addEventListener("click", () => m.close());
       ok.addEventListener("click", () => {
         m.close();
@@ -1299,17 +1299,17 @@ window.NX = window.NX || {};
       input.click();
     } catch (e) {
       cleanup();
-      NX.ui.error("Não foi possível abrir o seletor de arquivos.");
+      NX.ui.error(NX.i18n.get("chat.naoFoiPossivelAbrir", "Não foi possível abrir o seletor de arquivos."));
     }
   }
 
   function resizeImage(file, cb) {
     const reader = new FileReader();
-    reader.onerror = () => cb(new Error("Não foi possível ler a imagem."));
+    reader.onerror = () => cb(new Error(NX.i18n.get("chat.naoFoiPossivelLer", "Não foi possível ler a imagem.")));
     reader.onload = () => {
       const dataUrl = String(reader.result || "");
       const img = new Image();
-      img.onerror = () => cb(new Error("Formato de imagem não suportado."));
+      img.onerror = () => cb(new Error(NX.i18n.get("chat.formatoImagemNaoSuportado", "Formato de imagem não suportado.")));
       img.onload = () => {
         try {
           const max = 1024;
@@ -1333,7 +1333,7 @@ window.NX = window.NX || {};
             out = dataUrl;
           }
           if (out.length > MAX_URL_CHARS) {
-            cb(new Error("Imagem grande demais (máximo de 1,5 MB) mesmo após a redução."));
+            cb(new Error(NX.i18n.get("chat.imagemGrandeDemaisMaximo", "Imagem grande demais (máximo de 1,5 MB) mesmo após a redução.")));
             return;
           }
           cb(null, {
@@ -1344,7 +1344,7 @@ window.NX = window.NX || {};
             resized: scale < 1,
           });
         } catch (e) {
-          cb(new Error("Não foi possível processar a imagem."));
+          cb(new Error(NX.i18n.get("chat.naoFoiPossivelProcessar", "Não foi possível processar a imagem.")));
         }
       };
       img.src = dataUrl;
@@ -1364,11 +1364,11 @@ window.NX = window.NX || {};
       return;
     }
     const reader = new FileReader();
-    reader.onerror = () => NX.ui.error("Não foi possível ler o arquivo.");
+    reader.onerror = () => NX.ui.error(NX.i18n.get("chat.naoFoiPossivelLer2", "Não foi possível ler o arquivo."));
     reader.onload = () => {
       const url = String(reader.result || "");
       if (url.length > MAX_URL_CHARS) {
-        NX.ui.error("Arquivo grande demais (máximo de 1,5 MB).");
+        NX.ui.error(NX.i18n.get("chat.arquivoGrandeDemaisMaximo", "Arquivo grande demais (máximo de 1,5 MB)."));
         return;
       }
       previewSend(
@@ -1408,13 +1408,13 @@ window.NX = window.NX || {};
 
   function previewSend(item, onPick) {
     const actions = u().el('<div class="modal__actions"></div>');
-    const cancel = u().el('<button class="btn btn--ghost" type="button">Cancelar</button>');
-    const ok = u().el('<button class="btn btn--primary" type="button">' + NX.icon("send", "", 16) + " Enviar</button>");
+    const cancel = u().el(("<button class=\"btn btn--ghost\" type=\"button\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>"));
+    const ok = u().el('<button class="btn btn--primary" type="button">' + NX.icon("send", "", 16) + (" " + NX.i18n.get("chat.enviar", "Enviar") + "</button>"));
     actions.appendChild(cancel);
     actions.appendChild(ok);
 
-    const titles = { image: "Pré-visualizar imagem", video: "Pré-visualizar vídeo", file: "Enviar arquivo" };
-    const m = NX.ui.modal({ title: item.name || "Anexo", eyebrow: "Anexo", size: "sm", footer: actions });
+    const titles = { image: NX.i18n.get("chat.preVisualizarImagem", "Pré-visualizar imagem"), video: NX.i18n.get("chat.preVisualizarVideo", "Pré-visualizar vídeo"), file: NX.i18n.get("chat.enviarArquivo", "Enviar arquivo") };
+    const m = NX.ui.modal({ title: item.name || (NX.i18n.get("chat.anexo", "Anexo")), eyebrow: (NX.i18n.get("chat.anexo", "Anexo")), size: "sm", footer: actions });
     m.body.innerHTML = previewBody(item);
     cancel.addEventListener("click", () => m.close());
     ok.addEventListener("click", () => {
@@ -1429,24 +1429,24 @@ window.NX = window.NX || {};
     opts = opts || {};
     const perms = attachPerms();
     const serverId = opts.serverId || perms.serverId || currentServerId();
-    const items = [{ heading: "Anexar" }];
+    const items = [{ heading: (NX.i18n.get("chat.anexar", "Anexar")) }];
 
     if (perms.files) {
       items.push({
         icon: "image",
-        label: "Imagem",
-        hint: "reduz para 1024px",
+        label: (NX.i18n.get("chat.imagem", "Imagem")),
+        hint: NX.i18n.get("chat.reduz1024px", "reduz para 1024px"),
         onClick: () => fileInput("image/*", (f) => handleFile("image", f, onPick)),
       });
       items.push({
         icon: "voice",
-        label: "Vídeo",
-        hint: "MP4 · 1,5 MB",
+        label: (NX.i18n.get("chat.video", "Vídeo")),
+        hint: (NX.i18n.get("chat.mp415mb", "MP4 · 1,5 MB")),
         onClick: () => fileInput("video/*", (f) => handleFile("video", f, onPick)),
       });
       items.push({
         icon: "folder",
-        label: "Arquivo",
+        label: (NX.i18n.get("chat.arquivo", "Arquivo")),
         onClick: () => fileInput("", (f) => handleFile("file", f, onPick)),
       });
     }
@@ -1454,7 +1454,7 @@ window.NX = window.NX || {};
     if (perms.gifs) {
       items.push({
         icon: "grid",
-        label: "GIF",
+        label: (NX.i18n.get("chat.gif", "GIF")),
         onClick: () => chat.openGifPicker(anchor, onPick, opts),
       });
     }
@@ -1462,7 +1462,7 @@ window.NX = window.NX || {};
     if (perms.emojis) {
       items.push({
         icon: "smile",
-        label: "Emoji",
+        label: (NX.i18n.get("chat.emoji", "Emoji")),
         onClick: () =>
           chat.openEmojiPicker(
             anchor,
@@ -1480,7 +1480,7 @@ window.NX = window.NX || {};
     }
 
     if (items.length === 1) {
-      items.push({ icon: "lock", label: "Sem permissão para anexar aqui", disabled: true });
+      items.push({ icon: "lock", label: NX.i18n.get("chat.permissaoAnexarAqui", "Sem permissão para anexar aqui"), disabled: true });
     }
 
     return NX.ui.menu(visibleAnchor(anchor), items, { align: "start", gap: 8 });
@@ -1546,19 +1546,19 @@ window.NX = window.NX || {};
     return (
       '<div class="cm-thumb" title="' + name + '">' + body +
       '<button type="button" class="cm-thumb__x" data-action="chat-pending-remove" data-idx="' + i +
-      '" aria-label="Remover ' + name + '">' + NX.icon("x", "", 13) + "</button></div>"
+      '" aria-label="' + NX.i18n.get("modal.remover", "Remover") + " " + name + '">' + NX.icon("x", "", 13) + "</button></div>"
     );
   }
 
   const CLEAR_OWN =
-    '<button type="button" class="cm-strip__clear" data-action="chat-clear-pending">Limpar</button>';
+    ("<button type=\"button\" class=\"cm-strip__clear\" data-action=\"chat-clear-pending\">" + NX.i18n.get("chat.limpar", "Limpar") + "</button>");
 
   chat.addPending = function (item) {
     if (!item || !item.url) return false;
     const types = ["image", "video", "file", "gif"];
     const type = types.indexOf(item.type) !== -1 ? item.type : "file";
     if (chat.pending.length >= 4) {
-      NX.ui.error("No máximo 4 anexos por mensagem.");
+      NX.ui.error(NX.i18n.get("chat.maximo4AnexosMensagem", "No máximo 4 anexos por mensagem."));
       return false;
     }
     chat.pending.push({
@@ -1573,7 +1573,7 @@ window.NX = window.NX || {};
 
   /* Devolve o HTML da faixa e o desenha no .composer__pending local.
      Quando quem manda é a views.js (data-pending) ela acrescenta o próprio
-     botão "Limpar anexos" ao nosso retorno — por isso o retorno nunca o
+     botão (NX.i18n.get("chat.limparanexos", "Limpar anexos")) ao nosso retorno — por isso o retorno nunca o
      inclui; na gravação direta preservamos o botão já existente. */
   chat.renderPendingStrip = function () {
     if (!chat.pending.length) {
@@ -1672,9 +1672,9 @@ window.NX = window.NX || {};
     }
     const msg = r.msg;
     const author = safe(() => S().user(msg.authorId), null);
-    const name = author ? author.displayName : "alguém";
+    const name = author ? author.displayName : (NX.i18n.get("api.alguem", "alguém"));
     const excerpt = msg.content
-      ? String(msg.content).slice(0, 140)
+      ? S().botTextOf(msg.content).slice(0, 140)
       : msg.attachments && msg.attachments.length
       ? "anexo: " + (msg.attachments[0].name || msg.attachments[0].type)
       : "";
@@ -1682,10 +1682,10 @@ window.NX = window.NX || {};
     host.innerHTML =
       '<div class="cm-reply">' +
       '<span class="cm-reply__ico" aria-hidden="true">' + NX.icon("chat", "", 16) + "</span>" +
-      '<span class="cm-reply__txt"><strong>Respondendo <b>' + u().h(name) + "</b></strong>" +
+      ("<span class=\"cm-reply__txt\"><strong>" + NX.i18n.get("chat.respondendo", "Respondendo") + " " + "<b>") + u().h(name) + "</b></strong>" +
       '<span class="cm-reply__excerpt truncate">' + u().h(excerpt) + "</span></span>" +
       '<button type="button" class="cm-reply__x" data-action="chat-reply-cancel" ' +
-      'aria-label="Cancelar resposta" title="Cancelar resposta">' + NX.icon("x", "", 15) + "</button>" +
+      'aria-label="' + NX.i18n.get("ui.cancelarresposta", "Cancelar resposta") + '" title="' + NX.i18n.get("ui.chatmedia.cancelarresposta", "Cancelar resposta") + '">' + NX.icon("x", "", 15) + "</button>" +
       "</div>";
     return host.innerHTML;
   };
@@ -1695,11 +1695,11 @@ window.NX = window.NX || {};
     if (!r || !r.msg) return "";
     const author = safe(() => S().user(r.msg.authorId), null);
     const raw = r.msg.content
-      ? String(r.msg.content).split("\n")[0].slice(0, 80)
+      ? S().botTextOf(r.msg.content).split("\n")[0].slice(0, 80)
       : r.msg.attachments && r.msg.attachments.length
       ? "anexo: " + (r.msg.attachments[0].name || r.msg.attachments[0].type)
       : "…";
-    return "> **" + (author ? author.displayName : "alguém") + "**: " + raw + "\n";
+    return "> **" + (author ? author.displayName : (NX.i18n.get("api.alguem", "alguém"))) + "**: " + raw + "\n";
   }
 
   chat.replyPrefix = function () {
@@ -1712,7 +1712,7 @@ window.NX = window.NX || {};
       document.querySelector("[data-cm-composer] [data-composer-input]") ||
       document.querySelector("[data-composer-input]");
     if (!ta || ta.disabled) {
-      NX.ui.toast("Abra um canal para escrever.", "info");
+      NX.ui.toast(NX.i18n.get("chat.abraCanalEscrever", "Abra um canal para escrever."), "info");
       return false;
     }
     const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
@@ -1738,7 +1738,7 @@ window.NX = window.NX || {};
     el.classList.add("is-busy");
     NX.api
       .toggleReaction(id, emoji)
-      .catch((e) => NX.ui.error((e && e.message) || "Não foi possível reagir."))
+      .catch((e) => NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelReagir3", "Não foi possível reagir.")))
       .then(() => el.classList.remove("is-busy"));
   });
 
@@ -1750,7 +1750,7 @@ window.NX = window.NX || {};
       el,
       (emoji) => {
         NX.api.toggleReaction(id, emoji).catch((e) => {
-          NX.ui.error((e && e.message) || "Não foi possível reagir.");
+          NX.ui.error((e && e.message) || NX.i18n.get("chat.naoFoiPossivelReagir3", "Não foi possível reagir."));
         });
       },
       { serverId: msg ? serverIdOfMessage(msg) : currentServerId() }

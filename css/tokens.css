@@ -108,7 +108,8 @@
   --accent: #0b9e75;
   --accent-strong: #08845f;
   --accent-soft: rgba(11, 158, 117, 0.12);
-  --accent-contrast: #ffffff;
+  /* tinta escura sobre o verde médio: 4,9:1 (o branco dava só 3,4:1) */
+  --accent-contrast: #06231a;
 
   --violet: #6154e0;
   --violet-soft: rgba(97, 84, 224, 0.12);

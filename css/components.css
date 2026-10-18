@@ -52,28 +52,73 @@
   transform: translateY(1px);
 }
 
+/* Foto enviada ou modelo original do Nexo (js/profileart.js):
+   preenchem a caixa inteira e são recortadas pelo círculo do .avatar */
+.avatar__img,
+.avatar__art {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: block;
+  line-height: 0;
+}
+
+.avatar__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar__art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Ponto de status do avatar: o selo fica com o fundo da sidebar e
+   dentro dele entra o SÍMBOLO do status (js/icons.js). Sem máscara
+   disponível, continua sendo o círculo colorido de sempre. */
 .avatar__dot {
   position: absolute;
   right: -1px;
   bottom: -1px;
   width: 34%;
   height: 34%;
-  min-width: 9px;
-  min-height: 9px;
+  min-width: 15px;
+  min-height: 15px;
   border-radius: 50%;
-  border: 2.5px solid var(--bg-sidebar);
-  background: var(--offline);
+  border: 2px solid var(--bg-sidebar);
+  background: var(--bg-sidebar);
 }
 
-.avatar__dot[data-status="online"] { background: var(--online); }
-.avatar__dot[data-status="idle"] { background: var(--idle); }
-.avatar__dot[data-status="dnd"] { background: var(--dnd); }
-.avatar__dot[data-status="offline"] { background: var(--offline); }
+.avatar__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0.5px;
+  border-radius: 50%;
+  background: var(--st-color, var(--offline));
+}
+
+.avatar__dot[data-status="online"] { --st-color: var(--online); }
+.avatar__dot[data-status="idle"] { --st-color: var(--idle); }
+.avatar__dot[data-status="dnd"] { --st-color: var(--dnd); }
+.avatar__dot[data-status="offline"] { --st-color: var(--offline); }
+
+@supports (mask: url("")) {
+  .avatar__dot::after {
+    border-radius: 0;
+    -webkit-mask: var(--st-sym) center / contain no-repeat;
+    mask: var(--st-sym) center / contain no-repeat;
+  }
+}
 
 .chat .avatar__dot,
 .msg .avatar__dot,
 .auth .avatar__dot {
   border-color: var(--bg-main);
+  background: var(--bg-main);
 }
 
 /* ================= ÍCONE DE SERVIDOR ================= */
@@ -196,6 +241,21 @@
   animation: spin 0.7s linear infinite;
   display: inline-block;
 }
+
+/* tela de espera do sync de boot (deep links #/s/... com cache frio) */
+.syncwait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 88px 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.syncwait__spin { width: 26px; height: 26px; border-width: 2.5px; }
+.syncwait p { margin: 0; font-size: 14px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -720,15 +780,60 @@
 
 .status-pill::before {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: 13px;
+  height: 13px;
+  flex: none;
   border-radius: 50%;
-  background: var(--offline);
+  background: var(--st-color, var(--offline));
 }
 
-.status-pill[data-status="online"]::before { background: var(--online); }
-.status-pill[data-status="idle"]::before { background: var(--idle); }
-.status-pill[data-status="dnd"]::before { background: var(--dnd); }
+.status-pill[data-status="online"] { --st-color: var(--online); }
+.status-pill[data-status="idle"] { --st-color: var(--idle); }
+.status-pill[data-status="dnd"] { --st-color: var(--dnd); }
+.status-pill[data-status="offline"] { --st-color: var(--offline); }
+
+@supports (mask: url("")) {
+  .status-pill::before {
+    border-radius: 0;
+    -webkit-mask: var(--st-sym) center / contain no-repeat;
+    mask: var(--st-sym) center / contain no-repeat;
+  }
+}
+
+/* ================= SÍMBOLO DE STATUS (SVG) =================
+   Versão em SVG real (NX.statusIcon) para onde o selo precisa de
+   nome acessível ou da versão SELECIONADA — menu de status, por
+   exemplo. A cor vem do próprio status, então funciona nos dois     temas. */
+.stico {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--stico, 16px);
+  height: var(--stico, 16px);
+  color: var(--st-color, var(--offline));
+}
+
+.stico--online { --st-color: var(--online); }
+.stico--idle { --st-color: var(--idle); }
+.stico--dnd { --st-color: var(--dnd); }
+.stico--offline { --st-color: var(--offline); }
+
+.stico__svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* seleção: anel duplo em torno do símbolo (não depende só da cor) */
+.stico--sel::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.75;
+}
 
 .dot-online {
   width: 7px;
@@ -910,67 +1015,6 @@
   flex-wrap: wrap;
 }
 
-.auth__demo {
-  margin-top: 22px;
-  padding: 13px 15px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-md);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  background: var(--bg-panel);
-}
-
-.auth__demo div { display: flex; flex-direction: column; gap: 2px; }
-.auth__demo strong { font-size: 13.5px; color: var(--text); }
-.auth__demo span { font-size: 12.5px; color: var(--text-dim); }
-.auth__demo code {
-  font-family: var(--font-mono);
-  background: var(--bg-input);
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: var(--accent);
-}
-
-/* divisor "ou" */
-.auth__divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 0 14px;
-  color: var(--text-dim);
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.auth__divider::before,
-.auth__divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-/* aviso honesto sobre o provedor de e-mail */
-.auth__notice {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 11px 13px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  margin: 0 0 18px;
-}
-.auth__notice svg { flex: 0 0 auto; margin-top: 1px; }
-.auth__notice--ok { border-color: rgba(53, 224, 168, 0.4); background: var(--accent-soft); color: var(--text); }
-.auth__notice--warn { border-color: rgba(255, 200, 87, 0.42); background: rgba(255, 200, 87, 0.11); color: var(--text); }
-
 /* aviso genérico em modais/notices */
 .notice {
   display: flex;
@@ -1024,6 +1068,96 @@
 }
 .auth__note svg { flex: 0 0 auto; opacity: 0.8; margin-top: 1px; }
 
+/* ---------- confirmação de e-mail ---------- */
+/* selo no topo da tela (esperando / confirmado / problema) */
+.auth__badge {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin: 0 0 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(53, 224, 168, 0.35);
+}
+.auth__badge--wait {
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+.auth__badge--warn {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(255, 107, 122, 0.35);
+}
+
+/* endereço parcialmente oculto: a pessoa reconhece o domínio,
+   mas o começo do usuário fica coberto */
+.auth__mail {
+  display: block;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 9px 12px;
+  margin: 2px 0 12px;
+  word-break: break-all;
+}
+
+.auth__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* contagem regressiva do reenvio, dentro do botão */
+.btn__count {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.btn__count[hidden] { display: none; }
+
+/* divisor "ou" entre o formulário e o acesso pelo Google */
+.auth__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.auth__divider::before,
+.auth__divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+/* botão do Google: branco no dark e no light, como no material
+   da marca — legível nos dois temas */
+.btn--google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border-color: rgba(0, 0, 0, 0.14);
+  font-weight: 600;
+}
+.btn--google:hover {
+  background: #f6f8f7;
+  border-color: rgba(0, 0, 0, 0.24);
+}
+.btn--google svg { flex: 0 0 auto; }
+
+/* "Esqueci minha senha" alinhado ao checkbox */
+.auth__forgot { font-size: 13px; }
+
 /* avatar picker */
 .avatar-picker {
   display: flex;
@@ -1059,6 +1193,10 @@
 
 .emoji-grid__item:hover { transform: translateY(-2px); background: var(--bg-elev-2); }
 .emoji-grid__item.is-on { border-color: var(--accent); background: var(--accent-soft); }
+/* primeira casa do seletor: "padrão" (sem emoji) — o ícone volta a ser
+   o monograma/iniciais do Nexo */
+.emoji-grid__item--none { display: grid; place-items: center; color: var(--text-muted); }
+.emoji-grid__item--none.is-on { color: var(--accent); }
 
 .swatch-row { display: flex; gap: 7px; flex-wrap: wrap; }
 
@@ -1199,6 +1337,95 @@
   background: var(--danger-soft);
   color: var(--danger);
   margin: 0 auto 14px;
+}
+
+/* ================= SERVIDOR OFICIAL NEXO ================= */
+.tag--official {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+}
+
+.official-slot[hidden] { display: none !important; }
+
+.official-stats {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+}
+
+.official-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.official-actions .btn { flex: 1 1 auto; }
+
+.official-card__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 26px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.official-card__loading svg { color: var(--accent); }
+
+.official-card .tag--official { margin-bottom: 12px; }
+
+.official-chlist {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.official-chgroup__name {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.official-chgroup ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.official-chgroup li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.official-chgroup li svg { color: var(--text-dim); flex: 0 0 auto; }
+.official-chgroup li small {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  padding-left: 21px;
+}
+.official-ch__hash {
+  color: var(--text-dim);
+  font-weight: 700;
+  width: 14px;
+  text-align: center;
 }
 
 /* ================= PÁGINAS ================= */
@@ -1575,27 +1802,14 @@
   margin: 0 auto;
 }
 
-.profile-card__banner {
-  height: 118px;
-  background:
-    linear-gradient(130deg, color-mix(in srgb, var(--pc) 75%, #000 20%), color-mix(in srgb, var(--pc) 35%, #101a19 60%));
-  position: relative;
-}
-
-.profile-card__banner::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(400px 120px at 80% 0%, rgba(255, 255, 255, 0.25), transparent 70%);
-}
-
+/* sem banner de perfil: o cartão começa direto no conteúdo */
 .profile-card__body {
-  padding: 0 26px 22px;
+  padding: 18px 26px 22px;
   position: relative;
 }
 
 .profile-card__avatar {
-  margin-top: -44px;
+  margin-top: 0;
   margin-bottom: 10px;
 }
 
@@ -1949,14 +2163,10 @@
 /* cartão do membro */
 .member-card { position: relative; }
 
-.member-card__banner {
-  height: 66px;
-  background: linear-gradient(130deg, color-mix(in srgb, var(--pc) 80%, #000 15%), color-mix(in srgb, var(--pc) 30%, #0f1719 70%));
-}
+/* sem banner: o cartão do membro começa direto no avatar */
+.member-card__body { padding: 16px 16px 16px; text-align: center; }
 
-.member-card__body { padding: 0 16px 16px; text-align: center; }
-
-.member-card__avatar { margin-top: -34px; display: flex; justify-content: center; }
+.member-card__avatar { margin-top: 0; display: flex; justify-content: center; }
 .member-card__avatar .avatar { box-shadow: 0 0 0 4px var(--bg-elev); }
 
 .member-card h3 { margin: 9px 0 2px; font-size: 18px; color: var(--text-strong); letter-spacing: -0.02em; }

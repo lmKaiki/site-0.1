@@ -159,8 +159,8 @@ window.NX = window.NX || {};
       }
     }
     const label = n > 0
-      ? "Notificações (" + n + " não lidas)"
-      : "Notificações — você está em dia";
+      ? (NX.i18n.get("ex.notificacoes", "Notificações (")) + n + (" " + NX.i18n.get("ex.naolidas", "não lidas)"))
+      : NX.i18n.get("ex.notificacoesVoceEstaDia", "Notificações — você está em dia");
     const bells = document.querySelectorAll('[data-action="nx-bell"]');
     for (let j = 0; j < bells.length; j++) bells[j].setAttribute("aria-label", label);
     if (panelEl && !panelEl.hidden) renderNotif();
@@ -220,6 +220,8 @@ window.NX = window.NX || {};
     const users = Object.values(db().users || {});
     const out = [];
     users.forEach((x) => {
+      /* app/bot nunca aparece como pessoa na busca */
+      if (!S().isPerson(x)) return;
       const name = (x.displayName || "") + " " + (x.username || "");
       if (hit(name, term)) out.push(x);
     });
@@ -287,7 +289,7 @@ window.NX = window.NX || {};
     const all = Object.values(db().messages || {});
     const out = [];
     all.forEach((msg) => {
-      if (!hit(msg.content || "", term)) return;
+      if (!hit(S().botTextOf(msg.content || ""), term)) return;
       out.push(msg);
     });
     out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -354,12 +356,12 @@ window.NX = window.NX || {};
 
     return (
       '<div class="ex-hints">' +
-      '<p class="ex-hints__title">Busque em tudo num só lugar</p>' +
-      row("user", "users", "Usuários", users) +
-      row("compass", "servers", "Servidores", servers) +
-      row("hash", "channels", "Canais visíveis", channels) +
-      row("chat", "messages", "Mensagens", msgs) +
-      '<p class="ex-hints__note">Use <kbd>↑</kbd> <kbd>↓</kbd> para navegar e <kbd>Enter</kbd> para abrir.</p>' +
+      ("<p class=\"ex-hints__title\">" + NX.i18n.get("ex.busqueemtudonumsolugar", "Busque em tudo num só lugar") + "</p>") +
+      row("user", "users", (NX.i18n.get("ex.usuarios", "Usuários")), users) +
+      row("compass", "servers", (NX.i18n.get("ex.servidores", "Servidores")), servers) +
+      row("hash", "channels", NX.i18n.get("ex.canaisVisiveis", "Canais visíveis"), channels) +
+      row("chat", "messages", (NX.i18n.get("nav.messages", "Mensagens")), msgs) +
+      ("<p class=\"ex-hints__note\">" + NX.i18n.get("ex.use", "Use") + " <kbd>↑</kbd> <kbd>↓</kbd>" + " " + NX.i18n.get("ex.paranavegare", "para navegar e") + " " + "<kbd>" + NX.i18n.get("app.enter", "Enter") + "</kbd>" + " " + NX.i18n.get("ex.paraabrir", "para abrir.") + "</p>") +
       "</div>"
     );
   }
@@ -385,7 +387,7 @@ window.NX = window.NX || {};
         kind: "user",
         id: x.id,
         title: x.displayName || x.username,
-        aria: "Abrir perfil de " + (x.displayName || x.username),
+        aria: (NX.i18n.get("ex.abrirperfilde", "Abrir perfil de") + " ") + (x.displayName || x.username),
         body:
           '<span class="ex-res__av">' + u().avatarHTML(x, "sm", true) + "</span>" +
           '<span class="ex-res__txt">' +
@@ -396,7 +398,7 @@ window.NX = window.NX || {};
           '<span class="ex-res__go">' + NX.icon("chevronRight", "", 16) + "</span>",
       });
     });
-    html += sectionHTML("users", "Usuários", "user", users.length, body);
+    html += sectionHTML("users", (NX.i18n.get("ex.usuarios", "Usuários")), "user", users.length, body);
 
     /* --- servidores --- */
     const servers = searchServers(term);
@@ -407,14 +409,14 @@ window.NX = window.NX || {};
         id: s.id,
         a: "1",
         title: s.name,
-        aria: "Abrir servidor " + s.name,
+        aria: (NX.i18n.get("ex.abrirservidor", "Abrir servidor") + " ") + s.name,
         body:
           '<span class="ex-res__ic">' + u().serverIconHTML(s, "xs") + "</span>" +
           '<span class="ex-res__txt">' +
           '<span class="ex-res__t">' + highlight(s.name, term) + "</span>" +
-          '<span class="ex-res__s">' + S().memberCount(s.id) + " membros · seu servidor</span>" +
+          '<span class="ex-res__s">' + S().memberCount(s.id) + (" " + NX.i18n.get("ex.membrosseuservidor", "membros · seu servidor") + "</span>") +
           "</span>" +
-          '<span class="ex-tag ex-tag--own">Seu</span>',
+          ("<span class=\"ex-tag ex-tag--own\">" + NX.i18n.get("ex.seu", "Seu") + "</span>"),
       });
     });
     servers.pub.forEach((s) => {
@@ -423,18 +425,18 @@ window.NX = window.NX || {};
         id: s.id,
         a: "0",
         title: s.name,
-        aria: "Ver servidor público " + s.name,
+        aria: (NX.i18n.get("ex.verservidorpublico", "Ver servidor público") + " ") + s.name,
         body:
           '<span class="ex-res__ic">' + u().serverIconHTML(s, "xs") + "</span>" +
           '<span class="ex-res__txt">' +
           '<span class="ex-res__t">' + highlight(s.name, term) + "</span>" +
-          '<span class="ex-res__s">' + S().memberCount(s.id) + " membros · público</span>" +
+          '<span class="ex-res__s">' + S().memberCount(s.id) + (" " + NX.i18n.get("ex.membrospublico", "membros · público") + "</span>") +
           "</span>" +
-          '<span class="ex-tag">Público</span>',
+          ("<span class=\"ex-tag\">" + NX.i18n.get("ex.publico", "Público") + "</span>"),
       });
     });
     const totalServers = servers.own.length + servers.pub.length;
-    html += sectionHTML("servers", "Servidores", "compass", totalServers, body);
+    html += sectionHTML("servers", (NX.i18n.get("ex.servidores", "Servidores")), "compass", totalServers, body);
 
     /* --- canais --- */
     const channels = searchChannels(term);
@@ -445,7 +447,7 @@ window.NX = window.NX || {};
         id: c.channel.id,
         a: c.channel.serverId,
         title: c.channel.name,
-        aria: "Abrir canal " + c.channel.name + " em " + (c.server ? c.server.name : ""),
+        aria: (NX.i18n.get("ex.abrircanal", "Abrir canal") + " ") + c.channel.name + " em " + (c.server ? c.server.name : ""),
         body:
           '<span class="ex-res__ic ex-res__ic--chan">' +
           NX.icon(c.channel.type === "voice" ? "voice" : "hash", "", 17) + "</span>" +
@@ -458,7 +460,7 @@ window.NX = window.NX || {};
           '<span class="ex-res__go">' + NX.icon("chevronRight", "", 16) + "</span>",
       });
     });
-    html += sectionHTML("channels", "Canais", "hash", channels.length, body);
+    html += sectionHTML("channels", (NX.i18n.get("adm.canais2", "Canais")), "hash", channels.length, body);
 
     /* --- mensagens --- */
     const messages = searchMessages(term);
@@ -471,7 +473,7 @@ window.NX = window.NX || {};
       const server = ch ? (db().servers || {})[ch.serverId] : null;
       const where = ch
         ? "#" + (ch.name || "") + (server ? " em " + server.name : "")
-        : "Conversa direta";
+        : NX.i18n.get("ex.conversaDireta", "Conversa direta");
       const a = ch ? ch.serverId : "";
       const b = ch ? ch.id : "";
       body += rowHTML({
@@ -479,28 +481,28 @@ window.NX = window.NX || {};
         id: msg.channelId,
         a: a,
         b: b,
-        title: msg.content,
-        aria: "Abrir mensagem de " + (author ? author.displayName || author.username : "alguém"),
+        title: S().botTextOf(msg.content || ""),
+        aria: (NX.i18n.get("ex.abrirmensagemde", "Abrir mensagem de") + " ") + (author ? author.displayName || author.username : (NX.i18n.get("api.alguem", "alguém"))),
         body:
           '<span class="ex-res__ic ex-res__ic--msg">' + NX.icon("chat", "", 16) + "</span>" +
           '<span class="ex-res__txt">' +
-          '<span class="ex-res__t ex-res__t--msg">' + highlight(excerpt(msg.content || "", term, 34, 70), term) + "</span>" +
+          '<span class="ex-res__t ex-res__t--msg">' + highlight(excerpt(S().botTextOf(msg.content || ""), term, 34, 70), term) + "</span>" +
           '<span class="ex-res__s">' +
           (author ? u().h(author.displayName || author.username) + " · " : "") +
           u().h(where) + " · " + u().h(u().timeAgo(msg.createdAt || 0)) +
           "</span></span>",
       });
     });
-    html += sectionHTML("messages", "Mensagens", "chat", messages.length, body);
+    html += sectionHTML("messages", (NX.i18n.get("nav.messages", "Mensagens")), "chat", messages.length, body);
 
     const total = flat.length;
     if (!total) {
       listEl.innerHTML = emptyBlock(
-        'Nada encontrado para “' + oneLine(query, 28) + '”',
-        "Tente outro termo — a busca olha usuários, servidores, canais e mensagens.",
+        (NX.i18n.get("ex.nadaencontradopara", "Nada encontrado para “")) + oneLine(query, 28) + '”',
+        NX.i18n.get("ex.tenteOutroTermoBusca", "Tente outro termo — a busca olha usuários, servidores, canais e mensagens."),
         "search"
       );
-      setStatus("Nenhum resultado");
+      setStatus(NX.i18n.get("ex.nenhumResultado", "Nenhum resultado"));
       return;
     }
     listEl.innerHTML = html;
@@ -569,22 +571,23 @@ window.NX = window.NX || {};
     return (
       '<div class="ex-search" id="ex-search" hidden>' +
       '<div class="ex-search__scrim" data-action="nx-search-close" aria-hidden="true"></div>' +
-      '<div class="ex-search__panel" role="dialog" aria-modal="true" aria-label="Busca global">' +
+      '<div class="ex-search__panel" role="dialog" aria-modal="true" data-i18n-attr="aria-label:ui.buscaglobal" aria-label="' + NX.i18n.get("ui.buscaglobal", "Busca global") + '">' +
       '<div class="ex-search__bar">' +
       '<span class="ex-search__ico">' + NX.icon("search", "", 19) + "</span>" +
       '<input class="ex-search__input" type="text" data-ex-input autocomplete="off" spellcheck="false"' +
-      ' placeholder="Buscar usuários, servidores, canais e mensagens"' +
-      ' aria-label="Busca global" aria-controls="ex-results" />' +
+      ' data-i18n-attr="placeholder:ui.buscarusuariosservidorescanaisemensagens;aria-label:ui.extras.buscaglobal"' +
+      ' placeholder="' + NX.i18n.get("ui.buscarusuariosservidorescanaisemensagens", "Buscar usuários, servidores, canais e mensagens") + '"' +
+      ' aria-label="' + NX.i18n.get("ui.extras.buscaglobal", "Busca global") + '" aria-controls="ex-results" />' +
       '<span class="ex-search__status" data-ex-status hidden></span>' +
-      '<button type="button" class="ex-search__close" data-action="nx-search-close" aria-label="Fechar busca">' +
+      '<button type="button" class="ex-search__close" data-action="nx-search-close" data-i18n-attr="aria-label:ui.fecharbusca" aria-label="' + NX.i18n.get("ui.fecharbusca", "Fechar busca") + '">' +
       NX.icon("x", "", 17) + "</button>" +
       "</div>" +
       '<div class="ex-search__results" id="ex-results" data-ex-results></div>' +
       '<footer class="ex-search__foot">' +
-      "<span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>" +
-      "<span><kbd>Enter</kbd> abrir</span>" +
-      "<span><kbd>Esc</kbd> fechar</span>" +
-      '<span class="ex-search__foot-hint">Busca em usuários, servidores, canais e mensagens</span>' +
+      "<span><kbd>↑</kbd><kbd>↓</kbd> <span data-i18n=\"ex.navegar\">" + NX.i18n.get("ex.navegar", "navegar") + "</span></span>" +
+      ("<span><kbd>" + NX.i18n.get("app.enter", "Enter") + "</kbd> <span data-i18n=\"page.abrir\">" + NX.i18n.get("page.abrir", "abrir") + "</span></span>") +
+      ("<span><kbd>" + NX.i18n.get("ex.esc", "Esc") + "</kbd> <span data-i18n=\"common.close\">" + NX.i18n.get("common.close", "fechar") + "</span></span>") +
+      ("<span class=\"ex-search__foot-hint\" data-i18n=\"ex.buscaemusuariosservidorescanaise\">" + NX.i18n.get("ex.buscaemusuariosservidorescanaise", "Busca em usuários, servidores, canais e mensagens") + "</span>") +
       "</footer>" +
       "</div></div>"
     );
@@ -633,33 +636,34 @@ window.NX = window.NX || {};
      NOTIFICAÇÕES · painel
      ============================================================ */
   function notifIcon(type) {
-    if (type === "invite" || type === "follow" || type === "follow_request") return "userPlus";
-    if (type === "mention") return "chat";
+    if (type === "invite" || type === "follow" || type === "follow_request" || type === "friend") return "userPlus";
+    if (type === "mention" || type === "dm" || type === "message") return "chat";
     if (type === "server") return "shield";
     if (type === "like") return "heartFill";
     if (type === "comment") return "comment";
     if (type === "reply") return "reply";
+    if (type === "voice") return "voice";
     return "info";
   }
 
   function notifPanelHTML() {
     return (
-      '<div class="ex-notif" id="ex-notif" role="dialog" aria-label="Notificações" hidden>' +
+      '<div class="ex-notif" id="ex-notif" role="dialog" data-i18n-attr="aria-label:nav.notifications" aria-label="' + NX.i18n.get("nav.notifications", "Notificações") + '" hidden>' +
       '<header class="ex-notif__head">' +
-      '<span class="ex-notif__emoji" aria-hidden="true">🔔</span>' +
-      '<h2 class="ex-notif__title">Notificações</h2>' +
+      '<span class="ex-notif__emoji" aria-hidden="true">' + NX.icon("bell", "", 16) + '</span>' +
+      ("<h2 class=\"ex-notif__title\" data-i18n=\"nav.notifications\">" + NX.i18n.get("nav.notifications", "Notificações") + "</h2>") +
       '<span class="ex-notif__count" data-ex-notif-count></span>' +
-      '<button type="button" class="icon-btn icon-btn--xs" data-action="nx-notif-close" aria-label="Fechar notificações">' +
+      '<button type="button" class="icon-btn icon-btn--xs" data-action="nx-notif-close" data-i18n-attr="aria-label:ui.fecharnotificacoes" aria-label="' + NX.i18n.get("ui.fecharnotificacoes", "Fechar notificações") + '">' +
       NX.icon("x", "", 16) + "</button>" +
       "</header>" +
       '<div class="ex-notif__acts">' +
       '<button type="button" class="btn btn--soft btn--sm" data-action="nx-notif-read-all">' +
-      NX.icon("check", "", 15) + "<span>Marcar como lido</span></button>" +
+      NX.icon("check", "", 15) + ("<span data-i18n=\"ex.marcarcomolido\">" + NX.i18n.get("ex.marcarcomolido", "Marcar como lido") + "</span></button>") +
       '<button type="button" class="btn btn--ghost btn--sm" data-action="nx-notif-clear">' +
-      NX.icon("trash", "", 15) + "<span>Limpar</span></button>" +
+      NX.icon("trash", "", 15) + ("<span data-i18n=\"chat.limpar\">" + NX.i18n.get("chat.limpar", "Limpar") + "</span></button>") +
       '<span class="spacer"></span>' +
-      '<button type="button" class="icon-btn" data-action="nx-notif-config" title="Configurar notificações"' +
-      ' aria-label="Configurar notificações">' + NX.icon("settings", "", 17) + "</button>" +
+      '<button type="button" class="icon-btn" data-action="nx-notif-config" data-i18n-attr="title:ui.configurarnotificacoes;aria-label:ui.extras.configurarnotificacoes" title="' + NX.i18n.get("ui.configurarnotificacoes", "Configurar notificações") + '"' +
+      ' aria-label="' + NX.i18n.get("ui.extras.configurarnotificacoes", "Configurar notificações") + '">' + NX.icon("settings", "", 17) + "</button>" +
       "</div>" +
       '<div class="ex-notif__list" data-ex-notif-list></div>' +
       "</div>"
@@ -679,7 +683,7 @@ window.NX = window.NX || {};
     panelEl.setAttribute("data-sig", sig);
 
     if (countEl) {
-      countEl.textContent = n > 0 ? n + " não lida" + (n > 1 ? "s" : "") : "em dia";
+      countEl.textContent = n > 0 ? n + (" " + NX.i18n.get("ex.naolida", "não lida")) + (n > 1 ? "s" : "") : NX.i18n.get("ex.dia", "em dia");
       countEl.classList.toggle("is-zero", n === 0);
     }
 
@@ -693,26 +697,43 @@ window.NX = window.NX || {};
       list.innerHTML =
         '<div class="ex-notif__empty">' +
         '<span class="ex-notif__empty-ico">' + NX.icon("bell", "", 24) + "</span>" +
-        '<p class="ex-notif__empty-title">Você está em dia por aqui.</p>' +
-        '<p class="ex-notif__empty-hint">Convites, menções e avisos dos seus servidores aparecem nesta lista.</p>' +
+        ("<p class=\"ex-notif__empty-title\">" + NX.i18n.get("ex.voceestaemdiaporaqui", "Você está em dia por aqui.") + "</p>") +
+        ("<p class=\"ex-notif__empty-hint\">" + NX.i18n.get("ex.convitesmencoeseavisosdosseus", "Convites, menções e avisos dos seus servidores aparecem nesta lista.") + "</p>") +
         "</div>";
       return;
     }
 
     let html = "";
     items.forEach((nt) => {
+      const meta = nt.meta || {};
+      /* remetente real: avatar no lugar do ícone genérico */
+      const actor = meta.actorId ? S().user(meta.actorId) : null;
+      /* prévia da mensagem para avisos de conversa direta */
+      let preview = "";
+      if ((nt.type === "dm" || nt.type === "message") && meta.messageId) {
+        const msg = NX.store.db.messages[meta.messageId];
+        if (msg && msg.content) {
+          preview =
+            '<span class="ex-notif__preview">' +
+            u().h(S().botTextOf(msg.content).slice(0, 140)) +
+            "</span>";
+        }
+      }
       html +=
         '<article class="ex-notif__item' + (nt.read ? "" : " is-unread") + '"' +
         ' role="button" tabindex="0" data-action="nx-notif-read-one" data-id="' + u().h(nt.id) + '"' +
-        ' aria-label="' + u().h((nt.read ? "" : "Não lida — ") + nt.text) + '">' +
-        '<span class="ex-notif__ico ex-notif__ico--' + u().h(nt.type || "system") + '">' +
-        NX.icon(notifIcon(nt.type), "", 16) + "</span>" +
+        ' aria-label="' + u().h((nt.read ? "" : (NX.i18n.get("ex.naolida2", "Não lida —") + " ")) + nt.text) + '">' +
+        (actor
+          ? u().avatarHTML(actor, "sm", false)
+          : '<span class="ex-notif__ico ex-notif__ico--' + u().h(nt.type || "system") + '">' +
+            NX.icon(notifIcon(nt.type), "", 16) + "</span>") +
         '<span class="ex-notif__body">' +
         '<span class="ex-notif__text">' + u().h(nt.text) + "</span>" +
+        preview +
         '<span class="ex-notif__meta">' +
         '<time datetime="' + u().h(new Date(nt.at || 0).toISOString()) + '">' +
         u().h(u().timeAgo(nt.at || 0)) + "</time>" +
-        (nt.read ? "" : "<i>· não lida</i>") +
+        (nt.read ? "" : ("<i>" + NX.i18n.get("ex.naolida3", "· não lida") + "</i>")) +
         "</span></span>" +
         (nt.read
           ? ""
@@ -829,7 +850,7 @@ window.NX = window.NX || {};
         await NX.api.markNotificationsRead([id]);
         refreshBadges();
       } catch (e) {
-        NX.ui.error(e.message || "Não foi possível marcar como lida.");
+        NX.ui.error(e.message || NX.i18n.get("ex.naoFoiPossivelMarcar", "Não foi possível marcar como lida."));
       }
       /* abre o conteúdo correspondente (curtida, comentário, seguidor…) */
       try {
@@ -851,9 +872,9 @@ window.NX = window.NX || {};
       try {
         await NX.api.markNotificationsRead("all");
         refreshBadges();
-        NX.ui.success("Tudo em dia: notificações marcadas como lidas.");
+        NX.ui.success(NX.i18n.get("ex.tudoDiaNotificacoesMarcadas", "Tudo em dia: notificações marcadas como lidas."));
       } catch (e) {
-        NX.ui.error(e.message || "Não foi possível atualizar.");
+        NX.ui.error(e.message || NX.i18n.get("ex.naoFoiPossivelAtualizar", "Não foi possível atualizar."));
       }
     });
 
@@ -861,18 +882,18 @@ window.NX = window.NX || {};
       closeNotifications();
       try {
         const ok = await NX.ui.confirm({
-          title: "Limpar notificações",
-          message: "Todas as suas notificações serão removidas. Esta ação não pode ser desfeita.",
-          confirmLabel: "Limpar",
+          title: NX.i18n.get("ex.limparNotificacoes", "Limpar notificações"),
+          message: NX.i18n.get("ex.todasSuasNotificacoesSerao", "Todas as suas notificações serão removidas. Esta ação não pode ser desfeita."),
+          confirmLabel: (NX.i18n.get("chat.limpar", "Limpar")),
           danger: true,
           icon: "bell",
         });
         if (!ok) return;
         await NX.api.clearNotifications();
         refreshBadges();
-        NX.ui.success("Notificações limpas.");
+        NX.ui.success(NX.i18n.get("ex.notificacoesLimpas", "Notificações limpas."));
       } catch (e) {
-        NX.ui.error(e.message || "Não foi possível limpar.");
+        NX.ui.error(e.message || NX.i18n.get("ex.naoFoiPossivelLimpar", "Não foi possível limpar."));
       }
     });
 
@@ -896,25 +917,25 @@ window.NX = window.NX || {};
     }
 
     if (searchOpen) {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         e.preventDefault();
         e.stopPropagation();
         closeSearch();
         return;
       }
-      if (e.key === "ArrowDown") {
+      if (e.key === (NX.i18n.get("ex.arrowdown", "ArrowDown"))) {
         e.preventDefault();
         e.stopPropagation();
         moveActive(1, false);
         return;
       }
-      if (e.key === "ArrowUp") {
+      if (e.key === (NX.i18n.get("ex.arrowup", "ArrowUp"))) {
         e.preventDefault();
         e.stopPropagation();
         moveActive(-1, false);
         return;
       }
-      if (e.key === "Enter") {
+      if (e.key === (NX.i18n.get("app.enter", "Enter"))) {
         if (active >= 0) {
           e.preventDefault();
           e.stopPropagation();
@@ -922,7 +943,7 @@ window.NX = window.NX || {};
         }
         return;
       }
-      if (e.key === "Tab") {
+      if (e.key === (NX.i18n.get("ex.tab", "Tab"))) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -930,7 +951,7 @@ window.NX = window.NX || {};
       return;
     }
 
-    if (notifOpen && e.key === "Escape") {
+    if (notifOpen && e.key === (NX.i18n.get("app.escape", "Escape"))) {
       e.preventDefault();
       e.stopPropagation();
       closeNotifications();
@@ -948,7 +969,7 @@ window.NX = window.NX || {};
   }
 
   function onItemKey(e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.key !== (NX.i18n.get("app.enter", "Enter")) && e.key !== " ") return;
     const t = e.target;
     if (!t || !t.closest) return;
     const item = t.closest(".ex-notif__item");
@@ -1019,7 +1040,7 @@ window.NX = window.NX || {};
   extras.searchButtonHTML = function () {
     return (
       '<button type="button" class="icon-btn ex-btn-search" data-action="nx-search"' +
-      ' title="Buscar (Ctrl+K)" aria-label="Buscar">' +
+      ' title="' + NX.i18n.get("ui.a11ybuscactrlk", "Buscar (Ctrl+K)") + '" aria-label="' + NX.i18n.get("common.search", "Buscar") + '">' +
       NX.icon("search", "", 19) +
       '<kbd class="ex-btn-search__kbd" aria-hidden="true">K</kbd>' +
       "</button>"
@@ -1029,7 +1050,7 @@ window.NX = window.NX || {};
   extras.bellButtonHTML = function () {
     return (
       '<button type="button" class="icon-btn ex-btn-bell" data-action="nx-bell"' +
-      ' aria-label="Notificações">' +
+      ' aria-label="' + NX.i18n.get("nav.notifications", "Notificações") + '">' +
       NX.icon("bell", "", 19) +
       '<span class="ex-badge" data-ex-badge hidden></span>' +
       "</button>"
@@ -1053,14 +1074,14 @@ window.NX = window.NX || {};
       );
     };
     return (
-      '<nav class="ex-bar" data-ex-bar aria-label="Navegação principal"' +
+      '<nav class="ex-bar" data-ex-bar aria-label="' + NX.i18n.get("ui.navegacaoprincipal", "Navegação principal") + '"' +
       (chromeVisible() ? "" : " hidden") +
       ">" +
-      item("home", "Início", "home", "#/") +
-      item("messages", "Mensagens", "chat", "#/mensagens") +
-      item("feed", "Feed", "heart", "#/feed") +
-      item("notifications", "Notificações", "bell", null) +
-      item("profile", "Perfil", "user", profile) +
+      item("home", (NX.i18n.get("nav.home", "Início")), "home", "#/") +
+      item("messages", (NX.i18n.get("nav.messages", "Mensagens")), "chat", "#/mensagens") +
+      item("feed", (NX.i18n.get("nav.feed", "Feed")), "heart", "#/feed") +
+      item("notifications", (NX.i18n.get("nav.notifications", "Notificações")), "bell", null) +
+      item("profile", (NX.i18n.get("set.item.profile", "Perfil")), "user", profile) +
       "</nav>"
     );
   };

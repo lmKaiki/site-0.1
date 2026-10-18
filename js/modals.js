@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    NEXO · modais e menus
    Diálogos de servidores, canais, categorias, cargos,
    permissões, convites, membros e perfil + menus suspensos.
@@ -22,15 +22,22 @@ window.NX = window.NX || {};
       u().PALETTE.map(
         (c) =>
           '<button type="button" class="swatch' + (c === selected ? " is-on" : "") +
-          '" style="--sw:' + c + '" data-' + attr + '="' + c + '" aria-label="Cor ' + c + '"></button>'
+          '" style="--sw:' + c + '" data-' + attr + '="' + c + '" aria-label="' + NX.i18n.get("ui.a11ycor", "Cor ") + c + '"></button>'
       ).join("") +
       "</div>"
     );
   }
 
   function emojiGrid(selected) {
+    /* primeira casa = "padrão" (sem emoji): o ícone volta a ser o
+       monograma/iniciais do Nexo em vez de um emoji de sistema */
+    const none = selected ? "" : " is-on";
     return (
       '<div class="emoji-grid emoji-grid--sm">' +
+      '<button type="button" class="emoji-grid__item emoji-grid__item--none' + none +
+      '" data-pick-emoji="" title="' + NX.i18n.get("ui.padrao", "Padrão") +
+      '" aria-label="' + NX.i18n.get("ui.padrao", "Padrão") + '">' +
+      NX.icon("grid2", "", 16) + "</button>" +
       Array.from(new Set(u().EMOJIS))
         .map(
           (e) =>
@@ -85,7 +92,7 @@ window.NX = window.NX || {};
       .catch((e) => {
         end();
         if (e && e.message) showErr(form, e.message);
-        else if (e) NX.ui.error(e.message || "Algo deu errado.");
+        else if (e) NX.ui.error(e.message || NX.i18n.get("adm.algoDeuErrado", "Algo deu errado."));
       });
   }
 
@@ -93,39 +100,39 @@ window.NX = window.NX || {};
      CRIAR SERVIDOR
      ========================================================= */
   M.createServer = function () {
-    const state = { emoji: "🚀", color: u().colorFor("novo"), templateId: "comunidade" };
+    const state = { emoji: "", color: u().colorFor("novo"), templateId: "comunidade" };
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-create-server" data-busy-label="Criando">Criar servidor</button>'
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-create-server\" data-busy-label=\"Criando\">" + NX.i18n.get("modal.criarServidor", "Criar servidor") + "</button>")
       )
     );
     const m = NX.ui.modal({
-      title: "Criar servidor",
-      eyebrow: "Novo espaço",
+      title: NX.i18n.get("modal.criarServidor", "Criar servidor"),
+      eyebrow: NX.i18n.get("modal.novoEspaco", "Novo espaço"),
       size: "md",
       footer: footer,
     });
 
     m.body.innerHTML =
-      '<p class="modal__lead">Dê um nome, escolha um ícone e uma estrutura inicial. Você entra no servidor automaticamente.</p>' +
+      ("<p class=\"modal__lead\">" + NX.i18n.get("modal.deumnomeescolhaumicone", "Dê um nome, escolha um ícone e uma estrutura inicial. Você entra no servidor automaticamente.") + "</p>") +
       '<form id="form-create-server" class="form" novalidate>' +
       '<div class="server-preview">' +
       '<span class="server-preview__icon" data-server-preview style="--sv:' + state.color + '">' +
-      state.emoji +
+      u().initials(NX.i18n.get("modal.meuServidor", "Meu servidor")) +
       "</span>" +
-      '<div class="server-preview__txt"><strong data-name-preview>Meu servidor</strong>' +
-      "<span>Novo servidor · 1 membro</span></div></div>" +
-      '<label class="field"><span class="field__label">Nome do servidor</span>' +
-      '<input class="input" name="name" maxlength="40" placeholder="Ex.: Comunidade Aurora" data-autofocus /></label>' +
-      '<div class="field"><span class="field__label">Ícone do servidor</span>' +
+      ("<div class=\"server-preview__txt\"><strong data-name-preview>" + NX.i18n.get("modal.meuServidor", "Meu servidor") + "</strong>") +
+      ("<span>" + NX.i18n.get("modal.novoservidor1membro", "Novo servidor · 1 membro") + "</span></div></div>") +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
+      '<input class="input" name="name" maxlength="40" placeholder="' + NX.i18n.get("ui.excomunidadeaurora", "Ex.: Comunidade Aurora") + '" data-autofocus /></label>' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.iconedoservidor", "Ícone do servidor") + "</span>") +
       '<div class="icon-picker">' + emojiGrid(state.emoji) + swatches(state.color, "pick-color") + "</div></div>" +
-      '<div class="field"><span class="field__label">Estrutura inicial</span>' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.estruturainicial", "Estrutura inicial") + "</span>") +
       '<div class="template-grid">' +
       NX.TEMPLATES.map(
         (t) =>
           '<button type="button" class="template-chip' + (t.id === state.templateId ? " is-on" : "") +
-          '" data-template="' + t.id + '"><span class="template-chip__ico">' + t.emoji +
+          '" data-template="' + t.id + '"><span class="template-chip__ico">' + NX.icon(t.icon || "grid2", "", 18) +
           "</span><span><strong>" + u().h(t.name) + "</strong><small>" + u().h(t.desc) + "</small></span></button>"
       ).join("") +
       "</div></div>" +
@@ -136,14 +143,19 @@ window.NX = window.NX || {};
     const preview = m.body.querySelector("[data-server-preview]");
     const namePrev = m.body.querySelector("[data-name-preview]");
 
-    state.onPick = () => {
-      preview.textContent = state.emoji;
+    const paintPreview = () => {
+      const nm = (form.elements.name.value || "").trim();
+      /* sem emoji escolhido o ícone mostra as iniciais — nunca um
+         emoji de sistema no padrão */
+      preview.textContent = state.emoji || u().initials(nm || NX.i18n.get("modal.meuServidor", "Meu servidor"));
       preview.style.setProperty("--sv", state.color);
     };
+    state.onPick = paintPreview;
     bindPickers(m.body, state);
 
     form.addEventListener("input", () => {
-      namePrev.textContent = form.elements.name.value.trim() || "Meu servidor";
+      namePrev.textContent = form.elements.name.value.trim() || NX.i18n.get("modal.meuServidor", "Meu servidor");
+      paintPreview();
     });
 
     m.body.addEventListener("click", (e) => {
@@ -168,7 +180,7 @@ window.NX = window.NX || {};
         form,
         (server) => {
           m.close();
-          NX.ui.toast("Servidor “" + server.name + "” criado!", "success");
+          NX.ui.toast((NX.i18n.get("modal.servidor", "Servidor “")) + server.name + (NX.i18n.get("modal.criado", "” criado!")), "success");
           NX.app.go("#/s/" + server.id);
         }
       );
@@ -181,25 +193,25 @@ window.NX = window.NX || {};
   M.joinServer = function (presetCode) {
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-join" disabled data-busy-label="Entrando">Entrar no servidor</button>'
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-join\" disabled data-busy-label=\"Entrando\">" + NX.i18n.get("modal.entrarnoservidor", "Entrar no servidor") + "</button>")
       )
     );
     const m = NX.ui.modal({
-      title: "Entrar em um servidor",
-      eyebrow: "Convite",
+      title: NX.i18n.get("modal.entrarServidor", "Entrar em um servidor"),
+      eyebrow: (NX.i18n.get("adm.convite", "Convite")),
       size: "sm",
       footer: footer,
     });
 
     m.body.innerHTML =
-      '<p class="modal__lead">Cole o link ou digite o código de convite recebido.</p>' +
+      ("<p class=\"modal__lead\">" + NX.i18n.get("modal.coleolinkoudigiteo", "Cole o link ou digite o código de convite recebido.") + "</p>") +
       '<form id="form-join" class="form" novalidate>' +
-      '<label class="field"><span class="field__label">Link ou código</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.linkoucodigo", "Link ou código") + "</span>") +
       '<input class="input mono" name="code" placeholder="nexo.chat/ABC12" data-autofocus value="' +
       u().h(presetCode || "") + '" /></label>' +
       '<div class="invite-preview" data-preview>' +
-      '<span class="invite-preview__hint">Digite um código para ver o servidor.</span></div>' +
+      ("<span class=\"invite-preview__hint\">" + NX.i18n.get("modal.digiteumcodigoparavero", "Digite um código para ver o servidor.") + "</span></div>") +
       '<div class="form-error" data-error hidden></div>' +
       "</form>";
 
@@ -223,7 +235,7 @@ window.NX = window.NX || {};
       resolved = null;
       submit.disabled = true;
       if (code.length < 4) {
-        preview.innerHTML = '<span class="invite-preview__hint">Digite um código para ver o servidor.</span>';
+        preview.innerHTML = ("<span class=\"invite-preview__hint\">" + NX.i18n.get("modal.digiteumcodigoparavero", "Digite um código para ver o servidor.") + "</span>");
         return;
       }
       const invite = S().invite(code);
@@ -231,7 +243,7 @@ window.NX = window.NX || {};
       if (!invite) {
         preview.innerHTML =
           '<span class="invite-preview__hint is-bad">' + NX.icon("alert", "", 16) +
-          " Código não encontrado. Confira com quem enviou.</span>";
+          (" " + NX.i18n.get("modal.codigonaoencontradoconfiracomquem", "Código não encontrado. Confira com quem enviou.") + "</span>");
         return;
       }
       const server = S().server(invite.serverId);
@@ -242,7 +254,7 @@ window.NX = window.NX || {};
         u().serverIconHTML(server, "sm", false) +
         '<span class="invite-preview__txt"><strong>' + u().h(server.name) + "</strong>" +
         "<small>" + u().plural(S().memberCount(server.id), "membro", "membros") + " · " +
-        (isMember ? "você já participa" : "convite " + invite.code) +
+        (isMember ? NX.i18n.get("modal.voceJaParticipa", "você já participa") : "convite " + invite.code) +
         "</small></span>";
     }, 260);
 
@@ -255,7 +267,7 @@ window.NX = window.NX || {};
       const code = resolved || extract(form.code.value);
       runTask(submit, api().joinByInvite(code), form, (server) => {
         m.close();
-        NX.ui.toast("Você entrou em " + server.name + "!", "success");
+        NX.ui.toast((NX.i18n.get("app.voceentrouem", "Você entrou em") + " ") + server.name + "!", "success");
         NX.app.go("#/s/" + server.id);
       });
     });
@@ -269,7 +281,7 @@ window.NX = window.NX || {};
     if (!server) return;
     const cats = S().categoriesOf(serverId);
     if (!cats.length) {
-      NX.ui.toast("Crie uma categoria antes de criar canais.", "warn");
+      NX.ui.toast(NX.i18n.get("modal.crieCategoriaAntesCriar", "Crie uma categoria antes de criar canais."), "warn");
       M.createCategory(serverId);
       return;
     }
@@ -277,25 +289,25 @@ window.NX = window.NX || {};
 
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-channel" data-busy-label="Criando">Criar canal</button>'
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-channel\" data-busy-label=\"Criando\">" + NX.i18n.get("modal.criarCanal", "Criar canal") + "</button>")
       )
     );
-    const m = NX.ui.modal({ title: "Criar canal", eyebrow: server.name, size: "md", footer: footer });
+    const m = NX.ui.modal({ title: NX.i18n.get("modal.criarCanal", "Criar canal"), eyebrow: server.name, size: "md", footer: footer });
 
     m.body.innerHTML =
       '<form id="form-channel" class="form" novalidate>' +
-      '<div class="type-switch" role="radiogroup" aria-label="Tipo do canal">' +
+      '<div class="type-switch" role="radiogroup" aria-label="' + NX.i18n.get("ui.tipodocanal", "Tipo do canal") + '">' +
       '<button type="button" class="type-switch__btn is-on" data-type="text">' +
-      NX.icon("hash", "", 18) + "<span><strong>Texto</strong><small>mensagens e arquivos</small></span></button>" +
+      NX.icon("hash", "", 18) + ("<span><strong>" + NX.i18n.get("adm.texto", "Texto") + "</strong><small>" + NX.i18n.get("adm.mensagensearquivos", "mensagens e arquivos") + "</small></span></button>") +
       '<button type="button" class="type-switch__btn" data-type="voice">' +
-      NX.icon("voice", "", 18) + "<span><strong>Voz</strong><small>sala de conversa</small></span></button>" +
+      NX.icon("voice", "", 18) + ("<span><strong>" + NX.i18n.get("adm.voz", "Voz") + "</strong><small>" + NX.i18n.get("modal.saladeconversa", "sala de conversa") + "</small></span></button>") +
       "</div>" +
-      '<label class="field"><span class="field__label">Nome do canal</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomeCanal", "Nome do canal") + "</span>") +
       '<span class="input-affix">' +
       '<span class="input-affix__ico" data-affix>' + NX.icon("hash", "", 17) + "</span>" +
-      '<input class="input" name="name" placeholder="novo-canal" data-autofocus /></span></label>' +
-      '<label class="field"><span class="field__label">Categoria</span>' +
+      '<input class="input" name="name" placeholder="' + NX.i18n.get("ui.novocanal", "novo-canal") + '" data-autofocus /></span></label>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.categoria", "Categoria") + "</span>") +
       '<select class="select" name="categoryId">' +
       cats
         .map(
@@ -305,17 +317,17 @@ window.NX = window.NX || {};
         )
         .join("") +
       "</select></label>" +
-      '<div class="field"><span class="field__label">Permissões</span>' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.permissoes2", "Permissões") + "</span>") +
       '<div class="perm-mini">' +
-      '<label class="perm-mini__row"><span><strong>Quem pode ver este canal</strong>' +
-      "<small>“Somente eu” esconde o canal dos outros membros.</small></span>" +
+      ("<label class=\"perm-mini__row\"><span><strong>" + NX.i18n.get("modal.quempodeverestecanal", "Quem pode ver este canal") + "</strong>") +
+      ("<small>" + NX.i18n.get("modal.somenteeuescondeocanaldos", "“Somente eu” esconde o canal dos outros membros.") + "</small></span>") +
       '<select class="select select--sm" name="view">' +
-      '<option value="all">Todos</option><option value="private">Somente eu</option></select></label>' +
-      '<label class="perm-mini__row"><span><strong>Quem pode enviar mensagens</strong>' +
-      "<small>Você e administradores sempre podem escrever.</small></span>" +
+      (("<option value=\"all\">" + NX.i18n.get("reg.privacyAll", "Todos") + "</option><option value=\"private\">") + NX.i18n.get("modal.somenteeu", "Somente eu") + "</option></select></label>") +
+      ("<label class=\"perm-mini__row\"><span><strong>" + NX.i18n.get("modal.quempodeenviarmensagens", "Quem pode enviar mensagens") + "</strong>") +
+      ("<small>" + NX.i18n.get("modal.voceeadministradoressemprepodemescrever", "Você e administradores sempre podem escrever.") + "</small></span>") +
       '<select class="select select--sm" name="send">' +
-      '<option value="all">Todos</option><option value="private">Somente eu</option>' +
-      '<option value="none">Ninguém (somente leitura)</option></select></label>' +
+      (("<option value=\"all\">" + NX.i18n.get("reg.privacyAll", "Todos") + "</option><option value=\"private\">") + NX.i18n.get("modal.somenteeu", "Somente eu") + "</option>") +
+      ("<option value=\"none\">" + NX.i18n.get("modal.ninguemsomenteleitura", "Ninguém (somente leitura)") + "</option></select></label>") +
       "</div></div>" +
       '<div class="form-error" data-error hidden></div>' +
       "</form>";
@@ -330,7 +342,7 @@ window.NX = window.NX || {};
       state.type = t.getAttribute("data-type");
       u().qa("[data-type]", m.body).forEach((b) => b.classList.toggle("is-on", b === t));
       affix.innerHTML = NX.icon(state.type === "voice" ? "voice" : "hash", "", 17);
-      nameInput.placeholder = state.type === "voice" ? "Sala de conversa" : "novo-canal";
+      nameInput.placeholder = state.type === "voice" ? NX.i18n.get("modal.salaConversa", "Sala de conversa") : "novo-canal";
       nameInput.focus();
     });
 
@@ -361,7 +373,7 @@ window.NX = window.NX || {};
         form,
         (ch) => {
           m.close();
-          NX.ui.toast("Canal #" + ch.name + " criado.", "success");
+          NX.ui.toast((NX.i18n.get("modal.canal", "Canal #")) + ch.name + " criado.", "success");
           NX.app.go("#/s/" + serverId + "/" + ch.id);
         }
       );
@@ -378,14 +390,14 @@ window.NX = window.NX || {};
     const cats = S().categoriesOf(ch.serverId);
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--danger-soft" type="button" data-del>Excluir canal</button>' +
+        ("<button class=\"btn btn--danger-soft\" type=\"button\" data-del>" + NX.i18n.get("adm.excluirCanal", "Excluir canal") + "</button>") +
           '<span class="spacer"></span>' +
-          '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-channel-edit" data-busy-label="Salvando">Salvar alterações</button>'
+          ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-channel-edit\" data-busy-label=\"Salvando\">" + NX.i18n.get("adm.salvarAlteracoes", "Salvar alterações") + "</button>")
       )
     );
     const m = NX.ui.modal({
-      title: "Editar canal",
+      title: NX.i18n.get("modal.editarCanal2", "Editar canal"),
       eyebrow: server.name,
       size: "md",
       footer: footer,
@@ -393,15 +405,15 @@ window.NX = window.NX || {};
 
     m.body.innerHTML =
       '<form id="form-channel-edit" class="form" novalidate>' +
-      '<label class="field"><span class="field__label">Nome do canal</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomeCanal", "Nome do canal") + "</span>") +
       '<span class="input-affix"><span class="input-affix__ico">' +
       NX.icon(ch.type === "voice" ? "voice" : "hash", "", 17) +
       '</span><input class="input" name="name" value="' + u().h(ch.name) + '" data-autofocus /></span></label>' +
-      '<label class="field"><span class="field__label">Tópico <em>(aparece no cabeçalho)</em></span>' +
-      '<textarea class="input input--area" name="topic" rows="2" maxlength="180" placeholder="Sobre o que é este canal?">' +
+      (("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.topico", "Tópico") + " " + "<em>") + NX.i18n.get("modal.aparecenocabecalho", "(aparece no cabeçalho)") + "</em></span>") +
+      '<textarea class="input input--area" name="topic" rows="2" maxlength="180" placeholder="' + NX.i18n.get("ui.sobreoqueeestecanal", "Sobre o que é este canal?") + '">' +
       u().h(ch.topic || "") +
       "</textarea></label>" +
-      '<label class="field"><span class="field__label">Categoria</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.categoria", "Categoria") + "</span>") +
       '<select class="select" name="categoryId">' +
       cats
         .map(
@@ -411,24 +423,24 @@ window.NX = window.NX || {};
         )
         .join("") +
       "</select></label>" +
-      '<div class="field"><span class="field__label">Permissões</span><div class="perm-mini">' +
-      '<label class="perm-mini__row"><span><strong>Quem pode ver este canal</strong></span>' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.permissoes2", "Permissões") + "</span><div class=\"perm-mini\">") +
+      ("<label class=\"perm-mini__row\"><span><strong>" + NX.i18n.get("modal.quempodeverestecanal", "Quem pode ver este canal") + "</strong></span>") +
       '<select class="select select--sm" name="view">' +
-      '<option value="all"' + (ch.overrides.view === "all" ? " selected" : "") + ">Todos</option>" +
-      '<option value="private"' + (ch.overrides.view === "private" ? " selected" : "") + ">Somente eu</option>" +
+      '<option value="all"' + (ch.overrides.view === "all" ? " selected" : "") + (">" + NX.i18n.get("reg.privacyAll", "Todos") + "</option>") +
+      '<option value="private"' + (ch.overrides.view === "private" ? " selected" : "") + (NX.i18n.get("modal.somenteeu2", ">Somente eu") + "</option>") +
       "</select></label>" +
-      '<label class="perm-mini__row"><span><strong>Quem pode enviar mensagens</strong></span>' +
+      ("<label class=\"perm-mini__row\"><span><strong>" + NX.i18n.get("modal.quempodeenviarmensagens", "Quem pode enviar mensagens") + "</strong></span>") +
       '<select class="select select--sm" name="send">' +
-      '<option value="all"' + (ch.overrides.send === "all" ? " selected" : "") + ">Todos</option>" +
-      '<option value="private"' + (ch.overrides.send === "private" ? " selected" : "") + ">Somente eu</option>" +
-      '<option value="none"' + (ch.overrides.send === "none" ? " selected" : "") + ">Ninguém</option>" +
+      '<option value="all"' + (ch.overrides.send === "all" ? " selected" : "") + (">" + NX.i18n.get("reg.privacyAll", "Todos") + "</option>") +
+      '<option value="private"' + (ch.overrides.send === "private" ? " selected" : "") + (NX.i18n.get("modal.somenteeu2", ">Somente eu") + "</option>") +
+      '<option value="none"' + (ch.overrides.send === "none" ? " selected" : "") + (">" + NX.i18n.get("reg.privacyNone", "Ninguém") + "</option>") +
       "</select></label>" +
       "</div></div>" +
       (NX.permUI && typeof NX.permUI.openChannel === "function"
-        ? '<div class="field"><span class="field__label">Permissões avançadas</span>' +
-          '<p class="field__hint">Matriz por cargo ou usuário com estados 🟢 Permitir, 🔴 Negar e ⚪ Herdar — incluindo herança da categoria.</p>' +
+        ? ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.permissoesavancadas", "Permissões avançadas") + "</span>") +
+          ("<p class=\"field__hint\">" + NX.i18n.get("modal.matrizporcargoouusuariocom", "Matriz por cargo ou usuário com estados Permitir, Negar e Herdar — incluindo herança da categoria.") + "</p>") +
           '<button type="button" class="btn btn--soft btn--sm" data-open-perms>' +
-          NX.icon("shield", "", 15) + " Abrir permissões do canal</button></div>"
+          NX.icon("shield", "", 15) + (" " + NX.i18n.get("modal.abrirpermissoesdocanal", "Abrir permissões do canal") + "</button></div>")
         : "") +
       '<div class="form-error" data-error hidden></div>' +
       "</form>";
@@ -458,16 +470,16 @@ window.NX = window.NX || {};
         form,
         () => {
           m.close();
-          NX.ui.toast("Canal atualizado.", "success");
+          NX.ui.toast(NX.i18n.get("modal.canalAtualizado", "Canal atualizado."), "success");
         }
       );
     });
 
     footer.querySelector("[data-del]").addEventListener("click", async () => {
       const ok = await NX.ui.confirm({
-        title: "Excluir canal",
-        message: "O canal #" + ch.name + " e todas as suas mensagens serão apagados. Isso não pode ser desfeito.",
-        confirmLabel: "Excluir canal",
+        title: NX.i18n.get("adm.excluirCanal", "Excluir canal"),
+        message: (NX.i18n.get("modal.ocanal", "O canal #")) + ch.name + (" " + NX.i18n.get("modal.etodasassuasmensagensserao", "e todas as suas mensagens serão apagados. Isso não pode ser desfeito.")),
+        confirmLabel: NX.i18n.get("adm.excluirCanal", "Excluir canal"),
         danger: true,
         icon: "trash",
       });
@@ -475,7 +487,7 @@ window.NX = window.NX || {};
       try {
         await api().deleteChannel(channelId);
         m.close();
-        NX.ui.toast("Canal excluído.", "success");
+        NX.ui.toast(NX.i18n.get("adm.canalExcluido", "Canal excluído."), "success");
         NX.app.go("#/s/" + ch.serverId);
       } catch (e) {
         NX.ui.error(e.message);
@@ -490,17 +502,17 @@ window.NX = window.NX || {};
     const server = S().server(serverId);
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-cat" data-busy-label="Criando">Criar categoria</button>'
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-cat\" data-busy-label=\"Criando\">" + NX.i18n.get("modal.criarCategoria", "Criar categoria") + "</button>")
       )
     );
-    const m = NX.ui.modal({ title: "Criar categoria", eyebrow: server.name, size: "sm", footer });
+    const m = NX.ui.modal({ title: NX.i18n.get("modal.criarCategoria", "Criar categoria"), eyebrow: server.name, size: "sm", footer });
     m.body.innerHTML =
       '<form id="form-cat" class="form" novalidate>' +
-      '<label class="field"><span class="field__label">Nome da categoria</span>' +
-      '<input class="input" name="name" placeholder="EX.: COMUNIDADE" data-autofocus /></label>' +
-      '<label class="field"><span class="field__label">Primeiro canal <em>(opcional)</em></span>' +
-      '<input class="input" name="channel" placeholder="geral" /></label>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomeCategoria", "Nome da categoria") + "</span>") +
+      '<input class="input" name="name" placeholder="' + NX.i18n.get("ui.modals.excomunidade", "EX.: COMUNIDADE") + '" data-autofocus /></label>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.primeirocanal", "Primeiro canal") + " " + ("<em>" + NX.i18n.get("adm.opcional", "(opcional)") + "</em></span>")) +
+      '<input class="input" name="channel" placeholder="' + NX.i18n.get("landing.geral", "geral") + '" /></label>' +
       '<div class="form-error" data-error hidden></div></form>';
     const form = m.body.querySelector("form");
     form.addEventListener("submit", (e) => {
@@ -513,7 +525,7 @@ window.NX = window.NX || {};
         form,
         (res) => {
           m.close();
-          NX.ui.toast("Categoria " + res.category.name + " criada.", "success");
+          NX.ui.toast((NX.i18n.get("adm.categoria", "Categoria") + " ") + res.category.name + " criada.", "success");
         }
       );
     });
@@ -524,19 +536,19 @@ window.NX = window.NX || {};
     if (!cat) return;
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--danger-soft" type="button" data-del>Excluir</button>' +
+        ("<button class=\"btn btn--danger-soft\" type=\"button\" data-del>" + NX.i18n.get("common.delete", "Excluir") + "</button>") +
           '<span class="spacer"></span>' +
-          '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-cat-edit" data-busy-label="Salvando">Salvar</button>'
+          ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-cat-edit\" data-busy-label=\"Salvando\">" + NX.i18n.get("common.save", "Salvar") + "</button>")
       )
     );
-    const m = NX.ui.modal({ title: "Editar categoria", eyebrow: S().server(cat.serverId).name, size: "sm", footer });
+    const m = NX.ui.modal({ title: NX.i18n.get("modal.editarCategoria2", "Editar categoria"), eyebrow: S().server(cat.serverId).name, size: "sm", footer });
     const chCount = S().channelsOfCategory(cat.id).length;
     m.body.innerHTML =
       '<form id="form-cat-edit" class="form" novalidate>' +
-      '<label class="field"><span class="field__label">Nome</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nome3", "Nome") + "</span>") +
       '<input class="input" name="name" value="' + u().h(cat.name) + '" data-autofocus /></label>' +
-      '<p class="form-note">' + u().plural(chCount, "canal nesta categoria", "canais nesta categoria") +
+      '<p class="form-note">' + u().plural(chCount, NX.i18n.get("modal.canalNestaCategoria", "canal nesta categoria"), NX.i18n.get("modal.canaisNestaCategoria", "canais nesta categoria")) +
       ". Ao excluir, os canais e mensagens vão junto.</p>" +
       '<div class="form-error" data-error hidden></div></form>';
     const form = m.body.querySelector("form");
@@ -548,15 +560,15 @@ window.NX = window.NX || {};
         form,
         () => {
           m.close();
-          NX.ui.toast("Categoria atualizada.", "success");
+          NX.ui.toast(NX.i18n.get("modal.categoriaAtualizada", "Categoria atualizada."), "success");
         }
       );
     });
     footer.querySelector("[data-del]").addEventListener("click", async () => {
       const ok = await NX.ui.confirm({
-        title: "Excluir categoria",
-        message: "A categoria " + cat.name + " e seus " + chCount + " canal(is) serão apagados com todas as mensagens.",
-        confirmLabel: "Excluir categoria",
+        title: NX.i18n.get("adm.excluirCategoria", "Excluir categoria"),
+        message: (NX.i18n.get("modal.acategoria", "A categoria") + " ") + cat.name + (" " + NX.i18n.get("modal.eseus", "e seus") + " ") + chCount + (" " + NX.i18n.get("modal.canalisseraoapagadoscomtodas", "canal(is) serão apagados com todas as mensagens.")),
+        confirmLabel: NX.i18n.get("adm.excluirCategoria", "Excluir categoria"),
         danger: true,
         icon: "folderPlus",
       });
@@ -564,7 +576,7 @@ window.NX = window.NX || {};
       try {
         await api().deleteCategory(categoryId);
         m.close();
-        NX.ui.toast("Categoria excluída.", "success");
+        NX.ui.toast(NX.i18n.get("adm.categoriaExcluida", "Categoria excluída."), "success");
       } catch (e) {
         NX.ui.error(e.message);
       }
@@ -584,13 +596,13 @@ window.NX = window.NX || {};
     const me = S().me();
     const canManage = S().can(serverId, me.id, "manageServer");
     const m = NX.ui.modal({
-      title: "Convidar pessoas",
+      title: NX.i18n.get("modal.convidarPessoas2", "Convidar pessoas"),
       eyebrow: server.name,
       size: "md",
       footer: u().el(
         ACTIONS(
-          '<button class="btn btn--ghost" type="button" data-modal-close>Fechar</button>' +
-            '<button class="btn btn--soft" type="button" data-new>Gerar novo código</button>'
+          ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.close", "Fechar") + "</button>") +
+            ("<button class=\"btn btn--soft\" type=\"button\" data-new>" + NX.i18n.get("modal.gerarnovocodigo", "Gerar novo código") + "</button>")
         )
       ),
     });
@@ -600,30 +612,30 @@ window.NX = window.NX || {};
         (i) => canManage || i.creatorId === me.id
       );
       m.body.innerHTML =
-        '<p class="modal__lead">Compartilhe o código ou o link. Quem acessar poderá ver o servidor e entrar.</p>' +
+        ("<p class=\"modal__lead\">" + NX.i18n.get("modal.compartilheocodigoouolink", "Compartilhe o código ou o link. Quem acessar poderá ver o servidor e entrar.") + "</p>") +
         (active
           ? '<div class="invite-hero">' +
-            '<span class="invite-hero__label">Código de convite</span>' +
+            ("<span class=\"invite-hero__label\">" + NX.i18n.get("modal.codigodeconvite", "Código de convite") + "</span>") +
             '<strong class="invite-hero__code mono">' + u().h(active.code) + "</strong>" +
             '<div class="invite-hero__link">' +
             '<input class="input mono" readonly value="' + u().h(inviteLink(active.code)) + '" data-link />' +
-            '<button class="btn btn--soft btn--sm" data-copy-link>' + NX.icon("copy", "", 15) + " Copiar</button>" +
+            '<button class="btn btn--soft btn--sm" data-copy-link>' + NX.icon("copy", "", 15) + (" " + NX.i18n.get("modal.copiar", "Copiar") + "</button>") +
             '<button class="btn btn--soft btn--sm" data-share>' + NX.icon("share", "", 15) + "</button>" +
             "</div></div>"
           : '<div class="invite-empty">' + NX.icon("link", "", 22) +
-            "<span>Nenhum convite ativo. Gere um código para começar.</span></div>") +
+            ("<span>" + NX.i18n.get("modal.nenhumconviteativogereumcodigo", "Nenhum convite ativo. Gere um código para começar.") + "</span></div>")) +
         (list.length
-          ? '<div class="invite-list"><span class="field__label">Convites ativos · ' + list.length + "</span>" +
+          ? ("<div class=\"invite-list\"><span class=\"field__label\">" + NX.i18n.get("adm.convitesativos", "Convites ativos ·") + " ") + list.length + "</span>" +
             list
               .map(
                 (i) =>
                   '<div class="invite-row"><span class="invite-row__code mono">' + u().h(i.code) + "</span>" +
                   "<span class=\"invite-row__meta\">" +
                   u().h((S().user(i.creatorId) || {}).displayName || "?") +
-                  " · " + (i.uses || 0) + " uso(s) · " + u().timeAgo(i.createdAt) +
+                  " · " + (i.uses || 0) + " " + NX.i18n.get("adm.usosDeConvite", "uso(s)") + " · " + u().timeAgo(i.createdAt) +
                   "</span>" +
                   (canManage || i.creatorId === me.id
-                    ? '<button class="btn btn--ghost btn--sm" data-revoke="' + i.code + '">Revogar</button>'
+                    ? '<button class="btn btn--ghost btn--sm" data-revoke="' + i.code + ("\">" + NX.i18n.get("adm.revogar", "Revogar") + "</button>")
                     : "") +
                   "</div>"
               )
@@ -642,7 +654,7 @@ window.NX = window.NX || {};
       if (copyBtn) {
         const input = m.body.querySelector("[data-link]");
         const ok = await u().copy(input.value);
-        NX.ui.toast(ok ? "Link copiado!" : "Não foi possível copiar.", ok ? "success" : "error");
+        NX.ui.toast(ok ? NX.i18n.get("modal.linkCopiado2", "Link copiado!") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), ok ? "success" : "error");
         return;
       }
       const share = e.target.closest("[data-share]");
@@ -654,7 +666,7 @@ window.NX = window.NX || {};
           } catch (err) {}
         } else {
           const ok = await u().copy(input.value);
-          NX.ui.toast(ok ? "Link copiado para compartilhar." : "Não foi possível copiar.", ok ? "success" : "error");
+          NX.ui.toast(ok ? NX.i18n.get("modal.linkCopiadoCompartilhar", "Link copiado para compartilhar.") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), ok ? "success" : "error");
         }
         return;
       }
@@ -663,7 +675,7 @@ window.NX = window.NX || {};
         try {
           await api().revokeInvite(rev.getAttribute("data-revoke"));
           render(S().invitesOf(serverId)[0]);
-          NX.ui.toast("Convite revogado.", "success");
+          NX.ui.toast(NX.i18n.get("adm.conviteRevogado", "Convite revogado."), "success");
         } catch (err) {
           NX.ui.error(err.message);
         }
@@ -677,7 +689,7 @@ window.NX = window.NX || {};
         try {
           const inv = await api().createInvite(serverId);
           render(inv);
-          NX.ui.toast("Novo convite gerado.", "success");
+          NX.ui.toast(NX.i18n.get("modal.novoConviteGerado", "Novo convite gerado."), "success");
         } catch (err) {
           NX.ui.error(err.message);
         }
@@ -728,16 +740,16 @@ window.NX = window.NX || {};
 
     const footer = u().el(
       ACTIONS(
-        (!isNew ? '<button class="btn btn--danger-soft" type="button" data-del>Excluir cargo</button>' : "") +
+        (!isNew ? ("<button class=\"btn btn--danger-soft\" type=\"button\" data-del>" + NX.i18n.get("modal.excluirCargo", "Excluir cargo") + "</button>") : "") +
           '<span class="spacer"></span>' +
-          '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
+          ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
           '<button class="btn btn--primary" type="submit" form="form-role" data-busy-label="Salvando">' +
-          (isNew ? "Criar cargo" : "Salvar") +
+          (isNew ? NX.i18n.get("adm.criarCargo2", "Criar cargo") : (NX.i18n.get("common.save", "Salvar"))) +
           "</button>"
       )
     );
     const m = NX.ui.modal({
-      title: isNew ? "Novo cargo" : "Editar cargo",
+      title: isNew ? NX.i18n.get("modal.novoCargo", "Novo cargo") : NX.i18n.get("adm.editarCargo", "Editar cargo"),
       eyebrow: S().server(serverId).name,
       size: "md",
       footer,
@@ -746,12 +758,12 @@ window.NX = window.NX || {};
     m.body.innerHTML =
       '<form id="form-role" class="form" novalidate>' +
       '<div class="role-preview"><span class="role-preview__dot" data-role-dot style="--rc:' + state.color + '"></span>' +
-      '<input class="input input--role" name="name" maxlength="30" placeholder="Nome do cargo" value="' +
+      '<input class="input input--role" name="name" maxlength="30" placeholder="' + NX.i18n.get("ui.modals.nomedocargo", "Nome do cargo") + '" value="' +
       u().h(role ? role.name : "") + '" data-autofocus /></div>' +
-      '<div class="field"><span class="field__label">Cor de destaque</span>' + swatches(state.color, "pick-color") + "</div>" +
-      '<div class="field"><span class="field__label">Permissões</span>' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.cordedestaque", "Cor de destaque") + "</span>") + swatches(state.color, "pick-color") + "</div>" +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.permissoes2", "Permissões") + "</span>") +
       '<div class="perm-list">' + permList(perms, false) + "</div></div>" +
-      '<p class="form-note">O dono do servidor sempre tem todas as permissões. Permissões individuais de membros sobrepõem o cargo.</p>' +
+      ("<p class=\"form-note\">" + NX.i18n.get("modal.odonodoservidorsempretem", "O dono do servidor sempre tem todas as permissões. Permissões individuais de membros sobrepõem o cargo.") + "</p>") +
       '<div class="form-error" data-error hidden></div></form>';
 
     const form = m.body.querySelector("form");
@@ -784,7 +796,7 @@ window.NX = window.NX || {};
         form,
         () => {
           m.close();
-          NX.ui.toast(isNew ? "Cargo criado." : "Cargo atualizado.", "success");
+          NX.ui.toast(isNew ? NX.i18n.get("adm.cargoCriado", "Cargo criado.") : NX.i18n.get("adm.cargoAtualizado", "Cargo atualizado."), "success");
         }
       );
     });
@@ -792,9 +804,9 @@ window.NX = window.NX || {};
     if (!isNew) {
       footer.querySelector("[data-del]").addEventListener("click", async () => {
         const ok = await NX.ui.confirm({
-          title: "Excluir cargo",
-          message: "Membros com “" + role.name + "” voltam para o cargo padrão.",
-          confirmLabel: "Excluir",
+          title: NX.i18n.get("modal.excluirCargo", "Excluir cargo"),
+          message: (NX.i18n.get("adm.membroscom", "Membros com “")) + role.name + (NX.i18n.get("modal.voltamparaocargopadrao", "” voltam para o cargo padrão.")),
+          confirmLabel: (NX.i18n.get("common.delete", "Excluir")),
           danger: true,
           icon: "shield",
         });
@@ -802,7 +814,7 @@ window.NX = window.NX || {};
         try {
           await api().deleteRole(roleId);
           m.close();
-          NX.ui.toast("Cargo excluído.", "success");
+          NX.ui.toast(NX.i18n.get("adm.cargoExcluido", "Cargo excluído."), "success");
         } catch (err) {
           NX.ui.error(err.message);
         }
@@ -823,14 +835,14 @@ window.NX = window.NX || {};
 
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
           '<button class="btn btn--primary" type="submit" form="form-perms"' +
           (isOwner ? " disabled" : "") +
-          ' data-busy-label="Salvando">Salvar permissões</button>'
+          (" data-busy-label=\"Salvando\">" + NX.i18n.get("adm.salvarpermissoes", "Salvar permissões") + "</button>")
       )
     );
     const m = NX.ui.modal({
-      title: "Permissões de " + target.displayName,
+      title: (NX.i18n.get("adm.permissoesde", "Permissões de") + " ") + target.displayName,
       eyebrow: server.name,
       size: "md",
       footer,
@@ -839,14 +851,14 @@ window.NX = window.NX || {};
     m.body.innerHTML =
       '<div class="member-mini">' + u().avatarHTML(target, "sm", true) +
       "<span><strong>" + u().h(target.displayName) + "</strong><small>@" + u().h(target.username) + "</small></span>" +
-      (isOwner ? '<span class="tag tag--owner">Dono</span>' : "") +
+      (isOwner ? ("<span class=\"tag tag--owner\">" + NX.i18n.get("adm.dono4", "Dono") + "</span>") : "") +
       "</div>" +
       (isOwner
         ? '<div class="callout callout--info">' + NX.icon("crown", "", 17) +
-          "<span>O dono do servidor possui todas as permissões, automaticamente.</span></div>"
+          ("<span>" + NX.i18n.get("modal.odonodoservidorpossuitodas", "O dono do servidor possui todas as permissões, automaticamente.") + "</span></div>")
         : '<form id="form-perms" class="form" novalidate>' +
           '<div class="perm-list">' + permList(current, false) + "</div>" +
-          '<p class="form-note">Estas alterações individuais sobrepõem o cargo do membro.</p>' +
+          ("<p class=\"form-note\">" + NX.i18n.get("modal.estasalteracoesindividuaissobrepoemocargo", "Estas alterações individuais sobrepõem o cargo do membro.") + "</p>") +
           '<div class="form-error" data-error hidden></div></form>');
 
     if (isOwner) return;
@@ -861,7 +873,7 @@ window.NX = window.NX || {};
         form,
         () => {
           m.close();
-          NX.ui.toast("Permissões atualizadas.", "success");
+          NX.ui.toast(NX.i18n.get("adm.permissoesAtualizadas", "Permissões atualizadas."), "success");
         }
       );
     });
@@ -889,34 +901,37 @@ window.NX = window.NX || {};
 
     const html =
       '<div class="member-card">' +
-      '<div class="member-card__banner" style="--pc:' + (user.avatar.color || "#35e0a8") + '"></div>' +
       '<div class="member-card__body">' +
       '<div class="member-card__avatar">' + u().avatarHTML(user, "lg", true) + "</div>" +
-      "<h3>" + u().h(user.displayName) + "</h3>" +
+      "<h3" +
+      (NX.nameplates && NX.nameplates.cls(user) ? ' class="' + NX.nameplates.cls(user) + '"' : "") +
+      ">" +
+      u().h(user.displayName) +
+      "</h3>" +
       '<span class="member-card__user">@' + u().h(user.username) + "</span>" +
       '<span class="status-pill" data-status="' + user.status + '">' +
-      u().h(NX.STATUS_LABEL[user.status] || "Offline") +
+      u().h(NX.STATUS_LABEL[user.status] || NX.i18n.get("core.statusOffline", "Offline")) +
       (user.statusText ? " · " + u().h(user.statusText) : "") +
       "</span>" +
       '<div class="member-card__tags">' +
-      (isOwner ? '<span class="tag tag--owner">Dono</span>' : "") +
+      (isOwner ? ("<span class=\"tag tag--owner\">" + NX.i18n.get("adm.dono4", "Dono") + "</span>") : "") +
       (role ? '<span class="tag" style="--tc:' + role.color + '">' + u().h(role.name) + "</span>" : "") +
       "</div>" +
       (user.bio ? '<p class="member-card__bio">' + u().h(user.bio) + "</p>" : "") +
-      '<div class="member-card__meta">Membro desde ' +
-      u().h(new Date(membership ? membership.joinedAt : Date.now()).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })) +
+      ("<div class=\"member-card__meta\">" + NX.i18n.get("modal.membrodesde", "Membro desde") + " ") +
+      u().h(NX.util.formatDate(membership ? membership.joinedAt : Date.now(), { day: "2-digit", month: "2-digit", year: "numeric" })) +
       "</div>" +
       '<div class="member-card__actions">' +
       (isMe
-        ? '<button class="btn btn--soft btn--sm btn--block" data-card="edit">Editar perfil</button>'
+        ? ("<button class=\"btn btn--soft btn--sm btn--block\" data-card=\"edit\">" + NX.i18n.get("modal.editarPerfil2", "Editar perfil") + "</button>")
         : '<button class="btn btn--soft btn--sm btn--block" data-card="dm">' + NX.icon("chat", "", 15) +
-          " Mensagem</button>" +
-          '<button class="btn btn--ghost btn--sm btn--block" data-card="profile">Ver perfil</button>') +
+          (" " + NX.i18n.get("modal.mensagem", "Mensagem") + "</button>") +
+          ("<button class=\"btn btn--ghost btn--sm btn--block\" data-card=\"profile\">" + NX.i18n.get("adm.verPerfil", "Ver perfil") + "</button>")) +
       (canManage
         ? '<div class="member-card__divider"></div>' +
           '<button class="btn btn--soft btn--sm btn--block" data-card="perms">' + NX.icon("shield", "", 15) +
-          " Permissões</button>" +
-          '<label class="member-card__role"><span>Cargo</span>' +
+          (" " + NX.i18n.get("adm.permissoes2", "Permissões") + "</button>") +
+          ("<label class=\"member-card__role\"><span>" + NX.i18n.get("adm.cargo", "Cargo") + "</span>") +
           '<select class="select select--sm" data-card-role>' +
           roles
             .map(
@@ -926,7 +941,7 @@ window.NX = window.NX || {};
             )
             .join("") +
           "</select></label>" +
-          '<button class="btn btn--danger-soft btn--sm btn--block" data-card="kick">Remover do servidor</button>'
+          ("<button class=\"btn btn--danger-soft btn--sm btn--block\" data-card=\"kick\">" + NX.i18n.get("modal.removerdoservidor", "Remover do servidor") + "</button>")
         : "") +
       "</div></div></div>";
 
@@ -945,16 +960,16 @@ window.NX = window.NX || {};
         if (kind === "perms") M.memberPerms(serverId, userId);
         if (kind === "kick") {
           const ok = await NX.ui.confirm({
-            title: "Remover " + user.displayName,
-            message: "Ele perde o acesso imediatamente e precisará de um novo convite para voltar.",
-            confirmLabel: "Remover",
+            title: (NX.i18n.get("modal.remover", "Remover") + " ") + user.displayName,
+            message: NX.i18n.get("modal.elePerdeAcessoImediatamente", "Ele perde o acesso imediatamente e precisará de um novo convite para voltar."),
+            confirmLabel: (NX.i18n.get("modal.remover", "Remover")),
             danger: true,
             icon: "userPlus",
           });
           if (ok) {
             try {
               await api().kickMember(serverId, userId);
-              NX.ui.toast(user.displayName + " foi removido.", "success");
+              NX.ui.toast(user.displayName + (" " + NX.i18n.get("modal.foiremovido", "foi removido.")), "success");
             } catch (err) {
               NX.ui.error(err.message);
             }
@@ -971,7 +986,7 @@ window.NX = window.NX || {};
       if (!sel) return;
       try {
         await api().setMemberRole(serverId, userId, sel.value);
-        NX.ui.toast("Cargo alterado.", "success");
+        NX.ui.toast(NX.i18n.get("modal.cargoAlterado", "Cargo alterado."), "success");
       } catch (err) {
         NX.ui.error(err.message);
         sel.value = membership.roleId;
@@ -997,18 +1012,18 @@ window.NX = window.NX || {};
 
     const m = NX.ui.modal({
       title: server.name,
-      eyebrow: "Configurações do servidor",
+      eyebrow: NX.i18n.get("adm.configuracoesServidor", "Configurações do servidor"),
       size: "lg",
       cls: "modal--settings",
     });
     m.el.classList.add("modal--settings");
 
     const TABS = [
-      { id: "general", label: "Geral", icon: "settings" },
-      { id: "roles", label: "Cargos", icon: "shield" },
-      { id: "members", label: "Membros", icon: "users" },
-      { id: "invites", label: "Convites", icon: "link" },
-      { id: "danger", label: isOwner ? "Excluir" : "Sair", icon: "alert" },
+      { id: "general", label: (NX.i18n.get("core.geral", "Geral")), icon: "settings" },
+      { id: "roles", label: (NX.i18n.get("adm.cargos", "Cargos")), icon: "shield" },
+      { id: "members", label: (NX.i18n.get("adm.membros", "Membros")), icon: "users" },
+      { id: "invites", label: (NX.i18n.get("set.item.privacyInvites", "Convites")), icon: "link" },
+      { id: "danger", label: isOwner ? (NX.i18n.get("common.delete", "Excluir")) : (NX.i18n.get("set.item.logout", "Sair")), icon: "alert" },
     ];
 
     function shell(inner, current) {
@@ -1030,29 +1045,29 @@ window.NX = window.NX || {};
       const state = { emoji: s.icon.emoji, color: s.icon.color };
       const html =
         '<form id="form-general" class="form" novalidate>' +
-        '<h3 class="settings__title">Aparência do servidor</h3>' +
+        ("<h3 class=\"settings__title\">" + NX.i18n.get("modal.aparenciadoservidor", "Aparência do servidor") + "</h3>") +
         '<div class="server-preview"><span class="server-preview__icon" data-gp style="--sv:' + state.color + '">' +
-        u().h(state.emoji) + "</span>" +
+        u().h(state.emoji || u().initials(s.name)) + "</span>" +
         '<div class="server-preview__txt"><strong data-gn>' + u().h(s.name) + "</strong>" +
         "<span>" + u().plural(S().memberCount(s.id), "membro", "membros") + "</span></div></div>" +
-        '<label class="field"><span class="field__label">Nome do servidor</span>' +
+        ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
         '<input class="input" name="name" maxlength="40" value="' + u().h(s.name) + '"' +
         (canManage ? "" : " disabled") + " /></label>" +
-        '<label class="field"><span class="field__label">Descrição</span>' +
-        '<textarea class="input input--area" name="description" rows="2" maxlength="240" placeholder="O que acontece aqui?"' +
+        ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.descricao3", "Descrição") + "</span>") +
+        '<textarea class="input input--area" name="description" rows="2" maxlength="240" placeholder="' + NX.i18n.get("ui.oqueaconteceaqui", "O que acontece aqui?") + '"' +
         (canManage ? "" : " disabled") + ">" + u().h(s.description || "") + "</textarea></label>" +
         (canManage
-          ? '<div class="field"><span class="field__label">Ícone</span><div class="icon-picker">' +
+          ? ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.icone", "Ícone") + "</span><div class=\"icon-picker\">") +
             emojiGrid(state.emoji) + swatches(state.color, "pick-color") + "</div></div>" +
-            '<label class="perm-row"><span class="perm-row__txt"><strong>Mostrar no explorar</strong>' +
-            "<small>Deixa a comunidade visível no diretório público.</small></span>" +
+            ("<label class=\"perm-row\"><span class=\"perm-row__txt\"><strong>" + NX.i18n.get("adm.mostrarnoexplorar", "Mostrar no explorar") + "</strong>") +
+            ("<small>" + NX.i18n.get("adm.deixaacomunidadevisivelnodiretorio", "Deixa a comunidade visível no diretório público.") + "</small></span>") +
             '<span class="switch"><input type="checkbox" name="discoverable"' +
             (s.discoverable ? " checked" : "") + " /><i></i></span></label>"
           : '<div class="callout callout--info">' + NX.icon("info", "", 16) +
-            "<span>Você pode ver as configurações, mas só administradores podem alterá-las.</span></div>") +
+            ("<span>" + NX.i18n.get("modal.vocepodeverasconfiguracoesmas", "Você pode ver as configurações, mas só administradores podem alterá-las.") + "</span></div>")) +
         '<div class="form-error" data-error hidden></div>' +
         (canManage
-          ? '<div class="settings__save"><button class="btn btn--primary" type="submit" data-busy-label="Salvando">Salvar alterações</button></div>'
+          ? ("<div class=\"settings__save\"><button class=\"btn btn--primary\" type=\"submit\" data-busy-label=\"Salvando\">" + NX.i18n.get("adm.salvarAlteracoes", "Salvar alterações") + "</button></div>")
           : "") +
         "</form>";
 
@@ -1065,12 +1080,13 @@ window.NX = window.NX || {};
           const gn = root.querySelector("[data-gn]");
           const st = state;
           st.onPick = () => {
-            gp.textContent = st.emoji;
+            gp.textContent = st.emoji || u().initials(form.elements.name.value.trim() || s.name);
             gp.style.setProperty("--sv", st.color);
           };
           bindPickers(form, st);
           form.addEventListener("input", () => {
             gn.textContent = form.elements.name.value.trim() || s.name;
+            if (!st.emoji) gp.textContent = u().initials(form.elements.name.value.trim() || s.name);
           });
           form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -1086,7 +1102,7 @@ window.NX = window.NX || {};
               }),
               form,
               () => {
-                NX.ui.toast("Configurações salvas.", "success");
+                NX.ui.toast(NX.i18n.get("adm.configuracoesSalvas", "Configurações salvas."), "success");
                 m.close();
               }
             );
@@ -1100,7 +1116,7 @@ window.NX = window.NX || {};
         return {
           html:
             '<div class="callout callout--info">' + NX.icon("shield", "", 17) +
-            "<span>Apenas administradores podem gerenciar cargos.</span></div>",
+            ("<span>" + NX.i18n.get("modal.apenasadministradorespodemgerenciarcargos", "Apenas administradores podem gerenciar cargos.") + "</span></div>"),
           wire: () => {},
         };
       }
@@ -1115,8 +1131,8 @@ window.NX = window.NX || {};
             '<button class="role-row" data-edit-role="' + r.id + '">' +
             '<span class="role-row__dot" style="--rc:' + r.color + '"></span>' +
             "<span class=\"role-row__txt\"><strong>" + u().h(r.name) + "</strong>" +
-            "<small>" + (r.isDefault ? "Cargo padrão · " : "") + u().plural(members, "membro", "membros") +
-            " · " + perms + "/7 permissões</small></span>" +
+            "<small>" + (r.isDefault ? (NX.i18n.get("modal.cargopadrao", "Cargo padrão ·") + " ") : "") + u().plural(members, "membro", "membros") +
+            " · " + perms + (NX.i18n.get("modal.7permissoes", "/7 permissões") + "</small></span>") +
             NX.icon("chevronRight", "", 16) +
             "</button>"
           );
@@ -1124,9 +1140,9 @@ window.NX = window.NX || {};
         .join("");
       return {
         html:
-          '<div class="settings__head"><h3 class="settings__title">Cargos</h3>' +
-          '<button class="btn btn--soft btn--sm" data-new-role>' + NX.icon("plus", "", 15) + " Novo cargo</button></div>" +
-          '<p class="settings__desc">Cargos agrupam permissões. Quem tem vários, vale o conjunto de todos.</p>' +
+          ("<div class=\"settings__head\"><h3 class=\"settings__title\">" + NX.i18n.get("adm.cargos", "Cargos") + "</h3>") +
+          '<button class="btn btn--soft btn--sm" data-new-role>' + NX.icon("plus", "", 15) + (" " + NX.i18n.get("modal.novoCargo", "Novo cargo") + "</button></div>") +
+          ("<p class=\"settings__desc\">" + NX.i18n.get("modal.cargosagrupampermissoesquemtemvarios", "Cargos agrupam permissões. Quem tem vários, vale o conjunto de todos.") + "</p>") +
           '<div class="role-list">' + rows + "</div>",
         wire: (root) => {
           root.querySelector("[data-new-role]") &&
@@ -1163,11 +1179,11 @@ window.NX = window.NX || {};
                   .join("") +
                 "</select>"
               : '<span class="tag' + (isOwner ? " tag--owner" : "") + '">' +
-                u().h(isOwner ? "Dono" : row.role ? row.role.name : "Membro") +
+                u().h(isOwner ? (NX.i18n.get("adm.dono4", "Dono")) : row.role ? row.role.name : (NX.i18n.get("adm.membro2", "Membro"))) +
                 "</span>") +
             (canManage && !isOwner && !isMe
-              ? '<button class="btn btn--ghost btn--sm" data-perms-for="' + row.user.id + '">Permissões</button>' +
-                '<button class="btn btn--ghost btn--sm btn--danger-text" data-kick="' + row.user.id + '">Remover</button>'
+              ? '<button class="btn btn--ghost btn--sm" data-perms-for="' + row.user.id + ("\">" + NX.i18n.get("adm.permissoes2", "Permissões") + "</button>") +
+                '<button class="btn btn--ghost btn--sm btn--danger-text" data-kick="' + row.user.id + ("\">" + NX.i18n.get("modal.remover", "Remover") + "</button>")
               : "") +
             "</div>"
           );
@@ -1175,7 +1191,7 @@ window.NX = window.NX || {};
         .join("");
       return {
         html:
-          '<div class="settings__head"><h3 class="settings__title">Membros</h3>' +
+          ("<div class=\"settings__head\"><h3 class=\"settings__title\">" + NX.i18n.get("adm.membros", "Membros") + "</h3>") +
           '<span class="block__count">' + members.length + "</span></div>" +
           '<div class="admin-members">' + rows + "</div>",
         wire: (root) => {
@@ -1183,7 +1199,7 @@ window.NX = window.NX || {};
             sel.addEventListener("change", async () => {
               try {
                 await api().setMemberRole(serverId, sel.getAttribute("data-role-for"), sel.value);
-                NX.ui.toast("Cargo atualizado.", "success");
+                NX.ui.toast(NX.i18n.get("adm.cargoAtualizado", "Cargo atualizado."), "success");
               } catch (err) {
                 NX.ui.error(err.message);
               }
@@ -1197,16 +1213,16 @@ window.NX = window.NX || {};
               const uid = b.getAttribute("data-kick");
               const usr = S().user(uid);
               const ok = await NX.ui.confirm({
-                title: "Remover " + (usr ? usr.displayName : "membro"),
-                message: "A pessoa perderá o acesso e precisará de um novo convite.",
-                confirmLabel: "Remover",
+                title: (NX.i18n.get("modal.remover", "Remover") + " ") + (usr ? usr.displayName : "membro"),
+                message: NX.i18n.get("modal.pessoaPerderaAcessoPrecisara", "A pessoa perderá o acesso e precisará de um novo convite."),
+                confirmLabel: (NX.i18n.get("modal.remover", "Remover")),
                 danger: true,
                 icon: "userPlus",
               });
               if (!ok) return;
               try {
                 await api().kickMember(serverId, uid);
-                NX.ui.toast("Membro removido.", "success");
+                NX.ui.toast(NX.i18n.get("modal.membroRemovido", "Membro removido."), "success");
               } catch (err) {
                 NX.ui.error(err.message);
               }
@@ -1223,12 +1239,12 @@ window.NX = window.NX || {};
       const canInvite = S().can(serverId, me.id, "createInvite");
       return {
         html:
-          '<div class="settings__head"><h3 class="settings__title">Convites</h3>' +
+          ("<div class=\"settings__head\"><h3 class=\"settings__title\">" + NX.i18n.get("set.item.privacyInvites", "Convites") + "</h3>") +
           (canInvite
-            ? '<button class="btn btn--soft btn--sm" data-new-invite>' + NX.icon("plus", "", 15) + " Gerar convite</button>"
+            ? '<button class="btn btn--soft btn--sm" data-new-invite>' + NX.icon("plus", "", 15) + (" " + NX.i18n.get("modal.gerarconvite", "Gerar convite") + "</button>")
             : "") +
           "</div>" +
-          '<p class="settings__desc">Cada código abre a porta para o seu servidor. Revogue quando quiser.</p>' +
+          ("<p class=\"settings__desc\">" + NX.i18n.get("adm.cadaCodigoAbrePorta", "Cada código abre a porta para o seu servidor. Revogue quando quiser.") + "</p>") +
           (invites.length
             ? '<div class="invite-list">' +
               invites
@@ -1237,24 +1253,24 @@ window.NX = window.NX || {};
                     '<div class="invite-row"><span class="invite-row__code mono">' + u().h(i.code) + "</span>" +
                     '<span class="invite-row__meta">' +
                     u().h((S().user(i.creatorId) || {}).displayName || "?") +
-                    " · " + (i.uses || 0) + " uso(s) · " + u().timeAgo(i.createdAt) +
+                    " · " + (i.uses || 0) + " " + NX.i18n.get("adm.usosDeConvite", "uso(s)") + " · " + u().timeAgo(i.createdAt) +
                     "</span>" +
-                    '<button class="btn btn--ghost btn--sm" data-copy-code="' + i.code + '">Copiar</button>' +
+                    '<button class="btn btn--ghost btn--sm" data-copy-code="' + i.code + ("\">" + NX.i18n.get("modal.copiar", "Copiar") + "</button>") +
                     (canManage || i.creatorId === me.id
-                      ? '<button class="btn btn--ghost btn--sm btn--danger-text" data-revoke-code="' + i.code + '">Revogar</button>'
+                      ? '<button class="btn btn--ghost btn--sm btn--danger-text" data-revoke-code="' + i.code + ("\">" + NX.i18n.get("adm.revogar", "Revogar") + "</button>")
                       : "") +
                     "</div>"
                 )
                 .join("") +
               "</div>"
-            : '<div class="invite-empty">' + NX.icon("link", "", 20) + "<span>Nenhum convite ativo.</span></div>"),
+            : '<div class="invite-empty">' + NX.icon("link", "", 20) + ("<span>" + NX.i18n.get("modal.nenhumconviteativo", "Nenhum convite ativo.") + "</span></div>")),
         wire: (root) => {
           const nb = root.querySelector("[data-new-invite]");
           if (nb)
             nb.addEventListener("click", async () => {
               try {
                 const inv = await api().createInvite(serverId);
-                NX.ui.toast("Convite " + inv.code + " gerado.", "success");
+                NX.ui.toast((NX.i18n.get("adm.convite", "Convite") + " ") + inv.code + " gerado.", "success");
                 refresh("invites");
               } catch (err) {
                 NX.ui.error(err.message);
@@ -1264,14 +1280,14 @@ window.NX = window.NX || {};
             b.addEventListener("click", async () => {
               const code = b.getAttribute("data-copy-code");
               const ok = await u().copy(inviteLink(code));
-              NX.ui.toast(ok ? "Link do convite copiado!" : "Não foi possível copiar.", ok ? "success" : "error");
+              NX.ui.toast(ok ? NX.i18n.get("adm.linkConviteCopiado", "Link do convite copiado!") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), ok ? "success" : "error");
             })
           );
           root.querySelectorAll("[data-revoke-code]").forEach((b) =>
             b.addEventListener("click", async () => {
               try {
                 await api().revokeInvite(b.getAttribute("data-revoke-code"));
-                NX.ui.toast("Convite revogado.", "success");
+                NX.ui.toast(NX.i18n.get("adm.conviteRevogado", "Convite revogado."), "success");
                 refresh("invites");
               } catch (err) {
                 NX.ui.error(err.message);
@@ -1286,18 +1302,18 @@ window.NX = window.NX || {};
       if (isOwner) {
         return {
           html:
-            '<h3 class="settings__title is-danger">Excluir servidor</h3>' +
-            '<p class="settings__desc">Excluir <strong>' + u().h(server.name) +
-            "</strong> remove todos os canais, mensagens, cargos e convites. Não há como desfazer.</p>" +
+            ("<h3 class=\"settings__title is-danger\">" + NX.i18n.get("adm.excluirServidor", "Excluir servidor") + "</h3>") +
+            ("<p class=\"settings__desc\">" + NX.i18n.get("common.delete", "Excluir") + " " + "<strong>") + u().h(server.name) +
+            ("</strong>" + " " + NX.i18n.get("modal.removetodososcanaismensagenscargos", "remove todos os canais, mensagens, cargos e convites. Não há como desfazer.") + "</p>") +
             '<div class="danger-zone"><button class="btn btn--danger" data-delete-server>' +
-            NX.icon("trash", "", 16) + " Excluir servidor</button></div>",
+            NX.icon("trash", "", 16) + (" " + NX.i18n.get("adm.excluirServidor", "Excluir servidor") + "</button></div>"),
           wire: (root) => {
             root.querySelector("[data-delete-server]").addEventListener("click", async () => {
               const ok = await NX.ui.confirm({
-                title: "Excluir " + server.name,
+                title: (NX.i18n.get("common.delete", "Excluir") + " ") + server.name,
                 message:
-                  "Todos os canais, mensagens, cargos e convites serão apagados permanentemente. Esta ação não pode ser desfeita.",
-                confirmLabel: "Excluir definitivamente",
+                  (NX.i18n.get("modal.todososcanaismensagenscargose", "Todos os canais, mensagens, cargos e convites serão apagados permanentemente. Esta ação não pode ser desfeita.")),
+                confirmLabel: NX.i18n.get("modal.excluirDefinitivamente", "Excluir definitivamente"),
                 danger: true,
                 icon: "trash",
               });
@@ -1305,7 +1321,7 @@ window.NX = window.NX || {};
               try {
                 await api().deleteServer(serverId);
                 m.close();
-                NX.ui.toast("Servidor excluído.", "success");
+                NX.ui.toast(NX.i18n.get("adm.servidorExcluido", "Servidor excluído."), "success");
                 NX.app.go("#/");
               } catch (err) {
                 NX.ui.error(err.message);
@@ -1316,17 +1332,17 @@ window.NX = window.NX || {};
       }
       return {
         html:
-          '<h3 class="settings__title is-danger">Sair do servidor</h3>' +
-          '<p class="settings__desc">Você perderá o acesso a <strong>' + u().h(server.name) +
-          "</strong> e precisará de um novo convite para voltar.</p>" +
+          ("<h3 class=\"settings__title is-danger\">" + NX.i18n.get("modal.sairServidor", "Sair do servidor") + "</h3>") +
+          ("<p class=\"settings__desc\">" + NX.i18n.get("modal.voceperderaoacessoa", "Você perderá o acesso a") + " " + "<strong>") + u().h(server.name) +
+          ("</strong>" + " " + NX.i18n.get("modal.eprecisaradeumnovoconvite", "e precisará de um novo convite para voltar.") + "</p>") +
           '<div class="danger-zone"><button class="btn btn--danger" data-leave-server>' +
-          NX.icon("logout", "", 16) + " Sair do servidor</button></div>",
+          NX.icon("logout", "", 16) + (" " + NX.i18n.get("modal.sairServidor", "Sair do servidor") + "</button></div>"),
         wire: (root) => {
           root.querySelector("[data-leave-server]").addEventListener("click", async () => {
             const ok = await NX.ui.confirm({
-              title: "Sair de " + server.name,
-              message: "Você pode entrar de novo se alguém te enviar um convite.",
-              confirmLabel: "Sair",
+              title: (NX.i18n.get("modal.sairde", "Sair de") + " ") + server.name,
+              message: NX.i18n.get("modal.vocePodeEntrarNovo", "Você pode entrar de novo se alguém te enviar um convite."),
+              confirmLabel: (NX.i18n.get("set.item.logout", "Sair")),
               danger: true,
               icon: "logout",
             });
@@ -1334,7 +1350,7 @@ window.NX = window.NX || {};
             try {
               await api().leaveServer(serverId);
               m.close();
-              NX.ui.toast("Você saiu do servidor.", "success");
+              NX.ui.toast(NX.i18n.get("modal.voceSaiuServidor", "Você saiu do servidor."), "success");
               NX.app.go("#/");
             } catch (err) {
               NX.ui.error(err.message);
@@ -1368,16 +1384,23 @@ window.NX = window.NX || {};
      EDITAR PERFIL
      ========================================================= */
   M.editProfile = function () {
+    /* O editor completo com abas (Foto · Banner · Informações · Status ·
+       Aparência) é o canônico. Este modal antigo, que só trocava um emoji,
+       foi aposentado para não existirem dois "Editar perfil" diferentes
+       — e para nunca sobrescrever o modelo SVG escolhido pela pessoa. */
+    if (NX.people && typeof NX.people.editProfileModal === "function") {
+      return NX.people.editProfileModal();
+    }
     const me = S().me();
     if (!me) return;
-    const state = { emoji: me.avatar.emoji || u().emojiFor(me.username), color: me.avatar.color };
+    const state = { emoji: (me.avatar && me.avatar.emoji) || "", color: me.avatar.color };
     const footer = u().el(
       ACTIONS(
-        '<button class="btn btn--ghost" type="button" data-modal-close>Cancelar</button>' +
-          '<button class="btn btn--primary" type="submit" form="form-profile" data-busy-label="Salvando">Salvar</button>'
+        ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"submit\" form=\"form-profile\" data-busy-label=\"Salvando\">" + NX.i18n.get("common.save", "Salvar") + "</button>")
       )
     );
-    const m = NX.ui.modal({ title: "Editar perfil", eyebrow: "Sua conta", size: "md", footer });
+    const m = NX.ui.modal({ title: NX.i18n.get("modal.editarPerfil2", "Editar perfil"), eyebrow: NX.i18n.get("modal.suaConta", "Sua conta"), size: "md", footer });
 
     m.body.innerHTML =
       '<form id="form-profile" class="form" novalidate>' +
@@ -1385,18 +1408,18 @@ window.NX = window.NX || {};
       u().h(state.emoji) + "</span>" +
       '<div class="server-preview__txt"><strong data-pn>' + u().h(me.displayName) + "</strong>" +
       "<span>@" + u().h(me.username) + "</span></div></div>" +
-      '<div class="field"><span class="field__label">Avatar</span><div class="icon-picker">' +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.avatar", "Avatar") + "</span><div class=\"icon-picker\">") +
       emojiGrid(state.emoji) + swatches(state.color, "pick-color") + "</div></div>" +
-      '<label class="field"><span class="field__label">Nome de exibição</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("set.nomeExibicao", "Nome de exibição") + "</span>") +
       '<input class="input" name="displayName" maxlength="32" value="' + u().h(me.displayName) + '" data-autofocus /></label>' +
-      '<label class="field"><span class="field__label">Nome de usuário</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("set.nomeUsuario", "Nome de usuário") + "</span>") +
       '<input class="input" name="username" maxlength="18" value="' + u().h(me.username) + '" /></label>' +
-      '<label class="field"><span class="field__label">Bio</span>' +
-      '<textarea class="input input--area" name="bio" rows="2" maxlength="190" placeholder="Conte quem é você">' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.bio", "Bio") + "</span>") +
+      '<textarea class="input input--area" name="bio" rows="2" maxlength="190" placeholder="' + NX.i18n.get("ui.contequemevoce", "Conte quem é você") + '">' +
       u().h(me.bio || "") +
       "</textarea></label>" +
       '<div class=\"field-row\">' +
-      '<label class="field"><span class="field__label">Status</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.status", "Status") + "</span>") +
       '<select class="select" name="status">' +
       Object.keys(NX.STATUS_LABEL)
         .map(
@@ -1406,8 +1429,8 @@ window.NX = window.NX || {};
         )
         .join("") +
       "</select></label>" +
-      '<label class="field"><span class="field__label">Status personalizado</span>' +
-      '<input class="input" name="statusText" maxlength="60" placeholder="ex.: estudando" value="' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("set.statusPersonalizado", "Status personalizado") + "</span>") +
+      '<input class="input" name="statusText" maxlength="60" placeholder="' + NX.i18n.get("ui.exestudando", "ex.: estudando") + '" value="' +
       u().h(me.statusText || "") + '" /></label>' +
       "</div>" +
       '<div class="form-error" data-error hidden></div></form>';
@@ -1441,7 +1464,7 @@ window.NX = window.NX || {};
         form,
         () => {
           m.close();
-          NX.ui.toast("Perfil atualizado.", "success");
+          NX.ui.toast(NX.i18n.get("modal.perfilAtualizado", "Perfil atualizado."), "success");
         }
       );
     });
@@ -1453,20 +1476,39 @@ window.NX = window.NX || {};
   M.newDM = function () {
     const me = S().me();
     const people = [];
+    const seen = {};
+    /* só pessoa de verdade: app/bot nunca vira conversa pessoal */
+    const add = (p) => {
+      if (!p || !p.id || p.id === me.id || seen[p.id]) return;
+      if (!S().isPerson(p)) return;
+      seen[p.id] = true;
+      people.push(p);
+    };
+    /* amizades primeiro: a amizade é global e existe mesmo sem
+       servidor em comum — este era o motivo de "Nova conversa"
+       mostrar vazio para quem já tinha amigos */
+    S().friendsOf(me.id).forEach(add);
     S().membershipsOf(me.id).forEach((mm) => {
-      S().membersOf(mm.serverId).forEach((row) => {
-        if (row.user.id !== me.id && !people.some((p) => p.id === row.user.id)) {
-          people.push(row.user);
-        }
-      });
+      S().membersOf(mm.serverId).forEach((row) => add(row.user));
     });
-    people.sort((a, b) => (a.status === "online" ? 0 : 1) - (b.status === "online" ? 0 : 1));
+    /* amigos em cima, gente online na sequência, resto alfabético */
+    const sortPeople = () =>
+      people.sort((a, b) => {
+        const fa = S().isFriend(me.id, a.id) ? 0 : 1;
+        const fb = S().isFriend(me.id, b.id) ? 0 : 1;
+        if (fa !== fb) return fa - fb;
+        const oa = a.status === "online" ? 0 : 1;
+        const ob = b.status === "online" ? 0 : 1;
+        if (oa !== ob) return oa - ob;
+        return String(a.displayName || "").localeCompare(String(b.displayName || ""));
+      });
+    sortPeople();
 
     const m = NX.ui.modal({
-      title: "Nova conversa",
-      eyebrow: "Mensagens diretas",
+      title: NX.i18n.get("modal.novaConversa", "Nova conversa"),
+      eyebrow: NX.i18n.get("modal.mensagensDiretas", "Mensagens diretas"),
       size: "sm",
-      footer: u().el(ACTIONS('<button class="btn btn--ghost" type="button" data-modal-close>Fechar</button>')),
+      footer: u().el(ACTIONS(("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.close", "Fechar") + "</button>"))),
     });
 
     const listHTML = (filter) => {
@@ -1478,8 +1520,15 @@ window.NX = window.NX || {};
           u().normalize(p.username).indexOf(f) !== -1
       );
       if (!rows.length)
-        return '<div class="invite-empty">' + NX.icon("users", "", 20) +
-          "<span>Nenhuma pessoa encontrada. Entre em um servidor para conhecer gente nova.</span></div>";
+        return (
+          '<div class="invite-empty">' + NX.icon("users", "", 20) + "<span>" +
+          (f
+            ? NX.i18n.get("modal.nenhumapessoaencontrada", "Nenhuma pessoa corresponde à sua busca.")
+            : people.length
+              ? NX.i18n.get("modal.nenhumaPessoaPorPerto", "Nenhuma pessoa por perto. Adicione amigos ou entre em um servidor.")
+              : NX.i18n.get("modal.nenhumapessoaencontradaentreemum", "Nenhuma pessoa encontrada. Entre em um servidor para conhecer gente nova.")) +
+          "</span></div>"
+        );
       return rows
         .map(
           (p) =>
@@ -1493,10 +1542,15 @@ window.NX = window.NX || {};
         .join("");
     };
 
+    const repaint = () => {
+      if (!results || !results.isConnected) return;
+      results.innerHTML = listHTML(search ? search.value : "");
+    };
+
     m.body.innerHTML =
-      '<label class="field"><span class="field__label">Buscar pessoa</span>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.buscarpessoa", "Buscar pessoa") + "</span>") +
       '<span class="input-affix"><span class="input-affix__ico">' + NX.icon("search", "", 16) +
-      '</span><input class="input" data-search placeholder="Nome ou @usuário" data-autofocus /></span></label>' +
+      '</span><input class="input" data-search placeholder="' + NX.i18n.get("ui.nomeouusuario", "Nome ou @usuário") + '" data-autofocus /></span></label>' +
       '<div class="dm-list dm-list--modal" data-results>' + listHTML("") + "</div>";
 
     const search = m.body.querySelector("[data-search]");
@@ -1507,14 +1561,128 @@ window.NX = window.NX || {};
         results.innerHTML = listHTML(search.value);
       }, 160)
     );
+
+    /* a amizade é global e pode ter sido fechada em outro aparelho:
+       a lista é refeita a partir do backend, sem fechar o modal */
+    Promise.resolve()
+      .then(() => api().listFriends())
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        const before = people.length;
+        list.forEach(add);
+        if (people.length === before) return;
+        sortPeople();
+        repaint();
+      })
+      .catch(() => {});
+
+    /* um clique só: cliques repetidos não podem abrir duas conversas */
+    let opening = false;
     results.addEventListener("click", async (e) => {
       const b = e.target.closest("[data-open-dm]");
-      if (!b) return;
+      if (!b || opening) return;
+      opening = true;
       const uid = b.getAttribute("data-open-dm");
       try {
         const dm = await api().openDM(uid);
         m.close();
         NX.app.go("#/mensagens/" + dm.id);
+      } catch (err) {
+        opening = false;
+        NX.ui.error(err.message);
+      }
+    });
+  };
+
+  /* =========================================================
+     CONVERSAS OCULTAS
+     Remover da barra nunca apaga nada: a conversa, as mensagens e
+     a relação entre as pessoas continuam guardadas e voltam na hora.
+     ========================================================= */
+  M.dmHidden = function () {
+    const me = S().me();
+
+    const rows = () => {
+      const list = S().hiddenDmsOf(me.id);
+      if (!list.length)
+        return (
+          '<div class="invite-empty">' +
+          NX.icon("eyeOff", "", 20) +
+          "<span>" +
+          NX.i18n.get(
+            "modal.nenhumaConversaOculta",
+            "Nenhuma conversa oculta. As conversas que você remover da barra aparecem aqui."
+          ) +
+          "</span></div>"
+        );
+      return list
+        .map((dm) => {
+          const otherId =
+            (dm.participants || []).find((p) => p !== me.id) || dm.participants[0];
+          const other = NX.store.db.users[otherId];
+          /* só conversa entre pessoas: app, bot ou conta de sistema
+             nunca aparece — nem mesmo na lista de ocultas */
+          if (!other || !S().isPerson(other)) return "";
+          const msgs = S().messagesOf(dm.id);
+          const last = msgs[msgs.length - 1];
+          return (
+            '<div class="dm-row dm-row--hidden">' +
+            u().avatarHTML(other, "sm", true) +
+            '<span class="dm-row__txt"><strong class="truncate">' +
+            u().h(other.displayName) +
+            "</strong>" +
+            '<small class="truncate">' +
+            (last
+              ? u().h(last.content.slice(0, 46))
+              : NX.i18n.get("view.mensagensAinda", "Sem mensagens ainda")) +
+            "</small></span>" +
+            '<button class="btn btn--soft btn--sm" type="button" data-unhide="' +
+            dm.id +
+            '">' +
+            NX.icon("refresh", "", 14) +
+            "<span>" +
+            NX.i18n.get("view.restaurar", "Restaurar") +
+            "</span></button>" +
+            "</div>"
+          );
+        })
+        .join("");
+    };
+
+    const m = NX.ui.modal({
+      title: NX.i18n.get("view.conversasOcultas", "Conversas ocultas"),
+      eyebrow: NX.i18n.get("modal.mensagensDiretas", "Mensagens diretas"),
+      size: "sm",
+      footer: u().el(
+        ACTIONS(
+          '<button class="btn btn--ghost" type="button" data-modal-close>' +
+            NX.i18n.get("common.close", "Fechar") +
+            "</button>"
+        )
+      ),
+    });
+
+    m.body.innerHTML =
+      '<p class="pp-edit__p">' +
+      NX.i18n.get(
+        "modal.asConversasAquiNaoForamApagadas",
+        "Nada foi apagado: estas conversas só saíram da sua barra. Restaurar devolve a conversa com todas as mensagens."
+      ) +
+      '</p><div class="dm-list dm-list--modal" data-results>' +
+      rows() +
+      "</div>";
+
+    m.body.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-unhide]");
+      if (!b) return;
+      try {
+        await api().archiveDM(b.getAttribute("data-unhide"), false);
+        const host = m.body.querySelector("[data-results]");
+        if (host) host.innerHTML = rows();
+        NX.ui.toast(
+          NX.i18n.get("view.conversaRestaurada", "Conversa restaurada."),
+          "success"
+        );
       } catch (err) {
         NX.ui.error(err.message);
       }
@@ -1535,24 +1703,24 @@ window.NX = window.NX || {};
     const items = [
       { heading: server.name },
       canInvite
-        ? { label: "Convidar pessoas", icon: "userPlus", onClick: () => M.invite(serverId) }
+        ? { label: NX.i18n.get("modal.convidarPessoas2", "Convidar pessoas"), icon: "userPlus", onClick: () => M.invite(serverId) }
         : null,
-      { label: "Membros", icon: "users", onClick: () => M.serverSettings(serverId, "members") },
+      { label: (NX.i18n.get("adm.membros", "Membros")), icon: "users", onClick: () => M.serverSettings(serverId, "members") },
       canManage
-        ? { label: "Cargos e permissões", icon: "shield", onClick: () => M.serverSettings(serverId, "roles") }
+        ? { label: NX.i18n.get("landing.cargosPermissoes2", "Cargos e permissões"), icon: "shield", onClick: () => M.serverSettings(serverId, "roles") }
         : null,
-      canInvite ? { label: "Convites ativos", icon: "link", onClick: () => M.serverSettings(serverId, "invites") } : null,
-      { label: "Configurações do servidor", icon: "settings", onClick: () => M.serverSettings(serverId, "general") },
+      canInvite ? { label: NX.i18n.get("modal.convitesAtivos", "Convites ativos"), icon: "link", onClick: () => M.serverSettings(serverId, "invites") } : null,
+      { label: NX.i18n.get("adm.configuracoesServidor", "Configurações do servidor"), icon: "settings", onClick: () => M.serverSettings(serverId, "general") },
       { divider: true },
       isOwner
         ? {
-            label: "Excluir servidor",
+            label: NX.i18n.get("adm.excluirServidor", "Excluir servidor"),
             icon: "trash",
             danger: true,
             onClick: () => M.serverSettings(serverId, "danger"),
           }
         : {
-            label: "Sair do servidor",
+            label: NX.i18n.get("modal.sairServidor", "Sair do servidor"),
             icon: "logout",
             danger: true,
             onClick: () => M.serverSettings(serverId, "danger"),
@@ -1569,17 +1737,17 @@ window.NX = window.NX || {};
       anchor,
       [
         {
-          label: "Copiar link do canal",
+          label: NX.i18n.get("modal.copiarLinkCanal", "Copiar link do canal"),
           icon: "link",
           onClick: async () => {
             const ok = await u().copy(location.href.split("#")[0] + "#/s/" + ch.serverId + "/" + ch.id);
-            NX.ui.toast(ok ? "Link copiado!" : "Não foi possível copiar.", ok ? "success" : "error");
+            NX.ui.toast(ok ? NX.i18n.get("modal.linkCopiado2", "Link copiado!") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), ok ? "success" : "error");
           },
         },
         { divider: true },
-        { label: "Editar canal", icon: "pencil", onClick: () => M.channelSettings(channelId) },
+        { label: NX.i18n.get("modal.editarCanal2", "Editar canal"), icon: "pencil", onClick: () => M.channelSettings(channelId) },
         {
-          label: "Excluir canal",
+          label: NX.i18n.get("adm.excluirCanal", "Excluir canal"),
           icon: "trash",
           danger: true,
           onClick: () => M.channelSettings(channelId),
@@ -1596,14 +1764,14 @@ window.NX = window.NX || {};
       anchor,
       [
         {
-          label: "Criar canal aqui",
+          label: NX.i18n.get("modal.criarCanalAqui", "Criar canal aqui"),
           icon: "plus",
           onClick: () => M.createChannel(cat.serverId, categoryId),
         },
-        { label: "Editar categoria", icon: "pencil", onClick: () => M.categorySettings(categoryId) },
+        { label: NX.i18n.get("modal.editarCategoria2", "Editar categoria"), icon: "pencil", onClick: () => M.categorySettings(categoryId) },
         { divider: true },
         {
-          label: "Excluir categoria",
+          label: NX.i18n.get("adm.excluirCategoria", "Excluir categoria"),
           icon: "trash",
           danger: true,
           onClick: () => M.categorySettings(categoryId),
@@ -1617,27 +1785,51 @@ window.NX = window.NX || {};
     const me = S().me();
     if (!me) return;
     const theme = NX.currentTheme();
+    /* ID público numérico (o u_muzo… interno nunca aparece aqui) */
+    const pid = me.publicId ? "#" + me.publicId : "";
     NX.ui.menu(
       anchor,
       [
         { heading: me.displayName + " · @" + me.username },
-        { label: "Meu perfil", icon: "user", onClick: () => NX.app.go("#/perfil/" + me.id) },
-        { label: "Editar perfil", icon: "pencil", onClick: () => M.editProfile() },
+        { label: NX.i18n.get("modal.meuPerfil", "Meu perfil"), icon: "user", onClick: () => NX.app.go("#/perfil/" + me.id) },
+        { label: NX.i18n.get("modal.editarPerfil2", "Editar perfil"), icon: "pencil", onClick: () => M.editProfile() },
         { divider: true },
-        { heading: "Status" },
+        { heading: (NX.i18n.get("modal.status", "Status")) },
         ...Object.keys(NX.STATUS_LABEL).map((k) => ({
           label: NX.STATUS_LABEL[k],
-          icon: k === "online" ? "check" : "clock",
+          /* símbolo próprio do Nexo, colorido, na versão selecionada */
+          iconHTML:
+            '<span class="menu__ico">' + NX.statusIcon(k, { size: 16, sel: me.status === k }) + "</span>",
           check: me.status === k,
           onClick: () => NX.api.setStatus(k).catch(() => {}),
         })),
+        ...(pid
+          ? [
+              { divider: true },
+              {
+                label: NX.i18n.get("modal.iddousuario", "ID do usuário"),
+                icon: "copy",
+                hint: pid,
+                onClick: () => {
+                  NX.util.copy(String(me.publicId)).then((ok) =>
+                    NX.ui.toast(
+                      ok
+                        ? NX.i18n.get("modal.idCopiado", "ID ") + pid + NX.i18n.get("modal.copiado", " copiado.")
+                        : NX.i18n.get("modal.naoCopiar", "Não foi possível copiar o ID."),
+                      ok ? "success" : "error"
+                    )
+                  );
+                },
+              },
+            ]
+          : []),
         { divider: true },
         {
-          label: theme === "dark" ? "Tema claro" : "Tema escuro",
+          label: theme === "dark" ? NX.i18n.get("set.item.themeLight", "Tema claro") : NX.i18n.get("set.item.themeDark", "Tema escuro"),
           icon: "palette",
           onClick: () => NX.applyTheme(theme === "dark" ? "light" : "dark"),
         },
-        { label: "Sair da conta", icon: "logout", danger: true, onClick: () => NX.app.logout() },
+        { label: NX.i18n.get("app.sairConta", "Sair da conta"), icon: "logout", danger: true, onClick: () => NX.app.logout() },
       ],
       { align: "start", side: "top" }
     );

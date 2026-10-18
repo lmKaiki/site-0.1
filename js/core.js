@@ -71,15 +71,88 @@ window.NX = window.NX || {};
     }
   };
 
-  /* ---------------- tempo ---------------- */
+  /* ---------------- tempo ----------------
+     As datas gravadas nunca são alteradas: só a EXIBIÇÃO
+     é convertida para o fuso escolhido pelo usuário. */
   const pad = (n) => String(n).padStart(2, "0");
 
+  function userZone() {
+    try {
+      const me = NX.selectors && NX.selectors.me ? NX.selectors.me() : null;
+      const tz = me && me.region ? me.region.timezone : null;
+      if (tz && NX.region && NX.region.isValidZone(tz)) return tz;
+    } catch (e) {
+      /* sem conta/região: usa o fuso do aparelho */
+    }
+    return null;
+  }
+  util.userZone = userZone;
+
+  /* ---------------- formato de tempo (FIXO 24h) ----------------
+      Preferência única: HH:mm em 24h. */
+  util.timeFormat = function () {
+    return "24h";
+  };
+  util.is12h = function () {
+    return false;
+  };
+
+  /* opções de hora: sempre 24h */
+  util.hourOpts = function () {
+    return { hour: "2-digit", minute: "2-digit", hour12: false };
+  };
+
+  /* só o horário, em HH:mm (24h) */
+  util.formatTime = function (value, opts) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const loc = NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR";
+    const o = Object.assign({}, opts || {}, util.hourOpts());
+    try {
+      return new Intl.DateTimeFormat(loc, o).format(d);
+    } catch (e) {
+      return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+  };
+
+  /* data (sem hora) — padrão FIXO DD/MM/AAAA, sem depender do
+     estilo padrão do locale do navegador */
+  const DATE_OPTS = { day: "2-digit", month: "2-digit", year: "numeric" };
+  util.DATE_OPTS = DATE_OPTS;
+  util.formatDate = function (value, opts) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const loc = NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR";
+    const o = opts || DATE_OPTS;
+    try {
+      return new Intl.DateTimeFormat(loc, o).format(d);
+    } catch (e) {
+      return d.toLocaleDateString(loc, o);
+    }
+  };
+
+  util.formatDateTime = function (value, dateOpts, timeOpts) {
+    const d = value instanceof Date ? value : new Date(value);
+    const date = util.formatDate(d, dateOpts);
+    const time = util.formatTime(d, timeOpts);
+    return date && time ? date + " " + time : date || time;
+  };
+
   util.fmtTime = (ts) => {
-    const d = new Date(ts);
-    return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    const tz = userZone();
+    if (tz && NX.region) {
+      return NX.region.fmtHM(ts, tz, NX.i18n ? NX.i18n.locale() : "pt-BR");
+    }
+    return util.formatTime(ts);
   };
 
   util.sameDay = (a, b) => {
+    const tz = userZone();
+    if (tz && NX.region) {
+      const x = NX.region.dayParts(a, tz);
+      const y = NX.region.dayParts(b, tz);
+      return x.y === y.y && x.m === y.m && x.d === y.d;
+    }
     const x = new Date(a),
       y = new Date(b);
     return (
@@ -90,36 +163,57 @@ window.NX = window.NX || {};
   };
 
   util.fmtDayLabel = (ts) => {
-    const d = new Date(ts),
-      now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    if (util.sameDay(d, now)) return "Hoje";
-    if (util.sameDay(d, yesterday)) return "Ontem";
-    return d.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
-    });
+    const tz = userZone();
+    const locale = NX.i18n ? NX.i18n.locale() : "pt-BR";
+    const t = (k, fb) => (NX.t ? NX.t(k) : fb);
+    const now = Date.now();
+    if (util.sameDay(ts, now)) return t("time.today", (NX.i18n.get("time.today", "Hoje")));
+    const yesterday = now - 24 * 60 * 60 * 1000;
+    if (util.sameDay(ts, yesterday)) return t("time.yesterday", (NX.i18n.get("time.yesterday", "Ontem")));
+    /* dia anterior: sempre DD/MM/AAAA */
+    return NX.region
+      ? NX.region.fmt(ts, tz, { day: "2-digit", month: "2-digit", year: "numeric" }, locale)
+      : new Date(ts).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
   };
 
+  /* tempo relativo: Intl.RelativeTimeFormat localiza sozinho
+      (pt "há 5 min") — sem texto manual */
   util.timeAgo = (ts) => {
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return "agora há pouco";
-    const m = Math.floor(s / 60);
-    if (m < 60) return "há " + m + " min";
-    const h = Math.floor(m / 60);
-    if (h < 24) return "há " + h + " h";
-    const d = Math.floor(h / 24);
-    if (d === 1) return "ontem";
-    if (d < 30) return "há " + d + " dias";
-    return "em " + new Date(ts).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+    const locale = NX.i18n ? NX.i18n.locale() : "pt-BR";
+    const t = (k, fb) => (NX.t ? NX.t(k) : fb);
+    const diff = Number(ts);
+    if (!isFinite(diff)) return "";
+    const past = diff < Date.now();
+    const sec = Math.round(Math.abs(Date.now() - diff) / 1000);
+    try {
+      const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+      const p = past ? -1 : 1;
+      if (sec < 60) return t("time.now", NX.i18n.get("time.now", "agora há pouco"));
+      if (sec < 3600) return rtf.format(p * Math.round(sec / 60), "minute");
+      if (sec < 86400) return rtf.format(p * Math.round(sec / 3600), "hour");
+      if (sec < 2592000) return rtf.format(p * Math.round(sec / 86400), "day");
+      if (sec < 31536000) return rtf.format(p * Math.round(sec / 2592000), "month");
+      return rtf.format(p * Math.round(sec / 31536000), "year");
+    } catch (e) {
+      /* navegador sem RelativeTimeFormat: mantém o texto em pt-BR */
+      const m = Math.floor(sec / 60);
+      if (m < 60) return NX.i18n.get("core.ha", "há") + " " + m + " min";
+      const h = Math.floor(m / 60);
+      if (h < 24) return NX.i18n.get("core.ha", "há") + " " + h + " h";
+      const d = Math.floor(h / 24);
+      if (d === 1) return t("time.yesterday", "ontem");
+      if (d < 30) return NX.i18n.get("core.ha", "há") + " " + d + " " + NX.i18n.get("core.dias", "dias");
+      return (
+        (past ? NX.i18n.get("core.ha", "há") : NX.i18n.get("time.in", "em")) +
+        " " +
+        util.formatDate(ts)
+      );
+    }
   };
 
   util.ageFrom = (birth) => {
     if (!birth) return null;
-    const b = new Date(birth + "T00:00:00");
+    const b = new Date(birth + (NX.i18n.get("core.t000000", "T00:00:00")));
     if (isNaN(b.getTime())) return null;
     const now = new Date();
     let age = now.getFullYear() - b.getFullYear();
@@ -131,7 +225,7 @@ window.NX = window.NX || {};
   /* ---------------- texto ---------------- */
   util.slug = (s) =>
     String(s || "")
-      .normalize("NFD")
+      .normalize((NX.i18n.get("core.nfd", "NFD")))
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim()
@@ -151,7 +245,7 @@ window.NX = window.NX || {};
 
   util.normalize = (s) =>
     String(s || "")
-      .normalize("NFD")
+      .normalize((NX.i18n.get("core.nfd", "NFD")))
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
@@ -380,16 +474,16 @@ window.NX = window.NX || {};
   util.num = function (n) {
     const v = Math.max(0, Number(n) || 0);
     try {
-      return v.toLocaleString("pt-BR");
+      return v.toLocaleString(NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR");
     } catch (e) {
       return String(v);
     }
   };
 
   util.PASSWORD_RULES = [
-    { key: "len", label: "8 caracteres ou mais", test: (v) => v.length >= 8 },
-    { key: "letter", label: "1 letra", test: (v) => /[a-zA-ZÀ-ÿ]/.test(v) },
-    { key: "digit", label: "1 número", test: (v) => /[0-9]/.test(v) },
+    { key: "len", label: NX.i18n.get("core.8CaracteresMais", "8 caracteres ou mais"), test: (v) => v.length >= 8 },
+    { key: "letter", label: NX.i18n.get("core.1Letra", "1 letra"), test: (v) => /[a-zA-ZÀ-ÿ]/.test(v) },
+    { key: "digit", label: NX.i18n.get("core.1Numero", "1 número"), test: (v) => /[0-9]/.test(v) },
   ];
 
   util.passwordPolicy = function (v) {
@@ -400,7 +494,7 @@ window.NX = window.NX || {};
       ok: ok,
       checks: checks,
       message:
-        "A senha precisa de no mínimo 8 caracteres, com pelo menos uma letra e um número.",
+        (NX.i18n.get("core.asenhaprecisadenominimo", "A senha precisa de no mínimo 8 caracteres, com pelo menos uma letra e um número.")),
     };
   };
 
@@ -458,19 +552,39 @@ window.NX = window.NX || {};
     return util.PALETTE[sum % util.PALETTE.length];
   };
 
-  /* ---------------- avatar (HTML) ---------------- */
+  /* ---------------- avatar (HTML) ----------------
+     Ordem de preferência: foto enviada → emoji escolhido À MÃO →
+     a logo oficial do Nexo → iniciais.
+     A logo é o fallback universal: conta nova, foto removida ou
+     imagem que não carregou caem sempre nela. O emoji nunca é o
+     padrão automático — quem quer emoji, escolhe. */
+  util.avatarArt = (user) => {
+    if (!user) return "";
+    const a = user.avatar || {};
+    const color = a.color || util.colorFor(user.id);
+    if (a.image) {
+      return (
+        '<span class="avatar__img"><img src="' + util.h(a.image) +
+        '" alt="" loading="lazy" decoding="async" data-avatar-fb /></span>'
+      );
+    }
+    if (a.emoji) return '<span class="avatar__glyph">' + util.h(a.emoji) + "</span>";
+    /* sem foto e sem emoji escolhido: a logo oficial do Nexo */
+    if (window.NX && NX.avatarArt) {
+      return '<span class="avatar__art">' + NX.avatarArt.render(color) + "</span>";
+    }
+    return '<span class="avatar__glyph">' + util.h(util.initials(user.displayName || user.username)) + "</span>";
+  };
+
   util.avatarHTML = (user, size, showStatus) => {
     if (!user) return "";
     const cls = ["avatar", size ? "avatar--" + size : "avatar--md"];
     if (showStatus) cls.push("avatar--status");
-    const glyph = user.avatar && user.avatar.emoji
-      ? user.avatar.emoji
-      : util.initials(user.displayName || user.username);
     const color = (user.avatar && user.avatar.color) || util.colorFor(user.id);
     const status = user.status || "offline";
     return (
-      '<span class="' + cls.join(" ") + '" style="--av:' + color + '" aria-hidden="true">' +
-      '<span class="avatar__glyph">' + util.h(glyph) + "</span>" +
+      '<span class="' + cls.join(" ") + '" style="--av:' + util.h(color) + '" aria-hidden="true">' +
+      util.avatarArt(user) +
       (showStatus ? '<i class="avatar__dot" data-status="' + status + '"></i>' : "") +
       "</span>"
     );
@@ -543,7 +657,7 @@ window.NX = window.NX || {};
        perder a conta do usuário). */
     set(key, value) {
       if (!hasLocal) {
-        NX.storage.lastError = "armazenamento indisponível";
+        NX.storage.lastError = NX.i18n.get("core.armazenamentoIndisponivel", "armazenamento indisponível");
         return false;
       }
       try {
@@ -551,7 +665,7 @@ window.NX = window.NX || {};
         NX.storage.lastError = null;
         return true;
       } catch (e) {
-        NX.storage.lastError = (e && (e.name || e.code)) || "erro de gravação";
+        NX.storage.lastError = (e && (e.name || e.code)) || NX.i18n.get("core.erroGravacao", "erro de gravação");
         console.warn("[storage] falha ao gravar", key, e);
         return false;
       }
@@ -609,41 +723,47 @@ window.NX = window.NX || {};
      falsa para todo mundo (fail-safe). */
   NX.PERMS = [
     /* Geral */
-    { key: "administrator", label: "Administrador", desc: "Controle total sobre o servidor.", group: "Geral", super: true },
-    { key: "manageServer", label: "Gerenciar servidor", desc: "Editar nome, ícone, banner e descrição.", group: "Geral" },
-    { key: "manageRoles", label: "Gerenciar cargos", desc: "Criar, editar e apagar cargos e permissões.", group: "Geral" },
-    { key: "manageChannels", label: "Gerenciar canais", desc: "Criar, editar e apagar categorias e canais.", group: "Geral" },
-    { key: "manageMembers", label: "Gerenciar membros", desc: "Ver detalhes e alterar cargos de membros.", group: "Geral" },
-    { key: "createInvite", label: "Criar convites", desc: "Gerar links de convite para o servidor.", group: "Geral" },
-    { key: "viewLogs", label: "Ver logs", desc: "Consultar o histórico de moderação.", group: "Geral" },
+    { key: "administrator", label: (NX.i18n.get("adm.administrador", "Administrador")), desc: NX.i18n.get("core.controleTotalSobreServidor", "Controle total sobre o servidor."), group: (NX.i18n.get("core.geral", "Geral")), super: true },
+    { key: "manageServer", label: NX.i18n.get("core.gerenciarServidor", "Gerenciar servidor"), desc: NX.i18n.get("core.editarNomeIconeBanner", "Editar nome, ícone, banner e descrição."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageRoles", label: NX.i18n.get("core.gerenciarCargos", "Gerenciar cargos"), desc: NX.i18n.get("core.criarEditarApagarCargos", "Criar, editar e apagar cargos e permissões."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageChannels", label: NX.i18n.get("core.gerenciarCanais", "Gerenciar canais"), desc: NX.i18n.get("core.criarEditarApagarCategorias", "Criar, editar e apagar categorias e canais."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageMembers", label: NX.i18n.get("core.gerenciarMembros", "Gerenciar membros"), desc: NX.i18n.get("core.verDetalhesAlterarCargos", "Ver detalhes e alterar cargos de membros."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "createInvite", label: NX.i18n.get("core.criarConvites", "Criar convites"), desc: NX.i18n.get("core.gerarLinksConviteServidor", "Gerar links de convite para o servidor."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "viewLogs", label: NX.i18n.get("core.verLogs", "Ver logs"), desc: NX.i18n.get("core.consultarHistoricoModeracao", "Consultar o histórico de moderação."), group: (NX.i18n.get("core.geral", "Geral")) },
 
     /* Chat */
-    { key: "viewChannels", label: "Ver canais", desc: "Visualizar canais de texto e voz.", group: "Chat" },
-    { key: "sendMessages", label: "Enviar mensagens", desc: "Escrever nos canais de texto.", group: "Chat" },
-    { key: "editMessages", label: "Editar mensagens", desc: "Editar mensagens de outras pessoas.", group: "Chat" },
-    { key: "deleteMessages", label: "Excluir mensagens", desc: "Apagar mensagens de outras pessoas.", group: "Chat" },
-    { key: "pinMessages", label: "Fixar mensagens", desc: "Fixar mensagens no canal.", group: "Chat" },
-    { key: "attachFiles", label: "Anexar arquivos", desc: "Enviar imagens, vídeos e arquivos.", group: "Chat" },
-    { key: "useEmojis", label: "Usar emojis", desc: "Reagir e usar emojis nas mensagens.", group: "Chat" },
-    { key: "useCustomEmojis", label: "Usar emojis personalizados", desc: "Usar os emojis do servidor.", group: "Chat" },
-    { key: "useGifs", label: "Usar GIFs", desc: "Enviar GIFs nas conversas.", group: "Chat" },
-    { key: "mentionEveryone", label: "Mencionar membros", desc: "Usar @everyone e menções em massa.", group: "Chat" },
+    { key: "viewChannels", label: NX.i18n.get("core.verCanais", "Ver canais"), desc: NX.i18n.get("core.visualizarCanaisTextoVoz", "Visualizar canais de texto e voz."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "sendMessages", label: NX.i18n.get("core.enviarMensagens", "Enviar mensagens"), desc: NX.i18n.get("core.escreverCanaisTexto", "Escrever nos canais de texto."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "editMessages", label: NX.i18n.get("core.editarMensagens", "Editar mensagens"), desc: NX.i18n.get("core.editarMensagensOutrasPessoas", "Editar mensagens de outras pessoas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "deleteMessages", label: NX.i18n.get("core.excluirMensagens", "Excluir mensagens"), desc: NX.i18n.get("core.apagarMensagensOutrasPessoas", "Apagar mensagens de outras pessoas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "pinMessages", label: NX.i18n.get("core.fixarMensagens", "Fixar mensagens"), desc: NX.i18n.get("core.fixarMensagensCanal", "Fixar mensagens no canal."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "attachFiles", label: NX.i18n.get("core.anexarArquivos", "Anexar arquivos"), desc: NX.i18n.get("core.enviarImagensVideosArquivos", "Enviar imagens, vídeos e arquivos."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useEmojis", label: NX.i18n.get("core.usarEmojis", "Usar emojis"), desc: NX.i18n.get("core.reagirUsarEmojisMensagens", "Reagir e usar emojis nas mensagens."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useCustomEmojis", label: NX.i18n.get("core.usarEmojisPersonalizados", "Usar emojis personalizados"), desc: NX.i18n.get("core.usarEmojisServidor", "Usar os emojis do servidor."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useGifs", label: NX.i18n.get("core.usarGifs", "Usar GIFs"), desc: NX.i18n.get("core.enviarGifsConversas", "Enviar GIFs nas conversas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "mentionEveryone", label: NX.i18n.get("core.mencionarMembros", "Mencionar membros"), desc: NX.i18n.get("core.usarEveryoneMencoesMassa", "Usar @everyone e menções em massa."), group: (NX.i18n.get("core.chat", "Chat")) },
 
     /* Moderação */
-    { key: "kickMembers", label: "Expulsar membros", desc: "Remover alguém do servidor (pode voltar).", group: "Moderação" },
-    { key: "banMembers", label: "Banir membros", desc: "Bloquear a entrada de alguém no servidor.", group: "Moderação" },
-    { key: "unbanMembers", label: "Desbanir membros", desc: "Remover alguém da lista de banidos.", group: "Moderação" },
-    { key: "timeoutMembers", label: "Silenciar membros", desc: "Impedir alguém de enviar mensagens.", group: "Moderação" },
+    { key: "kickMembers", label: NX.i18n.get("core.expulsarMembros", "Expulsar membros"), desc: NX.i18n.get("core.removerAlguemServidorPode", "Remover alguém do servidor (pode voltar)."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "banMembers", label: NX.i18n.get("core.banirMembros", "Banir membros"), desc: NX.i18n.get("core.bloquearEntradaAlguemServidor", "Bloquear a entrada de alguém no servidor."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "unbanMembers", label: NX.i18n.get("core.desbanirMembros", "Desbanir membros"), desc: NX.i18n.get("core.removerAlguemListaBanidos", "Remover alguém da lista de banidos."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "timeoutMembers", label: NX.i18n.get("core.silenciarMembros2", "Silenciar membros"), desc: NX.i18n.get("core.impedirAlguemEnviarMensagens", "Impedir alguém de enviar mensagens."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
 
     /* Voz */
-    { key: "joinVoice", label: "Conectar", desc: "Entrar em canais de voz.", group: "Voz" },
-    { key: "speak", label: "Falar", desc: "Falar nos canais de voz.", group: "Voz" },
-    { key: "muteMembers", label: "Silenciar membros", desc: "Silenciar alguém na voz.", group: "Voz" },
-    { key: "deafenMembers", label: "Ensurdecer membros", desc: "Ensurdecer alguém na voz.", group: "Voz" },
-    { key: "moveMembers", label: "Mover membros", desc: "Mover alguém entre canais de voz.", group: "Voz" },
+    { key: "joinVoice", label: (NX.i18n.get("core.conectar", "Conectar")), desc: NX.i18n.get("core.entrarCanaisVoz", "Entrar em canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "inviteToVoice", label: NX.i18n.get("core.convidarPessoasChamadas", "Convidar pessoas para chamadas"), desc: NX.i18n.get("core.enviarConvitesEntrarSala", "Enviar convites para entrar na sala de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "speak", label: (NX.i18n.get("core.falar", "Falar")), desc: NX.i18n.get("core.falarCanaisVoz", "Falar nos canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "muteMembers", label: NX.i18n.get("core.silenciarMembros2", "Silenciar membros"), desc: NX.i18n.get("core.silenciarAlguemVoz", "Silenciar alguém na voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "deafenMembers", label: NX.i18n.get("core.ensurdecerMembros", "Ensurdecer membros"), desc: NX.i18n.get("core.ensurdecerAlguemVoz", "Ensurdecer alguém na voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "moveMembers", label: NX.i18n.get("core.moverMembros", "Mover membros"), desc: NX.i18n.get("core.moverAlguemEntreCanais", "Mover alguém entre canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
   ];
 
   NX.PERM_KEYS = NX.PERMS.map((p) => p.key);
+
+  /* permissões LIGADAS por padrão: valem mesmo em cargos antigos que
+     foram criados antes da chave existir (o dono e quem tem admin
+     continuam podendo desligar na tela de cargos) */
+  NX.DEFAULT_ON_PERMS = ["inviteToVoice"];
 
   /* permissões concedidas ao cargo padrão de um servidor novo */
   NX.BASE_PERMS = [
@@ -655,12 +775,14 @@ window.NX = window.NX || {};
     "useCustomEmojis",
     "useGifs",
     "joinVoice",
+    "inviteToVoice",
     "speak",
   ];
 
   NX.defaultPerms = (preset) => {
     const out = {};
     NX.PERM_KEYS.forEach((k) => (out[k] = false));
+    NX.DEFAULT_ON_PERMS.forEach((k) => (out[k] = true));
     (preset || NX.BASE_PERMS).forEach((k) => {
       if (out[k] !== undefined) out[k] = true;
     });
@@ -669,89 +791,104 @@ window.NX = window.NX || {};
 
   /* rótulos amigáveis para ações de log */
   NX.LOG_ACTIONS = {
-    "member.join": "Membro entrou",
-    "member.leave": "Membro saiu",
-    "member.kick": "Membro foi expulso",
-    "member.ban": "Membro foi banido",
-    "member.unban": "Membro foi desbanido",
-    "member.role": "Cargo alterado",
-    "member.nick": "Apelido alterado",
-    "role.create": "Cargo criado",
-    "role.update": "Cargo alterado",
-    "role.delete": "Cargo excluído",
-    "channel.create": "Canal criado",
-    "channel.update": "Canal alterado",
-    "channel.delete": "Canal excluído",
-    "category.create": "Categoria criada",
-    "category.update": "Categoria alterada",
-    "category.delete": "Categoria excluída",
-    "message.delete": "Mensagem excluída",
-    "message.pin": "Mensagem fixada",
-    "server.update": "Configuração alterada",
-    "invite.create": "Convite criado",
-    "invite.revoke": "Convite revogado",
-    "emoji.create": "Emoji adicionado",
-    "emoji.delete": "Emoji removido",
-    "ownership.transfer": "Propriedade transferida",
+    "member.join": NX.i18n.get("core.membroEntrou", "Membro entrou"),
+    "member.leave": NX.i18n.get("core.membroSaiu", "Membro saiu"),
+    "member.kick": NX.i18n.get("core.membroFoiExpulso", "Membro foi expulso"),
+    "member.ban": NX.i18n.get("core.membroFoiBanido", "Membro foi banido"),
+    "member.unban": NX.i18n.get("core.membroFoiDesbanido", "Membro foi desbanido"),
+    "member.role": NX.i18n.get("core.cargoAlterado2", "Cargo alterado"),
+    "member.nick": NX.i18n.get("core.apelidoAlterado", "Apelido alterado"),
+    "role.create": NX.i18n.get("core.cargoCriado", "Cargo criado"),
+    "role.update": NX.i18n.get("core.cargoAlterado2", "Cargo alterado"),
+    "role.delete": NX.i18n.get("core.cargoExcluido", "Cargo excluído"),
+    "channel.create": NX.i18n.get("core.canalCriado", "Canal criado"),
+    "channel.update": NX.i18n.get("core.canalAlterado", "Canal alterado"),
+    "channel.delete": NX.i18n.get("core.canalExcluido", "Canal excluído"),
+    "category.create": NX.i18n.get("core.categoriaCriada", "Categoria criada"),
+    "category.update": NX.i18n.get("core.categoriaAlterada", "Categoria alterada"),
+    "category.delete": NX.i18n.get("core.categoriaExcluida", "Categoria excluída"),
+    "message.delete": NX.i18n.get("core.mensagemExcluida", "Mensagem excluída"),
+    "message.pin": NX.i18n.get("core.mensagemFixada", "Mensagem fixada"),
+    "server.update": NX.i18n.get("core.configuracaoAlterada", "Configuração alterada"),
+    "invite.create": NX.i18n.get("core.conviteCriado", "Convite criado"),
+    "invite.revoke": NX.i18n.get("core.conviteRevogado", "Convite revogado"),
+    "emoji.create": NX.i18n.get("core.emojiAdicionado", "Emoji adicionado"),
+    "emoji.delete": NX.i18n.get("core.emojiRemovido", "Emoji removido"),
+    "ownership.transfer": NX.i18n.get("core.propriedadeTransferida", "Propriedade transferida"),
   };
 
-  NX.STATUS_LABEL = {
-    online: "Online",
-    idle: "Ausente",
-    dnd: "Não perturbe",
-    offline: "Offline",
-  };
+  /* rótulos de status resolvidos A CADA leitura → trocam de idioma na hora */
+  NX.STATUS_LABEL = {};
+  (function () {
+    var defs = [
+      ["online", "core.statusOnline", "Online"],
+      ["idle", "core.ausente", "Ausente"],
+      ["dnd", "core.naoPerturbe", "Não perturbe"],
+      ["offline", "core.statusOffline", "Offline"],
+    ];
+    defs.forEach(function (d) {
+      Object.defineProperty(NX.STATUS_LABEL, d[0], {
+        enumerable: true,
+        configurable: true,
+        get: function () {
+          return NX.i18n.get(d[1], d[2]);
+        },
+      });
+    });
+  })();
 
   /* Estruturas iniciais oferecidas na criação de servidor */
+  /* name/desc/cats[].name são GETTERS: resolvidos a cada leitura,
+     então trocar o idioma atualiza o modal de criação na hora */
   NX.TEMPLATES = [
     {
       id: "comunidade",
-      name: "Comunidade",
-      emoji: "🌐",
-      desc: "Informações, conversa, suporte e voz.",
+      get name() { return NX.i18n.get("core.comunidade", "Comunidade"); },
+      icon: "compass",
+      get desc() { return NX.i18n.get("core.informacoesConversaSuporteVoz", "Informações, conversa, suporte e voz."); },
       cats: [
-        { name: "INFORMAÇÕES", channels: [["boas-vindas", "text"], ["regras", "text"]] },
-        { name: "COMUNIDADE", channels: [["geral", "text"], ["memes", "text"], ["novidades", "text"]] },
-        { name: "SUPORTE", channels: [["ajuda", "text"], ["chamados", "text"]] },
-        { name: "VOZ", channels: [["Sala Geral", "voice"], ["Jogatina", "voice"]] },
+        { get name() { return NX.i18n.get("core.informacoes", "INFORMAÇÕES"); }, channels: [["boas-vindas", "text"], ["regras", "text"]] },
+        { get name() { return NX.i18n.get("core.comunidade2", "COMUNIDADE"); }, channels: [["geral", "text"], ["memes", "text"], ["novidades", "text"]] },
+        { get name() { return NX.i18n.get("core.suporte", "SUPORTE"); }, channels: [["ajuda", "text"], ["chamados", "text"]] },
+        { get name() { return NX.i18n.get("core.voz", "VOZ"); }, channels: [[NX.i18n.get("core.salaGeral", "Sala Geral"), "voice"], [(NX.i18n.get("core.jogatina", "Jogatina")), "voice"]] },
       ],
     },
     {
       id: "estudo",
-      name: "Grupo de estudo",
-      emoji: "📚",
-      desc: "Material, dúvidas e sessões ao vivo.",
+      get name() { return NX.i18n.get("core.grupoEstudo", "Grupo de estudo"); },
+      icon: "book",
+      get desc() { return NX.i18n.get("core.materialDuvidasSessoesVivo", "Material, dúvidas e sessões ao vivo."); },
       cats: [
-        { name: "ESTUDO", channels: [["geral", "text"], ["materiais", "text"], ["dúvidas", "text"]] },
-        { name: "ENCONTROS", channels: [["Sala de Estudo", "voice"]] },
+        { get name() { return NX.i18n.get("core.estudo", "ESTUDO"); }, channels: [["geral", "text"], ["materiais", "text"], [(NX.i18n.get("core.duvidas", "dúvidas")), "text"]] },
+        { get name() { return NX.i18n.get("core.encontros", "ENCONTROS"); }, channels: [[NX.i18n.get("core.salaEstudo", "Sala de Estudo"), "voice"]] },
       ],
     },
     {
       id: "jogos",
-      name: "Squad de jogos",
-      emoji: "🎮",
-      desc: "Lobby, avisos e salas de voz.",
+      get name() { return NX.i18n.get("core.squadJogos", "Squad de jogos"); },
+      icon: "gamepad",
+      get desc() { return NX.i18n.get("core.lobbyAvisosSalasVoz", "Lobby, avisos e salas de voz."); },
       cats: [
-        { name: "LOBBY", channels: [["geral", "text"], ["combos", "text"]] },
-        { name: "PARTIDAS", channels: [["Sala 1", "voice"], ["Sala 2", "voice"]] },
+        { get name() { return NX.i18n.get("core.lobby", "LOBBY"); }, channels: [["geral", "text"], ["combos", "text"]] },
+        { get name() { return NX.i18n.get("core.partidas", "PARTIDAS"); }, channels: [[NX.i18n.get("core.sala1", "Sala 1"), "voice"], [NX.i18n.get("core.sala2", "Sala 2"), "voice"]] },
       ],
     },
     {
       id: "dev",
-      name: "Time de dev",
-      emoji: "🛠️",
-      desc: "Sprints, bugs e deploy.",
+      get name() { return NX.i18n.get("core.timeDev", "Time de dev"); },
+      icon: "tool",
+      get desc() { return NX.i18n.get("core.sprintsBugsDeploy", "Sprints, bugs e deploy."); },
       cats: [
-        { name: "PROJETO", channels: [["geral", "text"], ["bugs", "text"], ["releases", "text"]] },
-        { name: "REUNIÕES", channels: [["Call", "voice"]] },
+        { get name() { return NX.i18n.get("core.projeto", "PROJETO"); }, channels: [["geral", "text"], ["bugs", "text"], ["releases", "text"]] },
+        { get name() { return NX.i18n.get("core.reunioes", "REUNIÕES"); }, channels: [[(NX.i18n.get("core.call", "Call")), "voice"]] },
       ],
     },
     {
       id: "vazio",
-      name: "Começar do zero",
-      emoji: "✨",
-      desc: "Uma categoria, um canal. O resto é seu.",
-      cats: [{ name: "GERAL", channels: [["geral", "text"]] }],
+      get name() { return NX.i18n.get("core.comecarZero", "Começar do zero"); },
+      icon: "sparkles",
+      get desc() { return NX.i18n.get("core.categoriaCanalRestoSeu", "Uma categoria, um canal. O resto é seu."); },
+      cats: [{ get name() { return NX.i18n.get("core.geral2", "GERAL"); }, channels: [["geral", "text"]] }],
     },
   ];
 
@@ -761,8 +898,257 @@ window.NX = window.NX || {};
     const t = theme === "light" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", t);
     NX.storage.set(NX.THEME_KEY, t);
+    /* reaplica a cor de destaque: o --accent-soft e o --glow dependem
+       do tema resolvido */
+    NX.reapplyAccent && NX.reapplyAccent();
   };
   NX.currentTheme = () => NX.storage.get(NX.THEME_KEY, "dark");
+
+  /* ------------------------------------------------------------------
+     COR DE DESTAQUE + INTENSIDADE DO BRILHO
+     São variáveis CSS sobrepostas em <html>, recalculadas a partir de
+     UM hex. Nada aqui toca no banco: fica neste navegador
+     (`nexo.accent` / `nexo.glow`) — exatamente o que a tela de
+     Aparência informa antes de você salvar.
+     ------------------------------------------------------------------ */
+  NX.ACCENT_KEY = "nexo.accent";
+  NX.GLOW_KEY = "nexo.glow";
+  NX.GRAD_KEY = "nexo.grad";
+  NX.CUSTOM_KEY = "nexo.accentCustoms";
+  NX.GLOW_DEFAULT = 60;
+  NX.GRAD_DEFAULT = { on: true, angle: 135, intensity: 60 };
+
+  /* paleta fechada, escolhida para os dois temas do Nexo.
+     O seletor também aceita uma cor personalizada. */
+  NX.ACCENTS = [
+    { id: "menta", hex: "#35e0a8" },
+    { id: "turquesa", hex: "#20d3c2" },
+    { id: "ciano", hex: "#4cc9f0" },
+    { id: "violeta", hex: "#8f83ff" },
+    { id: "rosa", hex: "#ff7ab6" },
+    { id: "ambar", hex: "#ffc857" },
+  ];
+
+  function hexToRgb(hex) {
+    const h = String(hex || "").replace("#", "").trim();
+    const s = h.length === 3 ? h.replace(/./g, (c) => c + c) : h;
+    if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+    return {
+      r: parseInt(s.slice(0, 2), 16),
+      g: parseInt(s.slice(2, 4), 16),
+      b: parseInt(s.slice(4, 6), 16),
+    };
+  }
+  function rgbToHex(r, g, b) {
+    const c = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+    return "#" + c(r) + c(g) + c(b);
+  }
+  /* afasta a cor do preto (amt < 0) ou do branco (amt > 0) */
+  function shade(hex, amt) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    if (amt < 0) return rgbToHex(rgb.r * (1 + amt), rgb.g * (1 + amt), rgb.b * (1 + amt));
+    return rgbToHex(rgb.r + (255 - rgb.r) * amt, rgb.g + (255 - rgb.g) * amt, rgb.b + (255 - rgb.b) * amt);
+  }
+  function luminance(rgb) {
+    const f = (v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(rgb.r) + 0.7152 * f(rgb.g) + 0.0722 * f(rgb.b);
+  }
+  function rgba(hex, a) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return "transparent";
+    return "rgba(" + rgb.r + ", " + rgb.g + ", " + rgb.b + ", " + a + ")";
+  }
+  function mix(hex, other, t) {
+    const a = hexToRgb(hex);
+    const b = hexToRgb(other);
+    if (!a || !b) return hex;
+    return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+  }
+  NX.normalizeAccent = (hex) => (hexToRgb(hex) ? rgbToHex.apply(null, Object.values(hexToRgb(hex))) : null);
+
+  /* ---------------- conversões de cor (para o seletor) ----------------
+     HSV é o modelo que a área de saturação/brilho e a barra de matiz
+     usam por baixo; aqui fica a ida e a volta sem depender de
+     biblioteca nenhuma. */
+  NX.rgbToHsv = function (r, g, b) {
+    const rr = r / 255, gg = g / 255, bb = b / 255;
+    const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb);
+    const d = max - min;
+    let h = 0;
+    if (d !== 0) {
+      if (max === rr) h = ((gg - bb) / d) % 6;
+      else if (max === gg) h = (bb - rr) / d + 2;
+      else h = (rr - gg) / d + 4;
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    return { h: h, s: max === 0 ? 0 : d / max, v: max };
+  };
+  NX.hsvToRgb = function (h, s, v) {
+    const c = v * s;
+    const hp = (((h % 360) + 360) % 360) / 60;
+    const x = c * (1 - Math.abs((hp % 2) - 1));
+    let r = 0, g = 0, b = 0;
+    if (hp < 1) { r = c; g = x; }
+    else if (hp < 2) { r = x; g = c; }
+    else if (hp < 3) { g = c; b = x; }
+    else if (hp < 4) { g = x; b = c; }
+    else if (hp < 5) { r = x; b = c; }
+    else { r = c; b = x; }
+    const m = v - c;
+    return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
+  };
+  /* hex -> hsv direto, o que o editor precisa ao abrir com a cor atual */
+  NX.hexToHsv = function (hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return { h: 160, s: 0.75, v: 0.88 };
+    return NX.rgbToHsv(rgb.r, rgb.g, rgb.b);
+  };
+  NX.hsvToHex = function (h, s, v) {
+    const c = NX.hsvToRgb(h, s, v);
+    return rgbToHex(c.r, c.g, c.b);
+  };
+  /* contraste legível: escolhe entre a tinta escura e o branco a opção
+     com MAIOR razão de contraste (WCAG) sobre a cor escolhida. Assim
+     texto, ícone, checkbox e switch continuam legíveis em qualquer matiz —
+     inclusive nos cantos médios (verdes/âmbar), onde o branco costuma
+     perder e a tinta escura ganha. */
+  let inkLum = null;
+  NX.readableOn = function (hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return "#ffffff";
+    const L = luminance(rgb);
+    if (inkLum === null) {
+      const ink = hexToRgb("#06231a");
+      inkLum = ink ? luminance(ink) : 0.01316;
+    }
+    const onWhite = 1.05 / (L + 0.05);
+    const onInk = (L + 0.05) / (inkLum + 0.05);
+    return onInk > onWhite ? "#06231a" : "#ffffff";
+  };
+
+  let accentMemory = null;
+
+  /* gradientes guardados: {on, angle, intensity} */
+  function readGrad() {
+    const g = NX.storage.get(NX.GRAD_KEY, null);
+    if (!g || typeof g !== "object") return { on: true, angle: NX.GRAD_DEFAULT.angle, intensity: NX.GRAD_DEFAULT.intensity };
+    return {
+      on: g.on !== false,
+      angle: Math.max(0, Math.min(360, Number(g.angle) || NX.GRAD_DEFAULT.angle)),
+      intensity: Math.max(0, Math.min(100, Number(g.intensity) || NX.GRAD_DEFAULT.intensity)),
+    };
+  }
+  NX.currentGradient = readGrad;
+
+  /* cores personalizadas guardadas pelo usuário (lista de hex) */
+  NX.customAccents = function () {
+    const raw = NX.storage.get(NX.CUSTOM_KEY, null);
+    if (!Array.isArray(raw)) return [];
+    return raw.map((x) => NX.normalizeAccent(x)).filter(Boolean).slice(0, 12);
+  };
+  NX.saveCustomAccents = function (list) {
+    const clean = (Array.isArray(list) ? list : [])
+      .map((x) => NX.normalizeAccent(x))
+      .filter(Boolean)
+      .slice(0, 12);
+    if (clean.length) NX.storage.set(NX.CUSTOM_KEY, clean);
+    else NX.storage.remove(NX.CUSTOM_KEY);
+    return clean;
+  };
+
+  /* aplica a cor sobre as variáveis do tema atual */
+  function paintAccent(hex, glowPct, grad) {
+    const root = document.documentElement;
+    const rgb = hexToRgb(hex);
+    if (!rgb) return;
+    const light = root.getAttribute("data-theme") === "light";
+    const softA = light ? 0.12 : 0.14;
+    const k = Math.max(0, Math.min(100, Number(glowPct))) / NX.GLOW_DEFAULT;
+    const contrast = NX.readableOn(hex);
+    const g = grad || readGrad();
+    const inten = Math.max(0, Math.min(100, Number(g.intensity))) / 100;
+
+    root.style.setProperty("--accent", hex);
+    root.style.setProperty("--accent-strong", shade(hex, light ? -0.18 : -0.12));
+    root.style.setProperty("--accent-soft", rgba(hex, softA));
+    root.style.setProperty("--accent-contrast", contrast);
+    root.style.setProperty("--bg-active", rgba(hex, light ? 0.12 : 0.13));
+    root.style.setProperty("--glow",
+      "0 0 0 1px " + rgba(hex, Math.min(0.5, 0.25 * k)) +
+      ", 0 8px 30px " + rgba(hex, Math.min(0.4, 0.12 * k)));
+    root.style.setProperty("--gradient-brand", buildGradient(hex, g, inten));
+  }
+
+  /* gradiente coerente com a cor escolhida:
+     · desligado  → cor chapada (sem passagem de tons)
+     · ligado     → a cor inicial, um misto no meio e uma segunda
+                    cor no fim; a intensidade decide o quanto os
+                    extremos se afastam da cor principal */
+  function buildGradient(hex, g, inten) {
+    const angle = Math.max(0, Math.min(360, Number(g.angle) || 135));
+    if (!g.on) return "linear-gradient(" + angle + "deg, " + hex + " 0%, " + hex + " 100%)";
+    const second = mix(hex, "#4cc9f0", 0.55 * inten);
+    const third = mix(hex, "#8f83ff", inten);
+    return (
+      "linear-gradient(" + angle + "deg, " + hex + " 0%, " + second + " 55%, " + third + " 100%)"
+    );
+  }
+  NX.buildGradient = buildGradient;
+
+  function clearAccent() {
+    const root = document.documentElement;
+    ["--accent", "--accent-strong", "--accent-soft", "--accent-contrast",
+      "--bg-active", "--glow", "--gradient-brand"].forEach((v) => root.style.removeProperty(v));
+  }
+
+  /* grava (ou limpa, quando voltou ao padrão) e mantém a memória viva */
+  NX.setAccent = function (hex, glowPct, grad) {
+    const norm = NX.normalizeAccent(hex);
+    const g = Math.max(0, Math.min(100, Number(glowPct)));
+    const gr = grad
+      ? {
+          on: grad.on !== false,
+          angle: Math.max(0, Math.min(360, Number(grad.angle) || NX.GRAD_DEFAULT.angle)),
+          intensity: Math.max(0, Math.min(100, Number(grad.intensity) || NX.GRAD_DEFAULT.intensity)),
+        }
+      : readGrad();
+    accentMemory = { hex: norm, glow: isNaN(g) ? NX.GLOW_DEFAULT : g, grad: gr };
+    if (norm) NX.storage.set(NX.ACCENT_KEY, norm);
+    else NX.storage.remove(NX.ACCENT_KEY);
+    if (accentMemory.glow === NX.GLOW_DEFAULT) NX.storage.remove(NX.GLOW_KEY);
+    else NX.storage.set(NX.GLOW_KEY, String(accentMemory.glow));
+    const d = NX.GRAD_DEFAULT;
+    if (gr.on === d.on && gr.angle === d.angle && gr.intensity === d.intensity)
+      NX.storage.remove(NX.GRAD_KEY);
+    else NX.storage.set(NX.GRAD_KEY, gr);
+    NX.reapplyAccent();
+    return accentMemory;
+  };
+  NX.currentAccent = function () {
+    if (accentMemory) return accentMemory;
+    const hex = NX.normalizeAccent(NX.storage.get(NX.ACCENT_KEY, ""));
+    const glow = Number(NX.storage.get(NX.GLOW_KEY, NX.GLOW_DEFAULT));
+    accentMemory = { hex: hex, glow: isNaN(glow) ? NX.GLOW_DEFAULT : glow, grad: readGrad() };
+    return accentMemory;
+  };
+  /* aplica o que está salvo sem gravar de novo (usado na largada e ao
+     trocar de tema) */
+  NX.reapplyAccent = function () {
+    const a = NX.currentAccent();
+    if (a.hex) paintAccent(a.hex, a.glow, a.grad);
+    else clearAccent();
+  };
+  /* preview em tempo real: só pinta, sem tocar no armazenamento */
+  NX.previewAccent = function (hex, glowPct, grad) {
+    const norm = NX.normalizeAccent(hex);
+    if (norm) paintAccent(norm, glowPct, grad);
+    else clearAccent();
+  };
 
   /* ---------------- modo de demonstração (DEMO_MODE) ----------------
      DEMO_MODE = false (PADRÃO / PRODUÇÃO):
@@ -807,4 +1193,36 @@ window.NX = window.NX || {};
   };
 
   NX.util = util;
+
+  /* API pública de tempo — a ÚNICA porta de formatação de horário.
+      O formato é fixo: DD/MM/AAAA + HH:mm (24h). */
+  NX.time = {
+    get: function () {
+      return util.timeFormat();
+    },
+    is12h: function () {
+      return util.is12h();
+    },
+    format: function (value, opts) {
+      return util.formatTime(value, opts);
+    },
+    date: function (value, opts) {
+      return util.formatDate(value, opts);
+    },
+    dateTime: function (value, dateOpts, timeOpts) {
+      return util.formatDateTime(value, dateOpts, timeOpts);
+    },
+    hourOpts: function () {
+      return util.hourOpts();
+    },
+  };
+
+  if (NX.i18n) {
+    NX.i18n.formatTime = function (value, opts) {
+      return util.formatTime(value, opts);
+    };
+    NX.i18n.formatDate = function (value, opts) {
+      return util.formatDate(value, opts);
+    };
+  }
 })(window.NX);

@@ -55,25 +55,80 @@ window.NX = window.NX || {};
 
   const ui = {};
 
-  /* ---------------- toast ---------------- */
+  /* ---------------- toast ----------------
+     Regras do aviso:
+     - a mesma mensagem não empilha (a repetição reativa a existente);
+     - nunca mais de MAX toasts na tela (o mais velho sai);
+     - todo toast sai sozinho no tempo previsto, em qualquer rota. */
+  const MAX_TOASTS = 4;
   ui.toast = function (message, type, ms) {
     const root = document.getElementById("toast-root");
     if (!root) return;
     const kind = type || "info";
+    const text = String(message == null ? "" : message);
+
+    /* repetição da mesma falha → reutiliza o aviso já na tela */
+    const live = root.querySelectorAll(".toast");
+    for (let i = 0; i < live.length; i++) {
+      const node = live[i];
+      if (
+        node.getAttribute("data-msg") === text &&
+        node.getAttribute("data-kind") === kind
+      ) {
+        if (node._timer) clearTimeout(node._timer);
+        if (node._out) clearTimeout(node._out);
+        node.classList.remove("is-out");
+        node.classList.add("is-in");
+        ui._armToast(node, ms || 3400);
+        return;
+      }
+    }
+
+    /* só o limite de avisos na tela */
+    while (root.children.length >= MAX_TOASTS) {
+      const old = root.firstElementChild;
+      if (old && old._timer) clearTimeout(old._timer);
+      if (old && old._out) clearTimeout(old._out);
+      old.remove();
+    }
+
+    /* som do sistema: sucesso e erro avisam sem depender de foco */
+    try {
+      if ((kind === "success" || kind === "error") && NX.sfx && NX.sfx.play)
+        NX.sfx.play(kind);
+    } catch (e) {}
     const icons = { info: "info", success: "check", error: "alert", warn: "alert" };
     const el = u().el(
-      '<div class="toast toast--' + kind + '" role="alert">' +
+      '<div class="toast toast--' + kind + '" role="alert"' +
+        ' data-msg="' + u().h(text) + '" data-kind="' + u().h(kind) + '">' +
         NX.icon(icons[kind] || "info", "toast__ico", 18) +
-        '<span class="toast__msg">' + u().h(message) + "</span>" +
+        '<span class="toast__msg">' + u().h(text) + "</span>" +
         "</div>"
     );
     root.appendChild(el);
-    requestAnimationFrame(() => el.classList.add("is-in"));
-    setTimeout(() => {
+    /* dispensar: clicar/tocar no aviso já o remove */
+    el.addEventListener("click", () => {
+      if (el._timer) clearTimeout(el._timer);
+      if (el._out) clearTimeout(el._out);
       el.classList.remove("is-in");
       el.classList.add("is-out");
-      setTimeout(() => el.remove(), 260);
-    }, ms || 3400);
+      el._out = setTimeout(() => el.remove(), 200);
+    });
+    requestAnimationFrame(() => el.classList.add("is-in"));
+    ui._armToast(el, ms || 3400);
+  };
+
+  /* dispara a saída do toast e o remove de verdade */
+  ui._armToast = function (el, ms) {
+    el._timer = setTimeout(() => {
+      el.classList.remove("is-in");
+      el.classList.add("is-out");
+      el._out = setTimeout(() => {
+        if (el._timer) clearTimeout(el._timer);
+        if (el._out) clearTimeout(el._out);
+        el.remove();
+      }, 260);
+    }, ms);
   };
 
   ui.error = (msg) => ui.toast(msg, "error", 4200);
@@ -103,13 +158,13 @@ window.NX = window.NX || {};
     const backdrop = u().el(
       '<div class="modal-backdrop" data-modal>' +
         '<div class="modal modal--' + size + '" role="dialog" aria-modal="true" aria-label="' +
-        u().h(opts.title || "Diálogo") + '">' +
+        u().h(opts.title || (NX.i18n.get("ui.dialogo", "Diálogo"))) + '">' +
         '<header class="modal__head">' +
         '<div class="modal__title-wrap">' +
         (opts.eyebrow ? '<span class="modal__eyebrow">' + u().h(opts.eyebrow) + "</span>" : "") +
         '<h2 class="modal__title">' + u().h(opts.title || "") + "</h2>" +
         "</div>" +
-        '<button class="icon-btn" data-modal-close aria-label="Fechar">' + NX.icon("x", "", 18) + "</button>" +
+        '<button class="icon-btn" data-modal-close aria-label="' + NX.i18n.get("common.close", "Fechar") + '">' + NX.icon("x", "", 18) + "</button>" +
         "</header>" +
         "</div>" +
         "</div>"
@@ -138,7 +193,7 @@ window.NX = window.NX || {};
 
     function onKey(e) {
       if (modalStack[modalStack.length - 1] !== api) return;
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         e.stopPropagation();
         close();
       }
@@ -176,18 +231,18 @@ window.NX = window.NX || {};
       let done = false;
       const footer = u().el('<div class="modal__actions"></div>');
       const cancelBtn = u().el(
-        '<button class="btn btn--ghost" type="button">' + u().h(opts.cancelLabel || "Cancelar") + "</button>"
+        '<button class="btn btn--ghost" type="button">' + u().h(opts.cancelLabel || (NX.i18n.get("common.cancel", "Cancelar"))) + "</button>"
       );
       const okBtn = u().el(
         '<button class="btn ' + (opts.danger ? "btn--danger" : "btn--primary") + '" type="button">' +
-          u().h(opts.confirmLabel || "Confirmar") +
+          u().h(opts.confirmLabel || (NX.i18n.get("common.confirm", "Confirmar"))) +
           "</button>"
       );
       footer.appendChild(cancelBtn);
       footer.appendChild(okBtn);
 
       const m = ui.modal({
-        title: opts.title || "Tem certeza?",
+        title: opts.title || NX.i18n.get("people.temCerteza", "Tem certeza?"),
         size: "sm",
         footer: footer,
         onClose: () => {
@@ -238,11 +293,13 @@ window.NX = window.NX || {};
             const cls = ["menu__item"];
             if (it.danger) cls.push("is-danger");
             if (it.disabled) cls.push("is-disabled");
+            if (it.cls) cls.push(it.cls);
             return (
               '<button type="button" class="' + cls.join(" ") + '" role="menuitem"' +
               (it.disabled ? " disabled" : "") +
               ">" +
-              (it.icon ? NX.icon(it.icon, "menu__ico", 17) : '<span class="menu__ico"></span>') +
+              (it.iconHTML ||
+                (it.icon ? NX.icon(it.icon, "menu__ico", 17) : '<span class="menu__ico"></span>')) +
               '<span class="menu__label">' + u().h(it.label) + "</span>" +
               (it.check ? '<span class="menu__check">' + NX.icon("check", "", 15) + "</span>" : "") +
               (it.hint ? '<span class="menu__hint">' + u().h(it.hint) + "</span>" : "") +
@@ -269,7 +326,7 @@ window.NX = window.NX || {};
 
     const off = onOutside({ target: list }, () => ui.closeMenu());
     const onKey = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         ui.closeMenu();
         document.removeEventListener("keydown", onKey, true);
       }
@@ -299,7 +356,7 @@ window.NX = window.NX || {};
     requestAnimationFrame(() => el.classList.add("is-in"));
     onOutside({ target: el }, () => ui.closePopout());
     const onKey = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         ui.closePopout();
         document.removeEventListener("keydown", onKey, true);
       }
@@ -309,9 +366,14 @@ window.NX = window.NX || {};
   };
 
   ui.isOpen = () => modalStack.length > 0 || !!menuEl || !!popoutEl;
+  ui.closeModals = function () {
+    /* fecha de cima para baixo para não corromper a pilha */
+    while (modalStack.length) modalStack[modalStack.length - 1].close();
+  };
   ui.closeEverything = function () {
     ui.closeMenu();
     ui.closePopout();
+    ui.closeModals();
   };
 
   NX.ui = ui;

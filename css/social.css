@@ -847,7 +847,7 @@
   padding-right: 2px;
 }
 
-/* ---------------- lista de curtidas (❤️ do perfil) ---------------- */
+/* ---------------- lista de curtidas recebidas no perfil ---------------- */
 .sx-likes {
   display: flex;
   flex-direction: column;

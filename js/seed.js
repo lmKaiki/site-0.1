@@ -111,7 +111,7 @@ window.NX = window.NX || {};
         id: id,
         name: o.name,
         description: o.description || "",
-        icon: { emoji: o.emoji || NX.util.emojiFor(o.name), color: o.color || NX.util.colorFor(id), image: null },
+        icon: { emoji: o.emoji || null, color: o.color || NX.util.colorFor(id), image: null },
         banner: o.banner || null,
         appearance: {
           primary: o.color || "#35e0a8",
@@ -215,29 +215,29 @@ window.NX = window.NX || {};
     });
 
     const s1Default = makeRole(s1, {
-      name: "Membro", isDefault: true, position: 0, color: "#93a8a4", icon: "👤",
+      name: "Membro", isDefault: true, position: 0, color: "#93a8a4", icon: "user",
       description: "Cargo padrão de todo mundo que entra.",
       perms: ["viewChannels", "sendMessages", "createInvite", "joinVoice"],
     });
     const s1Vip = makeRole(s1, {
-      name: "VIP", position: 1, color: "#ff7ab6", icon: "⭐",
+      name: "VIP", position: 1, color: "#ff7ab6", icon: "star",
       description: "Apoiadores e colaboradores.",
       perms: ["viewChannels", "sendMessages", "createInvite", "attachFiles", "useGifs", "joinVoice", "speak"],
     });
     const s1Team = makeRole(s1, {
-      name: "Equipe", position: 2, color: "#ffc857", icon: "🛠️",
+      name: "Equipe", position: 2, color: "#ffc857", icon: "tool",
       description: "Quem cuida do dia a dia do estúdio.",
       perms: ["viewChannels", "sendMessages", "createInvite", "joinVoice", "manageChannels", "pinMessages", "deleteMessages"],
     });
     const s1Mod = makeRole(s1, {
-      name: "Moderador", position: 3, color: "#8f83ff", icon: "🔨",
+      name: "Moderador", position: 3, color: "#8f83ff", icon: "hammer",
       description: "Mantém a conversa saudável.",
       perms: ["viewChannels", "sendMessages", "createInvite", "joinVoice", "manageChannels",
         "manageMembers", "kickMembers", "banMembers", "unbanMembers", "timeoutMembers",
         "deleteMessages", "pinMessages", "editMessages", "viewLogs"],
     });
     const s1Admin = makeRole(s1, {
-      name: "Admin", position: 4, color: "#35e0a8", icon: "🛡️",
+      name: "Admin", position: 4, color: "#35e0a8", icon: "shield",
       description: "Administra o servidor com o dono.",
       perms: ["administrator"],
     });
@@ -325,12 +325,12 @@ window.NX = window.NX || {};
       createdAt: now - 6 * DAY,
     });
     const s2Default = makeRole(s2, {
-      name: "Jogador", isDefault: true, position: 0, color: "#93a8a4", icon: "🎲",
+      name: "Jogador", isDefault: true, position: 0, color: "#93a8a4", icon: "gamepad",
       description: "Quem rola os dados.",
       perms: ["viewChannels", "sendMessages", "createInvite", "joinVoice"],
     });
     const s2Mestre = makeRole(s2, {
-      name: "Mestre", position: 1, color: "#8f83ff", icon: "🧙",
+      name: "Mestre", position: 1, color: "#8f83ff", icon: "book",
       description: "Conduz a campanha.",
       perms: ["viewChannels", "sendMessages", "createInvite", "joinVoice", "manageChannels",
         "deleteMessages", "pinMessages", "manageMembers", "viewLogs"],

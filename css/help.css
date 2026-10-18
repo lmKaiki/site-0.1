@@ -1,0 +1,797 @@
+/* ============================================================
+   NEXO · páginas de ajuda
+   Estilos para #/ajuda, #/suporte, #/termos e #/privacidade —
+   renderizadas em #screen-invite, com a identidade do Nexo.
+   ============================================================ */
+
+/* ---------------- casca da página ---------------- */
+.help {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(900px 460px at 12% -8%, rgba(53, 224, 168, 0.12), transparent 62%),
+    radial-gradient(760px 420px at 96% 4%, rgba(143, 131, 255, 0.1), transparent 60%),
+    var(--bg-body);
+}
+
+/* ---------------- barra superior ---------------- */
+.help__bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--bg-rail) 86%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+.help__bar-inner {
+  width: min(100% - 36px, 1080px);
+  margin-inline: auto;
+  min-height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-block: 10px;
+}
+
+.help__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+
+.help__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.help__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.help__navlink {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.help__navlink:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.help__navlink.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.help__home {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.help__home:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------------- conteúdo ---------------- */
+.help__main {
+  flex: 1 1 auto;
+  outline: none;
+}
+
+.help__wrap {
+  width: min(100% - 36px, 900px);
+  margin-inline: auto;
+  padding-block: clamp(30px, 5vw, 56px) clamp(56px, 8vw, 96px);
+}
+
+.help__head {
+  margin-bottom: 22px;
+}
+
+.help__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.help__head h1 {
+  margin: 14px 0 0;
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text-strong);
+}
+
+.help__lead {
+  margin: 0 0 26px;
+  max-width: 68ch;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.help__h2 {
+  margin: 40px 0 16px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.help__h2:first-child {
+  margin-top: 0;
+}
+
+.help__updated {
+  margin: 30px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.help__list {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* ---------------- busca ---------------- */
+.help__searchbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.help__searchbox:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.help__searchbox > svg {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+}
+
+.help__searchbox input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 13px 0;
+  background: none;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+}
+.help__searchbox input::placeholder {
+  color: var(--text-dim);
+}
+.help__searchbox input::-webkit-search-cancel-button {
+  filter: grayscale(1) opacity(0.6);
+}
+
+.help__searchcount {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.help__empty {
+  margin: 16px 0 0;
+  padding: 18px 20px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: 14.5px;
+  color: var(--text-muted);
+}
+
+/* ---------------- grade de temas ---------------- */
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.help-topic {
+  padding: 22px 22px 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  transition: border-color var(--med) var(--ease), transform var(--med) var(--ease);
+}
+.help-topic:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+.help-topic[hidden] {
+  display: none;
+}
+
+.help-topic__ico {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.help-topic h3 {
+  margin: 0 0 10px;
+  font-size: 16.5px;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
+}
+
+.help-topic p {
+  margin: 0 0 10px;
+  font-size: 14.5px;
+  line-height: 1.68;
+  color: var(--text-muted);
+}
+.help-topic p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------------- FAQ ---------------- */
+.help-faqs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-faq {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.help-faq[hidden] {
+  display: none;
+}
+.help-faq[open] {
+  border-color: var(--border-strong);
+}
+
+.help-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 18px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  transition: color var(--fast) var(--ease);
+}
+.help-faq summary::-webkit-details-marker {
+  display: none;
+}
+.help-faq summary:hover {
+  color: var(--accent);
+}
+.help-faq summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.help-faq__chev {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  transition: transform var(--med) var(--ease);
+}
+.help-faq[open] .help-faq__chev {
+  transform: rotate(180deg);
+}
+
+.help-faq p {
+  margin: 0;
+  padding: 0 18px 17px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+/* ---------------- documentos (termos/privacidade) ---------------- */
+.help-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.help-doc {
+  padding: 22px 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.help-doc h2 {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 11px;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
+}
+
+.help-doc__n {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding-inline: 8px;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.help-doc__ico {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.help-doc p {
+  margin: 0;
+  font-size: 14.8px;
+  line-height: 1.72;
+  color: var(--text-muted);
+}
+
+/* ---------------- avisos ---------------- */
+.help__note {
+  display: flex;
+  gap: 13px;
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+}
+.help__note > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.help__note strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14.5px;
+  color: var(--text-strong);
+}
+.help__note p {
+  margin: 0;
+  font-size: 14.2px;
+  line-height: 1.66;
+  color: var(--text-muted);
+}
+
+.help__note--warn {
+  border-left-color: var(--amber);
+}
+.help__note--warn > svg {
+  color: var(--amber);
+}
+
+/* ---------------- formulário de suporte ---------------- */
+.help-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.help-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.help-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.help-form__field > span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.help-form input,
+.help-form select,
+.help-form textarea {
+  width: 100%;
+  padding: 11px 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--text);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.help-form textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+.help-form select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+.help-form input:focus,
+.help-form select:focus,
+.help-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.help-form input[aria-invalid="true"],
+.help-form select[aria-invalid="true"],
+.help-form textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.help-form input[aria-invalid="true"]:focus,
+.help-form select[aria-invalid="true"]:focus,
+.help-form textarea[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.help-form__err {
+  font-size: 12.8px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--danger);
+}
+.help-form__err[hidden] {
+  display: none;
+}
+
+.help-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* prévia honesta: a solicitação NÃO foi enviada */
+.help-form__result[hidden] {
+  display: none;
+}
+
+.help-form__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+}
+.help-form__preview > strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.8px;
+  color: var(--amber);
+}
+.help-form__preview > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.help-form__preview dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+.help-form__preview dt {
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.help-form__preview dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.help-form__preview pre {
+  margin: 0;
+  padding: 13px 15px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 12.8px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.help-form__preview-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+/* envio aceito pelo servidor: protocolo devolvido, não promessa */
+.help-form__done {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+}
+.help-form__done > strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.8px;
+  color: var(--accent);
+}
+.help-form__done > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.help-form__done dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+.help-form__done dt {
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.help-form__done dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.help-form__done code {
+  padding: 2px 7px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: 12.6px;
+  color: var(--text);
+}
+
+/* ---------------- meus chamados ---------------- */
+.help__tickets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.help__ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px 17px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.help__ticket-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.help__ticket-head > strong {
+  font-size: 14.6px;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.help__ticket-state {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: 12.2px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.help__ticket-state.is-closed,
+.help__ticket-state.is-solved {
+  background: var(--bg-input);
+  color: var(--text-dim);
+}
+.help__ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.8px;
+  color: var(--text-muted);
+}
+.help__tickets[hidden],
+.help__ticket[hidden] {
+  display: none;
+}
+
+/* ---------------- chamada para ação ---------------- */
+.help__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 36px;
+  padding: 24px 26px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.help__cta h2 {
+  margin: 0 0 5px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.help__cta p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--text-muted);
+}
+.help__cta .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+
+/* ---------------- foco visível (teclado) ---------------- */
+.help a:focus-visible,
+.help button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* ---------------- responsivo ---------------- */
+@media (max-width: 860px) {
+  .help__home span {
+    display: none;
+  }
+  .help__home {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 760px) {
+  .help-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .help-form__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .help__bar-inner {
+    width: min(100% - 24px, 1080px);
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-block: 9px;
+  }
+  .help__nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    padding-bottom: 2px;
+  }
+  .help__home {
+    margin-left: auto;
+  }
+  .help__wrap {
+    width: min(100% - 24px, 900px);
+  }
+  .help-doc,
+  .help-topic,
+  .help-form,
+  .help__cta {
+    padding: 18px;
+  }
+  .help__cta .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ---------------- movimento reduzido ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  .help-topic,
+  .help__navlink,
+  .help__home,
+  .help-faq__chev,
+  .help-form input,
+  .help-form select,
+  .help-form textarea {
+    transition: none;
+  }
+  .help-topic:hover {
+    transform: none;
+  }
+}
