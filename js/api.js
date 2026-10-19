@@ -21,6 +21,8 @@ window.NX = window.NX || {};
   };
 
   const api = {};
+  /* Alfabeto dos códigos de convite: dado TÉCNICO, nunca traduzir —
+     se uma versão trocar as letras, os convites deixam de bater. */
   const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
   const delay = () => Promise.resolve();
@@ -68,7 +70,7 @@ window.NX = window.NX || {};
 
   function displayNameOf(userId) {
     const usr = S().user(userId);
-    return usr ? usr.displayName : "alguém";
+    return usr ? usr.displayName : (NX.i18n.get("api.alguem", "alguém"));
   }
 
   function newInviteCode() {
@@ -84,21 +86,21 @@ window.NX = window.NX || {};
 
   function requireServer(serverId) {
     const server = S().server(serverId);
-    if (!server) fail("Este servidor não existe mais ou foi excluído.");
+    if (!server) fail(NX.i18n.get("adm.esteServidorNaoExiste", "Este servidor não existe mais ou foi excluído."));
     return server;
   }
 
   function requireMember(serverId) {
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     const m = S().membership(serverId, me.id);
-    if (!m) fail("Você não faz parte deste servidor.");
+    if (!m) fail(NX.i18n.get("adm.voceNaoFazParte", "Você não faz parte deste servidor."));
     return { me: me, membership: m };
   }
 
   function requirePerm(serverId, perm, message) {
     const { me } = requireMember(serverId);
-    if (!S().can(serverId, me.id, perm)) fail(message || "Você não tem permissão para isso.");
+    if (!S().can(serverId, me.id, perm)) fail(message || NX.i18n.get("api.voceNaoTemPermissao", "Você não tem permissão para isso."));
     return me;
   }
 
@@ -148,7 +150,7 @@ window.NX = window.NX || {};
     rec.window = windowMs;
     if (rec.until && rec.until > Date.now()) {
       const secs = Math.ceil((rec.until - Date.now()) / 1000);
-      fail("Muitas tentativas. Aguarde " + waitLabel(secs) + " para tentar de novo.");
+      fail((NX.i18n.get("api.muitastentativasaguarde", "Muitas tentativas. Aguarde") + " ") + waitLabel(secs) + (" " + NX.i18n.get("api.paratentardenovo", "para tentar de novo.")));
     }
   }
 
@@ -191,8 +193,8 @@ window.NX = window.NX || {};
     if (NX.store.persist()) return true;
     if (typeof rollback === "function") rollback();
     fail(
-      "Não foi possível salvar seus dados neste navegador (armazenamento bloqueado ou sem espaço). " +
-        "Libere o armazenamento do site e tente novamente."
+      (NX.i18n.get("api.naofoipossivelsalvarseusdados", "Não foi possível salvar seus dados neste navegador (armazenamento bloqueado ou sem espaço).") + " ") +
+        NX.i18n.get("api.libereArmazenamentoSiteTente", "Libere o armazenamento do site e tente novamente.")
     );
     return false;
   }
@@ -219,6 +221,9 @@ window.NX = window.NX || {};
   function makeUser(o) {
     const id = u().uid("u");
     const salt = u().makeSalt();
+    const detected = (NX.region && NX.region.detect)
+      ? NX.region.detect()
+      : { timezone: (NX.i18n.get("api.americasaopaulo", "America/Sao_Paulo")), language: "pt-BR" };
     return {
       id: id,
       username: o.username,
@@ -240,6 +245,15 @@ window.NX = window.NX || {};
       statusText: "",
       blocks: [],
       createdAt: Date.now(),
+      /* região: só o que o navegador informa, nunca IP/GPS */
+      region: {
+        countryCode: "",
+        countryName: "",
+        countryFlag: "",
+        timezone: detected.timezone,
+        language: "pt-BR",
+        showCountry: true,
+      },
     };
   }
 
@@ -252,12 +266,12 @@ window.NX = window.NX || {};
     const username = u().normalizeUsername(data.username);
     const policy = u().passwordPolicy(data.password);
 
-    if (!username) fail("Digite um nome de usuário.");
+    if (!username) fail(NX.i18n.get("api.digiteNomeUsuario2", "Digite um nome de usuário."));
     if (!u().usernameOk(username))
-      fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e sublinhado), sem espaços.");
-    if (!data.password) fail("Digite uma senha.");
+      fail((NX.i18n.get("api.nomedeusuarioprecisade3", "Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e sublinhado), sem espaços.")));
+    if (!data.password) fail(NX.i18n.get("api.digiteSenha", "Digite uma senha."));
     if (!policy.ok) fail(policy.message);
-    if (String(data.password) !== String(data.confirm)) fail("As senhas não conferem.");
+    if (String(data.password) !== String(data.confirm)) fail(NX.i18n.get("api.senhasNaoConferem2", "As senhas não conferem."));
 
     const key = username;
     assertNotBlocked("signup", key, 5, LOGIN_FAIL_WINDOW);
@@ -268,7 +282,7 @@ window.NX = window.NX || {};
     );
     if (dupeName) {
       countFail("signup", key, 5, LOGIN_FAIL_WINDOW);
-      fail("Esse nome de usuário já está em uso. Tente outro.");
+      fail(NX.i18n.get("api.esseNomeUsuarioJa", "Esse nome de usuário já está em uso. Tente outro."));
     }
 
     const user = makeUser({
@@ -289,14 +303,22 @@ window.NX = window.NX || {};
     });
 
     clearFails("signup", key);
-    notify(user.id, "system", "Bem-vindo à Nexo!");
+    notify(user.id, "system", NX.i18n.get("api.bemVindoNexo", "Bem-vindo à Nexo!"));
 
     /* acesso automático: nenhuma etapa de e-mail/código */
     user.status = "online";
     NX.session.set(user.id, true);
+    try {
+      if (NX.i18n) {
+        NX.i18n.reset();
+        NX.i18n.apply();
+      }
+    } catch (e) {
+      /* sem i18n: segue no padrão */
+    }
     NX.store.commit(["session", "servers", "profile", "presence"]);
 
-    return { user: user, message: "Sua conta foi criada com sucesso." };
+    return { user: user, message: NX.i18n.get("api.suaContaFoiCriada", "Sua conta foi criada com sucesso.") };
   };
 
   /* ===== LOGIN ===== (nome de usuário + senha) */
@@ -304,8 +326,8 @@ window.NX = window.NX || {};
     await delay();
     /* mesma normalização do cadastro: OSAK = osak = @Osak */
     const ident = u().normalizeIdentifier(data.identifier);
-    if (!ident) fail("Digite seu nome de usuário.");
-    if (!data.password) fail("Digite sua senha.");
+    if (!ident) fail(NX.i18n.get("api.digiteSeuNomeUsuario", "Digite seu nome de usuário."));
+    if (!data.password) fail(NX.i18n.get("api.digiteSuaSenha", "Digite sua senha."));
 
     const key = ident;
     assertNotBlocked("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
@@ -314,11 +336,11 @@ window.NX = window.NX || {};
     const found = findAccount(ident);
     if (!found) {
       countFail("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
-      fail("Não encontramos uma conta com esse nome de usuário.");
+      fail(NX.i18n.get("api.naoEncontramosContaEsse", "Não encontramos uma conta com esse nome de usuário."));
     }
     if (!u().verifyPassword(String(data.password), found.password || "")) {
       countFail("login", key, LOGIN_MAX_FAILS, LOGIN_FAIL_WINDOW);
-      fail("A senha está incorreta.");
+      fail(NX.i18n.get("api.senhaEstaIncorreta", "A senha está incorreta."));
     }
 
     /* atualiza silenciosamente hashes antigos (nx1$ → nx2$) */
@@ -331,6 +353,15 @@ window.NX = window.NX || {};
     found.status = data.status || "online";
     db().presence[found.id] = found.status;
     NX.session.set(found.id, !!data.remember);
+    /* o Nexo é somente pt-BR: nada de troca de idioma aqui */
+    try {
+      if (NX.i18n) {
+        NX.i18n.reset();
+        NX.i18n.apply();
+      }
+    } catch (e) {
+      /* sem i18n: segue no padrão */
+    }
     NX.store.commit(["session", "servers", "profile", "presence"]);
     return found;
   };
@@ -344,6 +375,14 @@ window.NX = window.NX || {};
       db().voice = db().voice.filter((v) => v.userId !== me.id);
     }
     NX.session.clear();
+    try {
+      if (NX.i18n) {
+        NX.i18n.reset();
+        NX.i18n.apply();
+      }
+    } catch (e) {
+      /* sem i18n: segue no padrão */
+    }
     NX.store.commit(["session", "presence", "voice"]);
   };
 
@@ -351,20 +390,20 @@ window.NX = window.NX || {};
   api.changePassword = async function (data) {
     await delay();
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     data = data || {};
 
     if (!u().verifyPassword(String(data.current || ""), me.password || ""))
-      fail("A senha atual está incorreta.");
+      fail(NX.i18n.get("api.senhaAtualEstaIncorreta", "A senha atual está incorreta."));
     const policy = u().passwordPolicy(data.password);
     if (!policy.ok) fail(policy.message);
-    if (String(data.password) !== String(data.confirm)) fail("As senhas não conferem.");
+    if (String(data.password) !== String(data.confirm)) fail(NX.i18n.get("api.senhasNaoConferem2", "As senhas não conferem."));
 
     me.password = u().hashPassword(String(data.password), u().makeSalt());
     persistOrFail();
     db().prefs = db().prefs || {};
     db().prefs.pwChangedAt = Date.now();
-    notify(me.id, "system", "Sua senha foi alterada.");
+    notify(me.id, "system", NX.i18n.get("api.suaSenhaFoiAlterada", "Sua senha foi alterada."));
     NX.store.commit(["session"]);
     return { ok: true };
   };
@@ -372,35 +411,35 @@ window.NX = window.NX || {};
   api.updateProfile = async function (patch) {
     await delay();
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
 
     if (patch.username !== undefined) {
       /* mesma regra do cadastro/login: canônico, único e sem espaços */
       const username = u().normalizeUsername(patch.username);
-      if (!username) fail("Digite um nome de usuário.");
+      if (!username) fail(NX.i18n.get("api.digiteNomeUsuario2", "Digite um nome de usuário."));
       if (!u().usernameOk(username))
-        fail("Nome de usuário precisa de 3 a 18 caracteres (letras, números, . e _), sem espaços.");
+        fail((NX.i18n.get("api.nomedeusuarioprecisade32", "Nome de usuário precisa de 3 a 18 caracteres (letras, números, . e _), sem espaços.")));
       const dupe = Object.values(db().users).some(
         (x) => x.id !== me.id && x.username && u().normalizeUsername(x.username) === username
       );
-      if (dupe) fail("Esse nome de usuário já está em uso.");
+      if (dupe) fail(NX.i18n.get("api.esseNomeUsuarioJa2", "Esse nome de usuário já está em uso."));
       me.username = username;
     }
     if (patch.displayName !== undefined) {
       const n = String(patch.displayName).trim();
-      if (n.length < 2) fail("Digite um nome com pelo menos 2 caracteres.");
+      if (n.length < 2) fail(NX.i18n.get("api.digiteNomePeloMenos", "Digite um nome com pelo menos 2 caracteres."));
       me.displayName = n.slice(0, 32);
     }
     if (patch.bio !== undefined) me.bio = String(patch.bio).slice(0, 190);
     if (patch.avatar !== undefined) {
       const next = Object.assign({}, me.avatar, patch.avatar);
       if (next.image && next.image.length > 900000)
-        fail("Esta imagem é grande demais. Use uma com até 1 MB.");
+        fail(NX.i18n.get("api.estaImagemGrandeDemais2", "Esta imagem é grande demais. Use uma com até 1 MB."));
       me.avatar = next;
     }
     if (patch.banner !== undefined) {
       if (patch.banner && String(patch.banner).length > 1400000)
-        fail("Este banner é grande demais. Use uma imagem com até 1,5 MB.");
+        fail(NX.i18n.get("api.esteBannerGrandeDemais2", "Este banner é grande demais. Use uma imagem com até 1,5 MB."));
       me.banner = patch.banner || null;
     }
     if (patch.profileColor !== undefined) me.profileColor = patch.profileColor || null;
@@ -433,10 +472,10 @@ window.NX = window.NX || {};
   api.createServer = async function (data) {
     await delay();
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     const name = String(data.name || "").trim();
-    if (name.length < 2) fail("Dê um nome com pelo menos 2 caracteres ao servidor.");
-    if (name.length > 40) fail("O nome pode ter no máximo 40 caracteres.");
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos2", "Dê um nome com pelo menos 2 caracteres ao servidor."));
+    if (name.length > 40) fail(NX.i18n.get("api.nomePodeTerMaximo", "O nome pode ter no máximo 40 caracteres."));
 
     const id = u().uid("sv");
     db().servers[id] = {
@@ -459,7 +498,7 @@ window.NX = window.NX || {};
     const defRole = {
       id: u().uid("rl"),
       serverId: id,
-      name: "Membros",
+      name: (NX.i18n.get("adm.membros", "Membros")),
       color: "#93a8a4",
       position: 0,
       isDefault: true,
@@ -516,12 +555,12 @@ window.NX = window.NX || {};
   api.updateServer = async function (serverId, patch) {
     await delay();
     requireServer(serverId);
-    requirePerm(serverId, "manageServer", "Você não tem permissão para editar este servidor.");
+    requirePerm(serverId, "manageServer", NX.i18n.get("api.voceNaoTemPermissao2", "Você não tem permissão para editar este servidor."));
     const s = db().servers[serverId];
     const changed = [];
     if (patch.name !== undefined) {
       const n = String(patch.name).trim();
-      if (n.length < 2) fail("O nome precisa de pelo menos 2 caracteres.");
+      if (n.length < 2) fail(NX.i18n.get("api.nomePrecisaPeloMenos", "O nome precisa de pelo menos 2 caracteres."));
       if (n !== s.name) changed.push("nome");
       s.name = n.slice(0, 40);
     }
@@ -529,13 +568,13 @@ window.NX = window.NX || {};
     if (patch.icon !== undefined) {
       const next = Object.assign({}, s.icon, patch.icon);
       if (next.image && next.image.length > 900000)
-        fail("Esta imagem é grande demais. Use uma com até 1 MB.");
+        fail(NX.i18n.get("api.estaImagemGrandeDemais2", "Esta imagem é grande demais. Use uma com até 1 MB."));
       s.icon = next;
-      changed.push("ícone");
+      changed.push((NX.i18n.get("api.icone", "ícone")));
     }
     if (patch.banner !== undefined) {
       if (patch.banner && String(patch.banner).length > 1400000)
-        fail("Este banner é grande demais. Use uma imagem com até 1,5 MB.");
+        fail(NX.i18n.get("api.esteBannerGrandeDemais2", "Este banner é grande demais. Use uma imagem com até 1,5 MB."));
       s.banner = patch.banner || null;
       changed.push("banner");
     }
@@ -545,7 +584,7 @@ window.NX = window.NX || {};
         s.appearance,
         patch.appearance
       );
-      changed.push("aparência");
+      changed.push((NX.i18n.get("api.aparencia", "aparência")));
     }
     if (patch.discoverable !== undefined) {
       s.discoverable = !!patch.discoverable;
@@ -560,7 +599,7 @@ window.NX = window.NX || {};
     await delay();
     const server = requireServer(serverId);
     const me = S().me();
-    if (server.ownerId !== me.id) fail("Apenas o dono do servidor pode excluí-lo.");
+    if (server.ownerId !== me.id) fail(NX.i18n.get("adm.apenasDonoServidorPode", "Apenas o dono do servidor pode excluí-lo."));
 
     Object.values(db().memberships).forEach((m) => {
       if (m.serverId === serverId) delete db().memberships[m.id];
@@ -601,22 +640,36 @@ window.NX = window.NX || {};
     return true;
   };
 
+  /* Sair do servidor — afeta SOMENTE quem clica.
+     Regras do backend (não confiar no botão):
+       • sessão autenticada;
+       • servidor existe;
+       • usuário realmente é membro;
+       • dono NÃO pode sair sem transferir a propriedade
+         (senão o servidor ficaria sem proprietário);
+       • não mexe em conta, DMs, outros membros nem no servidor. */
   api.leaveServer = async function (serverId) {
     await delay();
     requireServer(serverId);
     const me = S().me();
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     const server = db().servers[serverId];
     if (server.ownerId === me.id)
-      fail("Você é o dono. Exclua o servidor ou transfira a propriedade antes de sair.");
+      fail(
+        (NX.i18n.get("api.voceeoproprietariodesteservidor", "Você é o proprietário deste servidor. Transfira a propriedade para outro membro antes de sair."))
+      );
     const m = S().membership(serverId, me.id);
-    if (m) delete db().memberships[m.id];
-    db().voice = db().voice.filter((v) => v.userId !== me.id);
+    if (!m) fail(NX.i18n.get("adm.voceNaoFazParte", "Você não faz parte deste servidor."));
+    delete db().memberships[m.id];
+    db().voice = db().voice.filter(
+      (v) => !(v.userId === me.id && v.channelId && (S().channel(v.channelId) || {}).serverId === serverId)
+    );
     log(serverId, "member.leave", { userId: me.id });
     Object.values(db().memberships)
       .filter((x) => x.serverId === serverId)
       .slice(0, 1)
       .forEach((x) =>
-        notify(x.userId, "server", me.displayName + " saiu de " + server.name + ".")
+        notify(x.userId, "server", me.displayName + (" " + NX.i18n.get("api.saiude", "saiu de") + " ") + server.name + ".")
       );
     NX.store.commit(["servers", "members", "voice", "route"]);
     return true;
@@ -625,23 +678,23 @@ window.NX = window.NX || {};
   api.joinByInvite = async function (code) {
     await delay();
     const me = S().me();
-    if (!me) fail("Entre na sua conta para aceitar o convite.");
+    if (!me) fail(NX.i18n.get("api.entreSuaContaAceitar", "Entre na sua conta para aceitar o convite."));
     const clean = u().normalize(String(code || "")).toUpperCase().replace(/[^A-Z0-9]/g, "");
     const invite = S().invite(clean);
     if (!invite) {
       const maybe = Object.keys(db().servers).find(
         (id) => u().slug(db().servers[id].name) === clean.toLowerCase()
       );
-      if (!maybe) fail("Convite inválido ou expirado. Peça um novo link para quem criou.");
+      if (!maybe) fail(NX.i18n.get("api.conviteInvalidoExpiradoPeca", "Convite inválido ou expirado. Peça um novo link para quem criou."));
       return api.joinServer(maybe);
     }
     if (invite.expiresAt && invite.expiresAt < Date.now()) {
       delete db().invites[invite.code];
       NX.store.commit(["invites"]);
-      fail("Este convite expirou. Peça um novo link para quem criou.");
+      fail(NX.i18n.get("api.esteConviteExpirouPeca", "Este convite expirou. Peça um novo link para quem criou."));
     }
     if (invite.maxUses && invite.uses >= invite.maxUses)
-      fail("Este convite atingiu o limite de usos. Peça um novo link.");
+      fail(NX.i18n.get("api.esteConviteAtingiuLimite", "Este convite atingiu o limite de usos. Peça um novo link."));
     return api.joinServer(invite.serverId, invite);
   };
 
@@ -649,15 +702,15 @@ window.NX = window.NX || {};
     await delay();
     const server = requireServer(serverId);
     const me = S().me();
-    if (!me) fail("Entre na sua conta para entrar no servidor.");
+    if (!me) fail(NX.i18n.get("api.entreSuaContaEntrar", "Entre na sua conta para entrar no servidor."));
     if (S().membership(serverId, me.id))
-      fail("Você já faz parte deste servidor.");
+      fail(NX.i18n.get("api.voceJaFazParte", "Você já faz parte deste servidor."));
     const ban = S().banOf(serverId, me.id);
     if (ban)
       fail(
-        "Você foi banido deste servidor" +
-          (ban.reason ? " pelo motivo: " + ban.reason : ".") +
-          " Fale com a moderação."
+        NX.i18n.get("api.voceFoiBanidoDeste", "Você foi banido deste servidor") +
+          (ban.reason ? (" " + NX.i18n.get("api.pelomotivo", "pelo motivo:") + " ") + ban.reason : ".") +
+          (" " + NX.i18n.get("api.falecomamoderacao", "Fale com a moderação."))
       );
     const defRole = S().defaultRole(serverId);
     const memberId = u().uid("mb");
@@ -684,7 +737,7 @@ window.NX = window.NX || {};
     NX.store.commitUI();
     log(serverId, "member.join", { userId: me.id });
     if (server.ownerId !== me.id)
-      notify(server.ownerId, "server", me.displayName + " entrou em " + server.name + ".");
+      notify(server.ownerId, "server", me.displayName + (" " + NX.i18n.get("api.entrouem", "entrou em") + " ") + server.name + ".");
     NX.store.commit(["servers", "members", "channels", "invites", "route"]);
     return server;
   };
@@ -694,9 +747,9 @@ window.NX = window.NX || {};
      ========================================================= */
   api.createRole = async function (serverId, data) {
     await delay();
-    requirePerm(serverId, "manageRoles", "Você não tem permissão para criar cargos.");
+    requirePerm(serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao3", "Você não tem permissão para criar cargos."));
     const name = String(data.name || "").trim();
-    if (name.length < 2) fail("Dê um nome com pelo menos 2 caracteres ao cargo.");
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos22", "Dê um nome com pelo menos 2 caracteres ao cargo."));
     const perms = {};
     NX.PERM_KEYS.forEach((k) => (perms[k] = !!(data.permissions && data.permissions[k])));
     const count = S().rolesOf(serverId).length;
@@ -721,11 +774,11 @@ window.NX = window.NX || {};
   api.updateRole = async function (roleId, patch) {
     await delay();
     const role = S().role(roleId);
-    if (!role) fail("Cargo não encontrado.");
-    requirePerm(role.serverId, "manageRoles", "Você não tem permissão para editar cargos.");
+    if (!role) fail(NX.i18n.get("api.cargoNaoEncontrado2", "Cargo não encontrado."));
+    requirePerm(role.serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao4", "Você não tem permissão para editar cargos."));
     if (patch.name !== undefined) {
       const n = String(patch.name).trim();
-      if (n.length < 2) fail("O nome do cargo precisa de pelo menos 2 caracteres.");
+      if (n.length < 2) fail(NX.i18n.get("api.nomeCargoPrecisaPelo", "O nome do cargo precisa de pelo menos 2 caracteres."));
       role.name = n.slice(0, 30);
     }
     if (patch.color !== undefined) role.color = patch.color;
@@ -746,9 +799,9 @@ window.NX = window.NX || {};
   api.deleteRole = async function (roleId) {
     await delay();
     const role = S().role(roleId);
-    if (!role) fail("Cargo não encontrado.");
-    requirePerm(role.serverId, "manageRoles", "Você não tem permissão para apagar cargos.");
-    if (role.isDefault) fail("O cargo padrão não pode ser excluído.");
+    if (!role) fail(NX.i18n.get("api.cargoNaoEncontrado2", "Cargo não encontrado."));
+    requirePerm(role.serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao5", "Você não tem permissão para apagar cargos."));
+    if (role.isDefault) fail(NX.i18n.get("adm.cargoPadraoNaoPode", "O cargo padrão não pode ser excluído."));
     const def = S().defaultRole(role.serverId);
     Object.values(db().memberships).forEach((m) => {
       if (m.roleId === roleId) m.roleId = def ? def.id : null;
@@ -761,34 +814,34 @@ window.NX = window.NX || {};
 
   api.setMemberRole = async function (serverId, userId, roleId) {
     await delay();
-    const me = requirePerm(serverId, "manageRoles", "Você não tem permissão para gerenciar cargos.");
-    if (userId === me.id) fail("Você não pode alterar o próprio cargo por aqui.");
+    const me = requirePerm(serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao6", "Você não tem permissão para gerenciar cargos."));
+    if (userId === me.id) fail(NX.i18n.get("api.voceNaoPodeAlterar", "Você não pode alterar o próprio cargo por aqui."));
     const server = requireServer(serverId);
-    if (server.ownerId === userId) fail("O dono do servidor tem todos os cargos.");
+    if (server.ownerId === userId) fail(NX.i18n.get("api.donoServidorTemTodos", "O dono do servidor tem todos os cargos."));
     const m = S().membership(serverId, userId);
-    if (!m) fail("Este membro não está mais no servidor.");
-    if (roleId && !S().role(roleId)) fail("Cargo inválido.");
+    if (!m) fail(NX.i18n.get("api.esteMembroNaoEsta4", "Este membro não está mais no servidor."));
+    if (roleId && !S().role(roleId)) fail(NX.i18n.get("api.cargoInvalido", "Cargo inválido."));
     m.roleId = roleId || (S().defaultRole(serverId) || {}).id || null;
     log(serverId, "member.role", { userId: userId, role: roleName(serverId, m.roleId) });
-    notify(userId, "server", "Seu cargo em " + server.name + " agora é " + roleName(serverId, m.roleId) + ".");
+    notify(userId, "server", (NX.i18n.get("api.seucargoem", "Seu cargo em") + " ") + server.name + (" " + NX.i18n.get("api.agorae", "agora é") + " ") + roleName(serverId, m.roleId) + ".");
     NX.store.commit(["members"]);
     return m;
   };
 
   api.updateMemberPerms = async function (serverId, userId, patch) {
     await delay();
-    const me = requirePerm(serverId, "manageRoles", "Você não tem permissão para alterar permissões.");
+    const me = requirePerm(serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao19", "Você não tem permissão para alterar permissões."));
     const server = requireServer(serverId);
-    if (server.ownerId === userId) fail("O dono já possui todas as permissões.");
+    if (server.ownerId === userId) fail(NX.i18n.get("api.donoJaPossuiTodas", "O dono já possui todas as permissões."));
     if (userId === me.id && !S().can(serverId, me.id, "administrator"))
-      fail("Você só pode alterar permissões de outros membros.");
+      fail(NX.i18n.get("api.voceSoPodeAlterar", "Você só pode alterar permissões de outros membros."));
     const m = S().membership(serverId, userId);
-    if (!m) fail("Este membro não está mais no servidor.");
+    if (!m) fail(NX.i18n.get("api.esteMembroNaoEsta4", "Este membro não está mais no servidor."));
     m.permissions = m.permissions || {};
     NX.PERM_KEYS.forEach((k) => {
       if (patch[k] === true || patch[k] === false) m.permissions[k] = patch[k];
     });
-    log(serverId, "member.role", { userId: userId, what: "permissões individuais" });
+    log(serverId, "member.role", { userId: userId, what: NX.i18n.get("api.permissoesIndividuais", "permissões individuais") });
     NX.store.commit(["members"]);
     return m;
   };
@@ -798,9 +851,9 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const m = S().membership(serverId, userId);
-    if (!m) fail("Este membro não está mais no servidor.");
+    if (!m) fail(NX.i18n.get("api.esteMembroNaoEsta4", "Este membro não está mais no servidor."));
     const isSelf = me.id === userId;
-    if (!isSelf) requirePerm(serverId, "manageMembers", "Você não tem permissão para alterar apelidos.");
+    if (!isSelf) requirePerm(serverId, "manageMembers", NX.i18n.get("api.voceNaoTemPermissao8", "Você não tem permissão para alterar apelidos."));
     m.nickname = String(nickname || "").slice(0, 32);
     if (isSelf) log(serverId, "member.nick", { userId: userId, nick: m.nickname || "(removido)" });
     NX.store.commit(["members"]);
@@ -810,34 +863,34 @@ window.NX = window.NX || {};
   /* hierarquia: ninguém age sobre o dono; só dono/admin age sobre admin */
   function assertCanActOn(serverId, me, targetId) {
     const server = db().servers[serverId];
-    if (server.ownerId === targetId) fail("Esta ação não se aplica ao dono do servidor.");
+    if (server.ownerId === targetId) fail(NX.i18n.get("api.estaAcaoNaoAplica", "Esta ação não se aplica ao dono do servidor."));
     const targetIsAdmin = S().can(serverId, targetId, "administrator");
     const iAmAdmin = S().can(serverId, me.id, "administrator") || server.ownerId === me.id;
     if (targetIsAdmin && !iAmAdmin)
-      fail("Você não pode aplicar esta ação a um administrador.");
+      fail(NX.i18n.get("api.voceNaoPodeAplicar", "Você não pode aplicar esta ação a um administrador."));
   }
 
   api.kickMember = async function (serverId, userId, reason) {
     await delay();
-    const me = requirePerm(serverId, "kickMembers", "Você não tem permissão para expulsar membros.");
+    const me = requirePerm(serverId, "kickMembers", NX.i18n.get("api.voceNaoTemPermissao9", "Você não tem permissão para expulsar membros."));
     const server = requireServer(serverId);
-    if (userId === me.id) fail("Use “Sair do servidor” para sair.");
+    if (userId === me.id) fail(NX.i18n.get("api.useSairServidorSair", "Use “Sair do servidor” para sair."));
     assertCanActOn(serverId, me, userId);
     const m = S().membership(serverId, userId);
-    if (!m) fail("Este membro não está mais no servidor.");
+    if (!m) fail(NX.i18n.get("api.esteMembroNaoEsta4", "Este membro não está mais no servidor."));
     delete db().memberships[m.id];
     db().voice = db().voice.filter((v) => v.userId !== userId);
     log(serverId, "member.kick", { userId: userId, reason: reason || "" });
-    notify(userId, "server", "Você foi expulso de " + server.name + (reason ? ": " + reason : "."));
+    notify(userId, "server", (NX.i18n.get("api.vocefoiexpulsode", "Você foi expulso de") + " ") + server.name + (reason ? ": " + reason : "."));
     NX.store.commit(["members", "voice"]);
     return true;
   };
 
   api.banMember = async function (serverId, userId, reason) {
     await delay();
-    const me = requirePerm(serverId, "banMembers", "Você não tem permissão para banir membros.");
+    const me = requirePerm(serverId, "banMembers", NX.i18n.get("api.voceNaoTemPermissao10", "Você não tem permissão para banir membros."));
     const server = requireServer(serverId);
-    if (userId === me.id) fail("Você não pode banir a si mesmo.");
+    if (userId === me.id) fail(NX.i18n.get("api.voceNaoPodeBanir", "Você não pode banir a si mesmo."));
     assertCanActOn(serverId, me, userId);
     const id = u().uid("bn");
     db().bans[id] = {
@@ -852,7 +905,7 @@ window.NX = window.NX || {};
     if (m) delete db().memberships[m.id];
     db().voice = db().voice.filter((v) => v.userId !== userId);
     log(serverId, "member.ban", { userId: userId, reason: reason || "" });
-    notify(userId, "server", "Você foi banido de " + server.name + (reason ? ": " + reason : "."));
+    notify(userId, "server", (NX.i18n.get("api.vocefoibanidode", "Você foi banido de") + " ") + server.name + (reason ? ": " + reason : "."));
     NX.store.commit(["members", "voice"]);
     return db().bans[id];
   };
@@ -860,12 +913,12 @@ window.NX = window.NX || {};
   api.unbanMember = async function (banId) {
     await delay();
     const ban = (db().bans || {})[banId];
-    if (!ban) fail("Este banimento não existe mais.");
-    requirePerm(ban.serverId, "unbanMembers", "Você não tem permissão para desbanir membros.");
+    if (!ban) fail(NX.i18n.get("api.esteBanimentoNaoExiste", "Este banimento não existe mais."));
+    requirePerm(ban.serverId, "unbanMembers", NX.i18n.get("api.voceNaoTemPermissao11", "Você não tem permissão para desbanir membros."));
     delete db().bans[banId];
     log(ban.serverId, "member.unban", { userId: ban.userId, reason: ban.reason || "" });
     const usr = S().user(ban.userId);
-    if (usr) notify(ban.userId, "server", "Você foi desbanido de " + (S().server(ban.serverId) || {}).name + ".");
+    if (usr) notify(ban.userId, "server", (NX.i18n.get("api.vocefoidesbanidode", "Você foi desbanido de") + " ") + (S().server(ban.serverId) || {}).name + ".");
     NX.store.commit(["members"]);
     return true;
   };
@@ -875,14 +928,14 @@ window.NX = window.NX || {};
     await delay();
     const server = requireServer(serverId);
     const me = S().me();
-    if (server.ownerId !== me.id) fail("Apenas o dono pode transferir a propriedade.");
-    if (userId === me.id) fail("Escolha outro membro.");
+    if (server.ownerId !== me.id) fail(NX.i18n.get("api.apenasDonoPodeTransferir", "Apenas o dono pode transferir a propriedade."));
+    if (userId === me.id) fail(NX.i18n.get("api.escolhaOutroMembro", "Escolha outro membro."));
     const m = S().membership(serverId, userId);
-    if (!m) fail("Escolha um membro que esteja no servidor.");
+    if (!m) fail(NX.i18n.get("api.escolhaMembroEstejaServidor", "Escolha um membro que esteja no servidor."));
     const prevOwner = server.ownerId;
     server.ownerId = userId;
     log(serverId, "ownership.transfer", { userId: userId, from: prevOwner });
-    notify(userId, "server", "Você agora é o dono de " + server.name + ".");
+    notify(userId, "server", (NX.i18n.get("api.voceagoraeodonode", "Você agora é o dono de") + " ") + server.name + ".");
     NX.store.commit(["servers", "members"]);
     return server;
   };
@@ -892,9 +945,9 @@ window.NX = window.NX || {};
      ========================================================= */
   api.createCategory = async function (serverId, data) {
     await delay();
-    const me = requirePerm(serverId, "manageChannels", "Você não tem permissão para criar categorias.");
+    const me = requirePerm(serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao12", "Você não tem permissão para criar categorias."));
     const name = String(data.name || "").trim();
-    if (name.length < 2) fail("Dê um nome com pelo menos 2 caracteres à categoria.");
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos24", "Dê um nome com pelo menos 2 caracteres à categoria."));
     const order = S().categoriesOf(serverId).length;
     const cat = {
       id: u().uid("ct"),
@@ -935,10 +988,10 @@ window.NX = window.NX || {};
   api.renameCategory = async function (categoryId, name) {
     await delay();
     const cat = S().category(categoryId);
-    if (!cat) fail("Categoria não encontrada.");
-    requirePerm(cat.serverId, "manageChannels", "Você não tem permissão para editar categorias.");
+    if (!cat) fail(NX.i18n.get("api.categoriaNaoEncontrada3", "Categoria não encontrada."));
+    requirePerm(cat.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao13", "Você não tem permissão para editar categorias."));
     const n = String(name || "").trim();
-    if (n.length < 2) fail("Dê um nome com pelo menos 2 caracteres à categoria.");
+    if (n.length < 2) fail(NX.i18n.get("api.nomePeloMenos24", "Dê um nome com pelo menos 2 caracteres à categoria."));
     cat.name = n.slice(0, 32).toUpperCase();
     log(cat.serverId, "category.update", { name: cat.name });
     NX.store.commit(["categories"]);
@@ -948,8 +1001,8 @@ window.NX = window.NX || {};
   api.deleteCategory = async function (categoryId) {
     await delay();
     const cat = S().category(categoryId);
-    if (!cat) fail("Categoria não encontrada.");
-    requirePerm(cat.serverId, "manageChannels", "Você não tem permissão para apagar categorias.");
+    if (!cat) fail(NX.i18n.get("api.categoriaNaoEncontrada3", "Categoria não encontrada."));
+    requirePerm(cat.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao14", "Você não tem permissão para apagar categorias."));
     const chans = S().channelsOfCategory(categoryId);
     chans.forEach((c) => {
       Object.values(db().messages).forEach((m) => {
@@ -976,13 +1029,13 @@ window.NX = window.NX || {};
      ========================================================= */
   api.createChannel = async function (serverId, data) {
     await delay();
-    const me = requirePerm(serverId, "manageChannels", "Você não tem permissão para criar canais.");
+    const me = requirePerm(serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao15", "Você não tem permissão para criar canais."));
     const type = data.type === "voice" ? "voice" : "text";
     const raw = String(data.name || "").trim();
     const name = type === "voice" ? raw.replace(/\s+/g, " ").slice(0, 32) : u().slug(raw);
-    if (name.length < 2) fail("Dê um nome com pelo menos 2 caracteres ao canal.");
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos25", "Dê um nome com pelo menos 2 caracteres ao canal."));
     const cat = S().category(data.categoryId);
-    if (!cat || cat.serverId !== serverId) fail("Escolha uma categoria válida.");
+    if (!cat || cat.serverId !== serverId) fail(NX.i18n.get("api.escolhaCategoriaValida", "Escolha uma categoria válida."));
     const order = S().channelsOfCategory(cat.id).length;
     const ch = {
       id: u().uid("ch"),
@@ -1010,18 +1063,18 @@ window.NX = window.NX || {};
   api.updateChannel = async function (channelId, patch) {
     await delay();
     const ch = S().channel(channelId);
-    if (!ch) fail("Canal não encontrado.");
-    requirePerm(ch.serverId, "manageChannels", "Você não tem permissão para editar canais.");
+    if (!ch) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    requirePerm(ch.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao16", "Você não tem permissão para editar canais."));
     if (patch.name !== undefined) {
       const raw = String(patch.name).trim();
       const name = ch.type === "voice" ? raw.replace(/\s+/g, " ").slice(0, 32) : u().slug(raw);
-      if (name.length < 2) fail("O nome do canal precisa de pelo menos 2 caracteres.");
+      if (name.length < 2) fail(NX.i18n.get("api.nomeCanalPrecisaPelo", "O nome do canal precisa de pelo menos 2 caracteres."));
       ch.name = name;
     }
     if (patch.topic !== undefined) ch.topic = String(patch.topic).slice(0, 180);
     if (patch.categoryId !== undefined) {
       const cat = S().category(patch.categoryId);
-      if (!cat || cat.serverId !== ch.serverId) fail("Categoria inválida.");
+      if (!cat || cat.serverId !== ch.serverId) fail(NX.i18n.get("api.categoriaInvalida", "Categoria inválida."));
       ch.categoryId = cat.id;
       ch.order = S().channelsOfCategory(cat.id).length;
     }
@@ -1041,7 +1094,7 @@ window.NX = window.NX || {};
   /* permissões finas por canal/categoria: state = true (permitir),
      false (negar) ou null (herdar) */
   function setPermOn(container, targetKey, permKey, state) {
-    if (NX.PERM_KEYS.indexOf(permKey) === -1) fail("Permissão desconhecida.");
+    if (NX.PERM_KEYS.indexOf(permKey) === -1) fail(NX.i18n.get("api.permissaoDesconhecida", "Permissão desconhecida."));
     if (!container.perms) container.perms = {};
     if (!container.perms[targetKey]) container.perms[targetKey] = {};
     if (state === null || state === undefined) delete container.perms[targetKey][permKey];
@@ -1054,10 +1107,10 @@ window.NX = window.NX || {};
   api.setChannelPerm = async function (channelId, targetKey, permKey, state) {
     await delay();
     const ch = S().channel(channelId);
-    if (!ch) fail("Canal não encontrado.");
-    requirePerm(ch.serverId, "manageChannels", "Você não tem permissão para alterar permissões.");
+    if (!ch) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    requirePerm(ch.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao19", "Você não tem permissão para alterar permissões."));
     setPermOn(ch, targetKey, permKey, state);
-    log(ch.serverId, "channel.update", { name: "#" + ch.name, what: "permissões" });
+    log(ch.serverId, "channel.update", { name: "#" + ch.name, what: (NX.i18n.get("adm.permissoes", "permissões")) });
     NX.store.commit(["channels"]);
     return ch;
   };
@@ -1065,10 +1118,10 @@ window.NX = window.NX || {};
   api.setCategoryPerm = async function (categoryId, targetKey, permKey, state) {
     await delay();
     const cat = S().category(categoryId);
-    if (!cat) fail("Categoria não encontrada.");
-    requirePerm(cat.serverId, "manageChannels", "Você não tem permissão para alterar permissões.");
+    if (!cat) fail(NX.i18n.get("api.categoriaNaoEncontrada3", "Categoria não encontrada."));
+    requirePerm(cat.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao19", "Você não tem permissão para alterar permissões."));
     setPermOn(cat, targetKey, permKey, state);
-    log(cat.serverId, "category.update", { name: cat.name, what: "permissões" });
+    log(cat.serverId, "category.update", { name: cat.name, what: (NX.i18n.get("adm.permissoes", "permissões")) });
     NX.store.commit(["categories"]);
     return cat;
   };
@@ -1076,8 +1129,8 @@ window.NX = window.NX || {};
   api.setChannelInheritance = async function (channelId, inherit) {
     await delay();
     const ch = S().channel(channelId);
-    if (!ch) fail("Canal não encontrado.");
-    requirePerm(ch.serverId, "manageChannels", "Você não tem permissão para alterar permissões.");
+    if (!ch) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    requirePerm(ch.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao19", "Você não tem permissão para alterar permissões."));
     ch.inheritPerms = !!inherit;
     NX.store.commit(["channels"]);
     return ch;
@@ -1086,8 +1139,8 @@ window.NX = window.NX || {};
   api.deleteChannel = async function (channelId) {
     await delay();
     const ch = S().channel(channelId);
-    if (!ch) fail("Canal não encontrado.");
-    requirePerm(ch.serverId, "manageChannels", "Você não tem permissão para apagar canais.");
+    if (!ch) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    requirePerm(ch.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao20", "Você não tem permissão para apagar canais."));
     Object.values(db().messages).forEach((m) => {
       if (m.channelId === channelId) delete db().messages[m.id];
     });
@@ -1105,13 +1158,13 @@ window.NX = window.NX || {};
 
   function sanitizeAttachments(list) {
     if (!list || !list.length) return [];
-    if (list.length > 4) fail("Envie no máximo 4 anexos por mensagem.");
+    if (list.length > 4) fail(NX.i18n.get("api.envieMaximo4Anexos", "Envie no máximo 4 anexos por mensagem."));
     return list.slice(0, 4).map((a) => {
       const type = ATTACH_TYPES.indexOf(a.type) !== -1 ? a.type : "file";
       const url = String(a.url || "");
-      if (url.length > 1600000) fail("Este arquivo é grande demais (máximo 1,5 MB).");
+      if (url.length > 1600000) fail(NX.i18n.get("api.esteArquivoGrandeDemais", "Este arquivo é grande demais (máximo 1,5 MB)."));
       if (!/^(data:image\/|data:video\/|blob:|https?:\/\/)/i.test(url))
-        fail("Formato de arquivo não suportado.");
+        fail(NX.i18n.get("api.formatoArquivoNaoSuportado", "Formato de arquivo não suportado."));
       return {
         type: type,
         url: url,
@@ -1124,39 +1177,57 @@ window.NX = window.NX || {};
   api.sendMessage = async function (ref, content, opts) {
     await delay();
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     opts = opts || {};
     const text = String(content || "").trim();
     const attachments = sanitizeAttachments(opts.attachments);
     if (!text && !attachments.length) fail("");
-    if (text.length > 2000) fail("As mensagens podem ter no máximo 2000 caracteres.");
+    if (text.length > 2000) fail(NX.i18n.get("api.mensagensPodemTerMaximo", "As mensagens podem ter no máximo 2000 caracteres."));
 
-    if (String(ref).indexOf("dm_") === 0) {
+    const isDM = String(ref).indexOf("dm_") === 0;
+    let dmOtherId = null;
+    if (isDM) {
       const dm = db().dms[ref];
-      if (!dm || dm.participants.indexOf(me.id) === -1) fail("Conversa não encontrada.");
-      const otherId = dm.participants.find((p) => p !== me.id);
-      if (otherId && S().isBlocked(otherId, me.id))
-        fail("Você não pode enviar mensagens para esta pessoa.");
-      if (otherId && S().isBlocked(me.id, otherId))
-        fail("Desbloqueie esta pessoa para voltar a conversar.");
+      if (!dm || dm.participants.indexOf(me.id) === -1) fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
+      dmOtherId = dm.participants.find((p) => p !== me.id) || null;
+      if (dmOtherId && S().isBlocked(dmOtherId, me.id))
+        fail(NX.i18n.get("api.voceNaoPodeEnviar", "Você não pode enviar mensagens para esta pessoa."));
+      if (dmOtherId && S().isBlocked(me.id, dmOtherId))
+        fail(NX.i18n.get("api.desbloqueieEstaPessoaVoltar", "Desbloqueie esta pessoa para voltar a conversar."));
+      /* revalida a privacidade do DONO quando a conversa ainda não tem
+         histórico: impede abrir uma DM nova burlando a regra.
+         Com histórico, a conversa já iniciada continua válida. */
+      if (dmOtherId && !S().messagesOf(ref).length && !S().canDM(me.id, dmOtherId)) {
+        const mode = ((S().user(dmOtherId) || {}).privacy || {}).dm || "all";
+        fail(
+          mode === "none"
+            ? NX.i18n.get("api.pessoaNaoRecebeDiretas", "Esta pessoa não recebe mensagens diretas.")
+            : mode === "friends"
+              ? NX.i18n.get("api.pessoaSoAceitaAmigos", "Esta pessoa só aceita mensagens de amigos.")
+              : NX.i18n.get("api.pessoaSoAceitaQuemSegue", "Esta pessoa só aceita mensagens de quem a segue.")
+        );
+      }
     } else {
       const ch = S().channel(ref);
-      if (!ch) fail("Este canal não existe mais.");
+      if (!ch) fail(NX.i18n.get("api.esteCanalNaoExiste2", "Este canal não existe mais."));
       if (!S().canSendIn(ch, me.id))
-        fail("Você não pode enviar mensagens neste canal.");
+        fail(NX.i18n.get("api.voceNaoPodeEnviar2", "Você não pode enviar mensagens neste canal."));
       const p = S().effectiveChannelPerms(ch, me.id);
       if (attachments.length && !p.attachFiles)
-        fail("Seu cargo não tem a permissão “Anexar arquivos” aqui.");
+        fail(NX.i18n.get("api.seuCargoNaoTem", "Seu cargo não tem a permissão “Anexar arquivos” aqui."));
       if (attachments.some((a) => a.type === "gif") && !p.useGifs)
-        fail("Seu cargo não tem a permissão “Usar GIFs” aqui.");
+        fail(NX.i18n.get("api.seuCargoNaoTem2", "Seu cargo não tem a permissão “Usar GIFs” aqui."));
       if (!text && attachments.length && !p.useEmojis)
-        fail("Seu cargo não pode enviar mídia sem texto neste canal.");
+        fail(NX.i18n.get("api.seuCargoNaoPode", "Seu cargo não pode enviar mídia sem texto neste canal."));
     }
 
     const m = {
       id: u().uid("ms"),
       channelId: ref,
       authorId: me.id,
+      /* alias de leitura: a mesma mensagem atende a canais e a DMs */
+      conversationId: ref,
+      senderId: me.id,
       content: text.slice(0, 2000),
       attachments: attachments,
       reactions: {},
@@ -1165,24 +1236,97 @@ window.NX = window.NX || {};
       updatedAt: null,
     };
     db().messages[m.id] = m;
+
+    if (isDM && dmOtherId) {
+      const dmRow = db().dms[ref];
+      if (dmRow) {
+        /* o autor já "leu" o que acabou de enviar */
+        dmRow.reads = dmRow.reads || {};
+        dmRow.reads[me.id] = m.createdAt;
+        /* notificação real para o OUTRO participante — nunca para mim.
+           Conversa silenciada não gera notificação. */
+        if (!dmRow.muted) {
+          notify(
+            dmOtherId,
+            "dm",
+            "@" + me.username + " " + NX.i18n.get("api.enviouUmaMensagem", "enviou uma mensagem."),
+            { href: "#/mensagens/" + ref, actorId: me.id, messageId: m.id }
+          );
+        }
+      }
+      NX.store.commit(["messages", "notifications"]);
+      return m;
+    }
+
     NX.store.commit(["messages"]);
     return m;
+  };
+
+  /* marca a conversa como lida para mim (cursor por participante).
+     Sincrono de propósito: é chamada na abertura da rota e precisa
+     acontecer antes do render, sem esperar o delay da API. */
+  api.markDMRead = function (dmId) {
+    const me = S().me();
+    if (!me || !dmId) return false;
+    const dm = db().dms[dmId];
+    if (!dm || dm.participants.indexOf(me.id) === -1) return false;
+    if (!S().dmUnreadFor(dm, me.id)) return false; /* já lida: nada a fazer */
+    dm.reads = dm.reads || {};
+    dm.reads[me.id] = Date.now();
+    NX.store.commit(["messages"]);
+    return true;
+  };
+
+  /* busca de PESSOAS REAIS para adicionar como amigo.
+     Casa com @username, nome exibido ou o User ID completo.
+     Nunca devolve a própria conta nem alguém bloqueado. */
+  api.searchPeople = async function (query, limit) {
+    await delay();
+    const me = requireMe();
+    const raw = String(query || "").trim();
+    if (!raw) return [];
+    const q = raw.toLowerCase();
+    const max = Math.min(Math.max(parseInt(limit, 10) || 8, 1), 25);
+    const norm = (s) => String(s || "").toLowerCase();
+
+    return Object.values(db().users)
+      .filter((u) => u && S().isRealPerson(u.id))
+      .filter((u) => u.id !== me.id)
+      .filter((u) => !S().blockedBetween(me.id, u.id))
+      .map((u) => {
+        const un = norm(u.username);
+        const dn = norm(u.displayName);
+        let rank = -1;
+        if (un === q || norm(u.id) === q) rank = 0;
+        else if (un.indexOf(q) === 0) rank = 1;
+        else if (un.indexOf(q) > -1) rank = 2;
+        else if (dn.indexOf(q) > -1) rank = 3;
+        return { u: u, rank: rank };
+      })
+      .filter((x) => x.rank > -1)
+      .sort(
+        (a, b) =>
+          a.rank - b.rank ||
+          String(a.u.displayName || "").localeCompare(String(b.u.displayName || ""))
+      )
+      .slice(0, max)
+      .map((x) => x.u);
   };
 
   api.editMessage = async function (messageId, content) {
     await delay();
     const me = S().me();
     const m = db().messages[messageId];
-    if (!m) fail("Mensagem não encontrada.");
+    if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
     const isMine = m.authorId === me.id;
     if (!isMine) {
       const ch = S().channel(m.channelId);
-      if (!ch) fail("Mensagem não encontrada.");
+      if (!ch) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
       if (!S().channelPerm(ch, me.id, "editMessages"))
-        fail("Você não tem permissão para editar mensagens de outras pessoas.");
+        fail(NX.i18n.get("api.voceNaoTemPermissao21", "Você não tem permissão para editar mensagens de outras pessoas."));
     }
     const text = String(content || "").trim();
-    if (!text) fail("A mensagem não pode ficar vazia.");
+    if (!text) fail(NX.i18n.get("api.mensagemNaoPodeFicar", "A mensagem não pode ficar vazia."));
     m.content = text.slice(0, 2000);
     m.updatedAt = Date.now();
     NX.store.commit(["messages"]);
@@ -1193,13 +1337,13 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const m = db().messages[messageId];
-    if (!m) fail("Mensagem não encontrada.");
+    if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
     const isMine = m.authorId === me.id;
     if (!isMine) {
       const ch = S().channel(m.channelId);
-      if (!ch) fail("Mensagem não encontrada.");
+      if (!ch) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
       if (!S().channelPerm(ch, me.id, "deleteMessages"))
-        fail("Você não tem permissão para apagar mensagens de outras pessoas.");
+        fail(NX.i18n.get("api.voceNaoTemPermissao22", "Você não tem permissão para apagar mensagens de outras pessoas."));
       log(ch.serverId, "message.delete", { userId: m.authorId, channel: "#" + ch.name });
     }
     delete db().messages[messageId];
@@ -1211,20 +1355,20 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const m = db().messages[messageId];
-    if (!m) fail("Mensagem não encontrada.");
+    if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
     const key = String(emoji || "").slice(0, 12);
     if (!key) fail("");
     if (String(m.channelId).indexOf("dm_") === 0) {
       const dm = db().dms[m.channelId];
-      if (!dm || dm.participants.indexOf(me.id) === -1) fail("Conversa não encontrada.");
+      if (!dm || dm.participants.indexOf(me.id) === -1) fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
       if (S().blockedBetween(m.authorId, me.id) && m.authorId !== me.id)
-        fail("Você não pode reagir nesta conversa.");
+        fail(NX.i18n.get("api.voceNaoPodeReagir", "Você não pode reagir nesta conversa."));
     } else {
       const ch = S().channel(m.channelId);
-      if (!ch) fail("Este canal não existe mais.");
-      if (!S().canSendIn(ch, me.id)) fail("Você não pode reagir neste canal.");
+      if (!ch) fail(NX.i18n.get("api.esteCanalNaoExiste2", "Este canal não existe mais."));
+      if (!S().canSendIn(ch, me.id)) fail(NX.i18n.get("api.voceNaoPodeReagir2", "Você não pode reagir neste canal."));
       if (!S().channelPerm(ch, me.id, "useEmojis"))
-        fail("Seu cargo não tem a permissão “Usar emojis” aqui.");
+        fail(NX.i18n.get("api.seuCargoNaoTem3", "Seu cargo não tem a permissão “Usar emojis” aqui."));
     }
     if (!m.reactions) m.reactions = {};
     const list = m.reactions[key] || [];
@@ -1241,13 +1385,13 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const m = db().messages[messageId];
-    if (!m) fail("Mensagem não encontrada.");
+    if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
     const ch = S().channel(m.channelId);
-    if (!ch) fail("Esta mensagem não está em um canal.");
+    if (!ch) fail(NX.i18n.get("api.estaMensagemNaoEsta", "Esta mensagem não está em um canal."));
     const mine = m.authorId === me.id;
     if (!mine && !S().channelPerm(ch, me.id, "pinMessages"))
-      fail("Você não tem permissão para fixar mensagens de outras pessoas.");
-    if (!S().canSendIn(ch, me.id)) fail("Você não tem permissão neste canal.");
+      fail(NX.i18n.get("api.voceNaoTemPermissao23", "Você não tem permissão para fixar mensagens de outras pessoas."));
+    if (!S().canSendIn(ch, me.id)) fail(NX.i18n.get("api.voceNaoTemPermissao24", "Você não tem permissão neste canal."));
     m.pinned = pin !== false;
     log(ch.serverId, "message.pin", { channel: "#" + ch.name, pinned: m.pinned });
     NX.store.commit(["messages"]);
@@ -1258,7 +1402,7 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const m = db().messages[messageId];
-    if (!m) fail("Mensagem não encontrada.");
+    if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
     const ch = S().channel(m.channelId);
     db().reports = db().reports || [];
     db().reports.push({
@@ -1282,7 +1426,7 @@ window.NX = window.NX || {};
      ========================================================= */
   api.createInvite = async function (serverId, opts) {
     await delay();
-    requirePerm(serverId, "createInvite", "Você não tem permissão para criar convites.");
+    requirePerm(serverId, "createInvite", NX.i18n.get("adm.voceNaoTemPermissao3", "Você não tem permissão para criar convites."));
     opts = opts || {};
     const me = S().me();
     const invite = {
@@ -1303,10 +1447,10 @@ window.NX = window.NX || {};
   api.revokeInvite = async function (code) {
     await delay();
     const invite = S().invite(code);
-    if (!invite) fail("Este convite não existe mais.");
+    if (!invite) fail(NX.i18n.get("api.esteConviteNaoExiste2", "Este convite não existe mais."));
     const me = S().me();
     if (invite.creatorId !== me.id)
-      requirePerm(invite.serverId, "manageServer", "Você não pode revogar este convite.");
+      requirePerm(invite.serverId, "manageServer", NX.i18n.get("api.voceNaoPodeRevogar", "Você não pode revogar este convite."));
     delete db().invites[invite.code];
     log(invite.serverId, "invite.revoke", { code: invite.code });
     NX.store.commit(["invites"]);
@@ -1320,19 +1464,19 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const other = S().user(userId);
-    if (!me || !other) fail("Usuário não encontrado.");
-    if (userId === me.id) fail("Você não pode conversar consigo mesmo.");
-    if (S().isBlocked(me.id, userId)) fail("Desbloqueie esta pessoa primeiro.");
+    if (!me || !other) fail(NX.i18n.get("api.usuarioNaoEncontrado2", "Usuário não encontrado."));
+    if (userId === me.id) fail(NX.i18n.get("api.voceNaoPodeConversar", "Você não pode conversar consigo mesmo."));
+    if (S().isBlocked(me.id, userId)) fail(NX.i18n.get("api.desbloqueieEstaPessoaPrimeiro", "Desbloqueie esta pessoa primeiro."));
     const id = S().dmId(me.id, userId);
     /* privacidade "quem pode enviar DM" do DONO da conversa */
     if (!db().dms[id] && !S().canDM(me.id, userId)) {
       const mode = ((other.privacy || {}).dm) || "all";
       fail(
         mode === "none"
-          ? "Esta pessoa não recebe mensagens diretas."
+          ? NX.i18n.get("api.estaPessoaNaoRecebe", "Esta pessoa não recebe mensagens diretas.")
           : mode === "friends"
-          ? "Esta pessoa só aceita mensagens de amigos."
-          : "Esta pessoa só aceita mensagens de quem a segue."
+          ? NX.i18n.get("api.estaPessoaSoAceita", "Esta pessoa só aceita mensagens de amigos.")
+          : NX.i18n.get("api.estaPessoaSoAceita2", "Esta pessoa só aceita mensagens de quem a segue.")
       );
     }
     if (!db().dms[id]) {
@@ -1346,8 +1490,8 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const other = S().user(userId);
-    if (!me || !other) fail("Usuário não encontrado.");
-    if (userId === me.id) fail("Você não pode bloquear a si mesmo.");
+    if (!me || !other) fail(NX.i18n.get("api.usuarioNaoEncontrado2", "Usuário não encontrado."));
+    if (userId === me.id) fail(NX.i18n.get("api.voceNaoPodeBloquear", "Você não pode bloquear a si mesmo."));
     if (!me.blocks) me.blocks = [];
     if (me.blocks.indexOf(userId) === -1) me.blocks.push(userId);
     NX.store.commit(["profile", "members"]);
@@ -1357,7 +1501,7 @@ window.NX = window.NX || {};
   api.unblockUser = async function (userId) {
     await delay();
     const me = S().me();
-    if (!me) fail("Sua sessão expirou.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirou", "Sua sessão expirou."));
     me.blocks = (me.blocks || []).filter((x) => x !== userId);
     NX.store.commit(["profile", "members"]);
     return true;
@@ -1366,7 +1510,7 @@ window.NX = window.NX || {};
   api.muteDM = async function (dmId, muted) {
     await delay();
     const dm = db().dms[dmId];
-    if (!dm) fail("Conversa não encontrada.");
+    if (!dm) fail(NX.i18n.get("api.conversaNaoEncontrada3", "Conversa não encontrada."));
     dm.muted = muted !== false;
     NX.store.commit(["profile"]);
     return dm;
@@ -1392,14 +1536,14 @@ window.NX = window.NX || {};
      ========================================================= */
   api.createEmoji = async function (serverId, data) {
     await delay();
-    requirePerm(serverId, "manageChannels", "Você não tem permissão para adicionar emojis.");
+    requirePerm(serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao26", "Você não tem permissão para adicionar emojis."));
     const name = u().slug(String(data.name || "")).replace(/-/g, "");
-    if (name.length < 2) fail("Dê um nome com pelo menos 2 caracteres ao emoji.");
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos26", "Dê um nome com pelo menos 2 caracteres ao emoji."));
     if (Object.values(db().emojis || {}).some((e) => e.serverId === serverId && e.name === name))
-      fail("Já existe um emoji com esse nome.");
+      fail(NX.i18n.get("api.jaExisteEmojiEsse", "Já existe um emoji com esse nome."));
     const image = String(data.image || "");
-    if (!/^data:image\//.test(image)) fail("Envie uma imagem válida.");
-    if (image.length > 900000) fail("Esta imagem é grande demais (máximo 1 MB).");
+    if (!/^data:image\//.test(image)) fail((NX.i18n.get("api.envieumaimagemvalida", "Envie uma imagem válida.")));
+    if (image.length > 900000) fail(NX.i18n.get("api.estaImagemGrandeDemais3", "Esta imagem é grande demais (máximo 1 MB)."));
     const id = u().uid("em");
     db().emojis = db().emojis || {};
     db().emojis[id] = {
@@ -1418,8 +1562,8 @@ window.NX = window.NX || {};
   api.deleteEmoji = async function (emojiId) {
     await delay();
     const e = (db().emojis || {})[emojiId];
-    if (!e) fail("Emoji não encontrado.");
-    requirePerm(e.serverId, "manageChannels", "Você não tem permissão para remover emojis.");
+    if (!e) fail(NX.i18n.get("api.emojiNaoEncontrado", "Emoji não encontrado."));
+    requirePerm(e.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao27", "Você não tem permissão para remover emojis."));
     delete db().emojis[emojiId];
     log(e.serverId, "emoji.delete", { name: ":" + e.name + ":" });
     NX.store.commit(["emojis"]);
@@ -1457,9 +1601,9 @@ window.NX = window.NX || {};
     await delay();
     const me = S().me();
     const ch = S().channel(channelId);
-    if (!ch || ch.type !== "voice") fail("Canal de voz não encontrado.");
+    if (!ch || ch.type !== "voice") fail(NX.i18n.get("api.canalVozNaoEncontrado2", "Canal de voz não encontrado."));
     if (!S().can(ch.serverId, me.id, "joinVoice"))
-      fail("Você não tem permissão para entrar em canais de voz.");
+      fail(NX.i18n.get("api.voceNaoTemPermissao28", "Você não tem permissão para entrar em canais de voz."));
     db().voice = db().voice.filter((v) => v.userId !== me.id);
     db().voice.push({ channelId: channelId, userId: me.id, joinedAt: Date.now() });
     NX.store.commit(["voice", "channels"]);
@@ -1473,6 +1617,336 @@ window.NX = window.NX || {};
     db().voice = db().voice.filter((v) => v.userId !== me.id);
     NX.store.commit(["voice"]);
     return true;
+  };
+
+  /* =========================================================
+     CONVITES DE CHAMADA DE VOZ
+     ---------------------------------------------------------
+     Regras:
+       • quem CONVIDA precisa da permissão "inviteToVoice"
+         no canal (respeita overrides de canal/categoria);
+       • quem RECEBE precisa ser membro do servidor e poder
+         VER + CONECTAR no canal — senão o convite é recusado;
+       • bloqueios mútuos são respeitados;
+       • só usuários reais (nada de bots/NPCs);
+       • um convite pendente por pessoa/canal (nunca duplica);
+       • convite expira em 30 minutos.
+     ========================================================= */
+  const VOICE_INVITE_TTL = 30 * 60 * 1000;
+
+  function findPerson(q) {
+    const raw = String(q || "").trim();
+    if (!raw) return null;
+    return S().user(raw) || S().userByUsername(raw) || null;
+  }
+
+  function voiceGate(channel, viewerId) {
+    if (!channel || channel.type !== "voice")
+      return { ok: false, reason: NX.i18n.get("api.canalVozNaoEncontrado2", "Canal de voz não encontrado.") };
+    if (!S().canViewChannel(channel, viewerId))
+      return { ok: false, reason: NX.i18n.get("api.voceNaoTemPermissao29", "Você não tem permissão para ver este canal.") };
+    if (!S().channelPerm(channel, viewerId, "inviteToVoice"))
+      return {
+        ok: false,
+        reason: NX.i18n.get("api.voceNaoTemPermissao30", "Você não tem permissão para convidar pessoas para chamadas."),
+      };
+    return { ok: true, reason: "" };
+  }
+
+  function canEnterVoice(channel, userId) {
+    if (!S().membership(channel.serverId, userId)) return false;
+    if (S().banOf(channel.serverId, userId)) return false;
+    if (!S().channelPerm(channel, userId, "viewChannels")) return false;
+    if (!S().channelPerm(channel, userId, "joinVoice")) return false;
+    return true;
+  }
+
+  function connectToVoice(channel) {
+    const me = S().me();
+    db().voice = db().voice.filter((v) => v.userId !== me.id);
+    db().voice.push({ channelId: channel.id, userId: me.id, joinedAt: Date.now() });
+  }
+
+  /* 1) enviar convite (busca por @username, username ou ID) */
+  api.inviteToVoice = async function (channelId, userIdOrName) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaContaConvidar", "Entre na sua conta para convidar alguém."));
+    const ch = S().channel(channelId);
+    const gate = voiceGate(ch, me.id);
+    if (!gate.ok) fail(gate.reason);
+
+    const target = findPerson(userIdOrName);
+    if (!target || !S().isRealPerson(target.id))
+      fail(NX.i18n.get("api.naoEncontramosNinguemEsse", "Não encontramos ninguém com esse @username ou ID."));
+    if (target.id === me.id) fail(NX.i18n.get("api.voceJaEstaNesta", "Você já está nesta chamada."));
+    if (S().blockedBetween(me.id, target.id))
+      fail(NX.i18n.get("api.naoPossivelEnviarConvites", "Não é possível enviar convites entre contas bloqueadas."));
+    if (!S().membership(ch.serverId, target.id))
+      fail(NX.i18n.get("api.essaPessoaNaoEsta", "Essa pessoa não está neste servidor."));
+    if (!canEnterVoice(ch, target.id))
+      fail(NX.i18n.get("api.essaPessoaNaoTem", "Essa pessoa não tem permissão para entrar neste canal."));
+
+    const dup = Object.values(db().voiceInvites || {}).find(
+      (v) =>
+        v.status === "pending" &&
+        v.channelId === ch.id &&
+        v.toUserId === target.id &&
+        v.fromUserId === me.id &&
+        Date.now() - v.createdAt < VOICE_INVITE_TTL
+    );
+    if (dup) fail(NX.i18n.get("api.voceJaEnviouConvite", "Você já enviou um convite de chamada para esta pessoa."));
+
+    const inv = {
+      id: u().uid("vi"),
+      channelId: ch.id,
+      serverId: ch.serverId,
+      toUserId: target.id,
+      fromUserId: me.id,
+      status: "pending",
+      createdAt: Date.now(),
+    };
+    db().voiceInvites[inv.id] = inv;
+
+    notify(
+      target.id,
+      "voice",
+      "👥 " + me.displayName + (" " + NX.i18n.get("api.convidouvoceparaentrarnasala", "convidou você para entrar na sala de voz") + " ") + ch.name + ".",
+      {
+        voiceInviteId: inv.id,
+        channelId: ch.id,
+        serverId: ch.serverId,
+        fromId: me.id,
+        href: "#/s/" + ch.serverId + "/" + ch.id,
+      }
+    );
+    NX.store.commit(["notifications", "voice"]);
+    return inv;
+  };
+
+  /* 2) responder (aceitar/recusar) */
+  api.respondVoiceInvite = async function (inviteId, accept) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaConta5", "Entre na sua conta."));
+    const inv = S().voiceInvite(inviteId);
+    if (!inv) fail(NX.i18n.get("api.esteConviteNaoExiste2", "Este convite não existe mais."));
+    if (inv.toUserId !== me.id) fail(NX.i18n.get("api.esteConviteNaoVoce", "Este convite não é para você."));
+    if (inv.status !== "pending") fail(NX.i18n.get("api.esteConviteJaFoi", "Este convite já foi respondido."));
+    if (Date.now() - inv.createdAt > VOICE_INVITE_TTL) {
+      inv.status = "expired";
+      NX.store.commit(["voice", "notifications"]);
+      fail(NX.i18n.get("api.esteConviteExpirouPeca2", "Este convite expirou. Peça um novo."));
+    }
+
+    /* a notificação correspondente deixa de exigir resposta */
+    (db().notifications || []).forEach((n) => {
+      if (n.meta && n.meta.voiceInviteId === inv.id) n.read = true;
+    });
+
+    if (!accept) {
+      inv.status = "declined";
+      inv.respondedAt = Date.now();
+      NX.store.commit(["voice", "notifications"]);
+      return { accepted: false };
+    }
+
+    const ch = S().channel(inv.channelId);
+    if (!ch) {
+      inv.status = "expired";
+      NX.store.commit(["voice", "notifications"]);
+      fail(NX.i18n.get("api.estaSalaVozNao2", "Esta sala de voz não existe mais."));
+    }
+    if (!canEnterVoice(ch, me.id)) {
+      NX.store.commit(["notifications"]);
+      fail(NX.i18n.get("api.voceNaoTemPermissao32", "Você não tem permissão para entrar neste canal."));
+    }
+
+    inv.status = "accepted";
+    inv.respondedAt = Date.now();
+    connectToVoice(ch);
+    if (inv.fromUserId !== me.id)
+      notify(
+        inv.fromUserId,
+        "voice",
+        "✅ " + me.displayName + (" " + NX.i18n.get("api.entrounasaladevoz", "entrou na sala de voz") + " ") + ch.name + ".",
+        { channelId: ch.id, serverId: ch.serverId, href: "#/s/" + ch.serverId + "/" + ch.id }
+      );
+    NX.store.commit(["voice", "notifications", "channels", "route"]);
+    return { accepted: true, serverId: ch.serverId, channelId: ch.id };
+  };
+
+  /* 3) convite direto por link ("Copiar convite da call") */
+  api.createVoiceLink = async function (channelId) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaConta5", "Entre na sua conta."));
+    const ch = S().channel(channelId);
+    const gate = voiceGate(ch, me.id);
+    if (!gate.ok) fail(gate.reason);
+
+    const existing = Object.values(db().invites || {}).find(
+      (i) => i.kind === "voice" && i.channelId === ch.id && i.creatorId === me.id
+    );
+    if (existing) return existing;
+
+    const invite = {
+      code: newInviteCode(),
+      kind: "voice",
+      serverId: ch.serverId,
+      channelId: ch.id,
+      creatorId: me.id,
+      createdAt: Date.now(),
+      uses: 0,
+      maxUses: 0,
+      expiresAt: null,
+    };
+    db().invites[invite.code] = invite;
+    NX.store.commit(["invites"]);
+    return invite;
+  };
+
+  /* 4) abrir um convite de voz pelo link e entrar na call */
+  api.acceptVoiceLink = async function (code) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaContaEntrar2", "Entre na sua conta para entrar na chamada."));
+    const clean = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const invite = S().invite(clean);
+    if (!invite || invite.kind !== "voice")
+      fail(NX.i18n.get("api.conviteChamadaInvalidoExpirado", "Convite de chamada inválido ou expirado."));
+    const server = S().server(invite.serverId);
+    const ch = S().channel(invite.channelId);
+    if (!server || !ch) fail(NX.i18n.get("api.estaSalaVozNao2", "Esta sala de voz não existe mais."));
+    if (!S().membership(invite.serverId, me.id))
+      fail(NX.i18n.get("api.entreServidorPrimeiroParticipar", "Entre no servidor primeiro para participar desta chamada."));
+    if (!S().canViewChannel(ch, me.id) || !canEnterVoice(ch, me.id))
+      fail(NX.i18n.get("api.voceNaoTemPermissao32", "Você não tem permissão para entrar neste canal."));
+    connectToVoice(ch);
+    invite.uses = (invite.uses || 0) + 1;
+    NX.store.commit(["voice", "invites"]);
+    return { serverId: invite.serverId, channelId: ch.id };
+  };
+
+  /* =========================================================
+     CONTROLE DE MÍDIA DA CALL
+     ---------------------------------------------------------
+     Estado real de cada participante gravado em db.voice:
+       mic (false = mutado) · cam (câmera ligada) ·
+       screen (compartilhando tela) · speaking (falando)
+     Regras:
+       • cada um mexe no próprio estado;
+       • mutar OUTRO exige "muteMembers";
+       • remover OUTRO exige "moveMembers" ou admin/dono;
+       • o volume é preferência local de quem assiste.
+     ========================================================= */
+  function myVoiceRow(channelId) {
+    const me = S().me();
+    if (!me) return null;
+    return db().voice.find((v) => v.channelId === channelId && v.userId === me.id) || null;
+  }
+
+  function voiceRowOf(channelId, userId) {
+    return db().voice.find((v) => v.channelId === channelId && v.userId === userId) || null;
+  }
+
+  const OWN_STATE_KEYS = ["mic", "cam", "screen", "speaking"];
+
+  /* estado de MIM mesmo (microfone, câmera, tela, falando) */
+  api.setVoiceState = async function (channelId, patch) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaConta5", "Entre na sua conta."));
+    const row = myVoiceRow(channelId);
+    if (!row) fail(NX.i18n.get("api.voceNaoEstaNesta", "Você não está nesta chamada."));
+    const clean = {};
+    OWN_STATE_KEYS.forEach((k) => {
+      if (patch && patch[k] !== undefined) clean[k] = !!patch[k];
+    });
+    Object.keys(clean).forEach((k) => (row[k] = clean[k]));
+    /* microfone desligado nunca pode aparecer "falando" */
+    if (row.mic === false) row.speaking = false;
+    NX.store.commit(["voice"]);
+    return row;
+  };
+
+  /* estado de OUTRO participante (moderação) */
+  api.setOtherVoiceState = async function (channelId, userId, patch) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaConta5", "Entre na sua conta."));
+    const server = S().server((S().channel(channelId) || {}).serverId);
+    if (!server) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    if (userId === me.id) return api.setVoiceState(channelId, patch);
+
+    const canModerate =
+      server.ownerId === me.id ||
+      S().can(server.id, me.id, "administrator") ||
+      S().can(server.id, me.id, "muteMembers");
+    if (!canModerate)
+      fail(NX.i18n.get("api.voceNaoTemPermissao33", "Você não tem permissão para silenciar participantes da chamada."));
+
+    const row = voiceRowOf(channelId, userId);
+    if (!row) fail(NX.i18n.get("api.estaPessoaNaoEsta", "Esta pessoa não está mais na chamada."));
+
+    if (patch && patch.mic === false) {
+      row.mic = false;
+      row.speaking = false;
+      notify(
+        userId,
+        "voice",
+        "🔇 " + me.displayName + (" " + NX.i18n.get("api.silenciouvocenasaladevoz", "silenciou você na sala de voz") + " ") + S().channel(channelId).name + ".",
+        { channelId: channelId, serverId: server.id, href: "#/s/" + server.id + "/" + channelId }
+      );
+    } else if (patch && patch.mic === true) {
+      row.mic = true;
+      notify(
+        userId,
+        "voice",
+        "🔊 " + me.displayName + (" " + NX.i18n.get("api.reativouseumicrofonenasalade", "reativou seu microfone na sala de voz") + " ") + S().channel(channelId).name + ".",
+        { channelId: channelId, serverId: server.id, href: "#/s/" + server.id + "/" + channelId }
+      );
+    }
+    NX.store.commit(["voice", "notifications"]);
+    return row;
+  };
+
+  /* remover alguém da call */
+  api.removeFromVoice = async function (channelId, userId) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.entreSuaConta5", "Entre na sua conta."));
+    const server = S().server((S().channel(channelId) || {}).serverId);
+    if (!server) fail(NX.i18n.get("api.canalNaoEncontrado6", "Canal não encontrado."));
+    const canRemove =
+      server.ownerId === me.id ||
+      S().can(server.id, me.id, "administrator") ||
+      S().can(server.id, me.id, "moveMembers");
+    if (!canRemove) fail(NX.i18n.get("api.voceNaoTemPermissao34", "Você não tem permissão para remover participantes da chamada."));
+    if (userId === me.id) fail(NX.i18n.get("api.useBotaoDesconectarSair", "Use o botão Desconectar para sair da chamada."));
+
+    const row = voiceRowOf(channelId, userId);
+    if (!row) fail(NX.i18n.get("api.estaPessoaNaoEsta2", "Esta pessoa não está na chamada."));
+    db().voice = db().voice.filter((v) => !(v.channelId === channelId && v.userId === userId));
+    const ch = S().channel(channelId);
+    notify(
+      userId,
+      "voice",
+      "🔌 " + me.displayName + (" " + NX.i18n.get("api.removeuvocedasaladevoz", "removeu você da sala de voz") + " ") + ch.name + ".",
+      { channelId: channelId, serverId: server.id, href: "#/s/" + server.id + "/" + channelId }
+    );
+    log(serverId_of(ch), "member.voice.remove", { userId: userId });
+    NX.store.commit(["voice", "notifications"]);
+    return true;
+  };
+
+  /* volume: preferência LOCAL de quem escuta (nunca mexe no outro) */
+  api.setVoiceVolume = async function (userId, value) {
+    const v = Math.max(0, Math.min(200, Math.round(Number(value) || 0)));
+    NX.store.ui.voiceVolume = NX.store.ui.voiceVolume || {};
+    NX.store.ui.voiceVolume[userId] = v;
+    NX.store.persistUI();
+    return v;
   };
 
   /* =========================================================
@@ -1498,13 +1972,13 @@ window.NX = window.NX || {};
 
   function requireMe() {
     const me = S().me();
-    if (!me) fail("Sua sessão expirou. Entre novamente.");
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
     return me;
   }
 
   function requireUser(userId) {
     const usr = S().user(userId);
-    if (!usr) fail("Este usuário não existe mais.");
+    if (!usr) fail(NX.i18n.get("api.esteUsuarioNaoExiste", "Este usuário não existe mais."));
     return usr;
   }
 
@@ -1559,12 +2033,12 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const target = requireUser(userId);
-    if (target.id === me.id) fail("Você não pode seguir a si mesmo.");
+    if (target.id === me.id) fail(NX.i18n.get("api.voceNaoPodeSeguir", "Você não pode seguir a si mesmo."));
 
     const existing = S().followEdge(me.id, target.id);
-    if (existing && existing.state === "active") fail("Você já segue esta pessoa.");
+    if (existing && existing.state === "active") fail(NX.i18n.get("api.voceJaSegueEsta", "Você já segue esta pessoa."));
     if (existing && existing.state === "pending")
-      fail("A solicitação de seguimento já foi enviada.");
+      fail(NX.i18n.get("api.solicitacaoSeguimentoJaFoi", "A solicitação de seguimento já foi enviada."));
 
     const allowAll = privacyOf(target).follow !== "approved";
     const id = me.id + ">" + target.id;
@@ -1578,13 +2052,13 @@ window.NX = window.NX || {};
 
     if (!NX.store.persist()) {
       delete db().follows[id];
-      fail("Não foi possível salvar neste navegador (armazenamento bloqueado).");
+      fail(NX.i18n.get("api.naoFoiPossivelSalvar4", "Não foi possível salvar neste navegador (armazenamento bloqueado)."));
     }
 
     if (allowAll) {
       recount(target.id);
       recount(me.id);
-      socialNotify(target.id, "follow", "@" + me.username + " começou a seguir você.", "#/perfil/" + me.username);
+      socialNotify(target.id, "follow", "@" + me.username + (" " + NX.i18n.get("api.comecouaseguirvoce", "começou a seguir você.")), "#/perfil/" + me.username);
       NX.store.commit(SOCIAL_SCOPES);
       return { state: "active", followers: target.followersCount };
     }
@@ -1592,7 +2066,7 @@ window.NX = window.NX || {};
     socialNotify(
       target.id,
       "follow_request",
-      "@" + me.username + " solicitou seguir você.",
+      "@" + me.username + (" " + NX.i18n.get("api.solicitouseguirvoce", "solicitou seguir você.")),
       "#/perfil/" + me.username
     );
     recount(me.id);
@@ -1606,7 +2080,7 @@ window.NX = window.NX || {};
     const target = requireUser(userId);
     const id = me.id + ">" + target.id;
     const edge = db().follows[id];
-    if (!edge) fail("Você não segue esta pessoa.");
+    if (!edge) fail(NX.i18n.get("api.voceNaoSegueEsta", "Você não segue esta pessoa."));
 
     delete db().follows[id];
     NX.store.persist();
@@ -1621,7 +2095,7 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const edge = S().followEdge(followerId, me.id);
-    if (!edge || edge.state !== "pending") fail("Não há solicitação de seguimento pendente.");
+    if (!edge || edge.state !== "pending") fail(NX.i18n.get("api.naoHaSolicitacaoSeguimento2", "Não há solicitação de seguimento pendente."));
     edge.state = "active";
     edge.approvedAt = Date.now();
     NX.store.persist();
@@ -1630,7 +2104,7 @@ window.NX = window.NX || {};
     socialNotify(
       followerId,
       "follow_request",
-      "@" + me.username + " aceitou sua solicitação de seguimento.",
+      "@" + me.username + (" " + NX.i18n.get("api.aceitousuasolicitacaodeseguimento", "aceitou sua solicitação de seguimento.")),
       "#/perfil/" + me.username
     );
     NX.store.commit(SOCIAL_SCOPES);
@@ -1642,7 +2116,7 @@ window.NX = window.NX || {};
     const me = requireMe();
     const id = followerId + ">" + me.id;
     if (!db().follows[id] || db().follows[id].state !== "pending")
-      fail("Não há solicitação de seguimento pendente.");
+      fail(NX.i18n.get("api.naoHaSolicitacaoSeguimento2", "Não há solicitação de seguimento pendente."));
     delete db().follows[id];
     NX.store.persist();
     recount(me.id);
@@ -1693,9 +2167,9 @@ window.NX = window.NX || {};
     data = data || {};
     const content = String(data.content || "").trim();
     const media = normalizeMedia(data.media);
-    if (media.tooBig) fail("Este arquivo é grande demais (máximo 900 KB).");
-    if (!content && !media.list.length) fail("Escreva alguma coisa ou anexe uma imagem/vídeo.");
-    if (content.length > 2000) fail("A publicação pode ter no máximo 2.000 caracteres.");
+    if (media.tooBig) fail(NX.i18n.get("api.esteArquivoGrandeDemais2", "Este arquivo é grande demais (máximo 900 KB)."));
+    if (!content && !media.list.length) fail(NX.i18n.get("api.escrevaAlgumaCoisaAnexe", "Escreva alguma coisa ou anexe uma imagem/vídeo."));
+    if (content.length > 2000) fail(NX.i18n.get("api.publicacaoPodeTerMaximo", "A publicação pode ter no máximo 2.000 caracteres."));
 
     const id = u().uid("po");
     db().posts[id] = {
@@ -1709,7 +2183,7 @@ window.NX = window.NX || {};
     };
     if (!NX.store.persist()) {
       delete db().posts[id];
-      fail("Não foi possível salvar neste navegador (armazenamento bloqueado).");
+      fail(NX.i18n.get("api.naoFoiPossivelSalvar4", "Não foi possível salvar neste navegador (armazenamento bloqueado)."));
     }
     NX.store.commit(SOCIAL_SCOPES);
     return db().posts[id];
@@ -1719,8 +2193,8 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const post = S().post(postId);
-    if (!post) fail("Esta publicação não existe mais.");
-    if (post.authorId !== me.id) fail("Você só pode excluir as suas publicações.");
+    if (!post) fail(NX.i18n.get("api.estaPublicacaoNaoExiste2", "Esta publicação não existe mais."));
+    if (post.authorId !== me.id) fail(NX.i18n.get("api.voceSoPodeExcluir", "Você só pode excluir as suas publicações."));
 
     delete db().posts[postId];
     Object.values(db().comments || {})
@@ -1762,12 +2236,12 @@ window.NX = window.NX || {};
   api.likeContent = async function (targetType, targetId) {
     await delay();
     const me = requireMe();
-    if (LIKE_KINDS.indexOf(targetType) === -1) fail("Conteúdo inválido.");
+    if (LIKE_KINDS.indexOf(targetType) === -1) fail(NX.i18n.get("api.conteudoInvalido2", "Conteúdo inválido."));
     const target = likeTarget(targetType, targetId);
-    if (!target) fail("Este conteúdo não existe mais.");
+    if (!target) fail(NX.i18n.get("api.esteConteudoNaoExiste", "Este conteúdo não existe mais."));
 
     const likeId = [targetType, targetId, me.id].join(":");
-    if (db().likes[likeId]) fail("Você já curtiu este conteúdo."); /* anti-duplicidade */
+    if (db().likes[likeId]) fail(NX.i18n.get("api.voceJaCurtiuEste", "Você já curtiu este conteúdo.")); /* anti-duplicidade */
 
     db().likes[likeId] = {
       id: likeId,
@@ -1778,7 +2252,7 @@ window.NX = window.NX || {};
     };
     if (!NX.store.persist()) {
       delete db().likes[likeId];
-      fail("Não foi possível salvar neste navegador (armazenamento bloqueado).");
+      fail(NX.i18n.get("api.naoFoiPossivelSalvar4", "Não foi possível salvar neste navegador (armazenamento bloqueado)."));
     }
 
     if (targetType !== "message") target.likesCount = S().likeCount(targetType, targetId);
@@ -1788,8 +2262,8 @@ window.NX = window.NX || {};
     if (ownerId) recount(ownerId);
     if (ownerId && ownerId !== me.id) {
       const what =
-        targetType === "post" ? "publicação" : targetType === "comment" ? "comentário" : "mensagem";
-      socialNotify(ownerId, "like", "@" + me.username + " curtiu seu " + what + ".", likeHref(targetType, targetId));
+        targetType === "post" ? (NX.i18n.get("api.publicacao", "publicação")) : targetType === "comment" ? (NX.i18n.get("api.comentario", "comentário")) : "mensagem";
+      socialNotify(ownerId, "like", "@" + me.username + (" " + NX.i18n.get("api.curtiuseu", "curtiu seu") + " ") + what + ".", likeHref(targetType, targetId));
     }
 
     NX.store.commit(SOCIAL_SCOPES);
@@ -1799,7 +2273,7 @@ window.NX = window.NX || {};
   api.unlikeContent = async function (targetType, targetId) {
     await delay();
     const me = requireMe();
-    if (LIKE_KINDS.indexOf(targetType) === -1) fail("Conteúdo inválido.");
+    if (LIKE_KINDS.indexOf(targetType) === -1) fail(NX.i18n.get("api.conteudoInvalido2", "Conteúdo inválido."));
     const likeId = [targetType, targetId, me.id].join(":");
     if (!db().likes[likeId]) return { liked: false, count: S().likeCount(targetType, targetId) };
 
@@ -1822,17 +2296,17 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const post = S().post(postId);
-    if (!post) fail("Esta publicação não existe mais.");
-    if (!S().canViewPostsOf(me.id, post.authorId)) fail("Você não pode comentar esta publicação.");
+    if (!post) fail(NX.i18n.get("api.estaPublicacaoNaoExiste2", "Esta publicação não existe mais."));
+    if (!S().canViewPostsOf(me.id, post.authorId)) fail(NX.i18n.get("api.voceNaoPodeComentar", "Você não pode comentar esta publicação."));
 
     const text = String(content || "").trim();
-    if (!text) fail("Escreva um comentário.");
-    if (text.length > 500) fail("O comentário pode ter no máximo 500 caracteres.");
+    if (!text) fail(NX.i18n.get("api.escrevaComentario", "Escreva um comentário."));
+    if (text.length > 500) fail(NX.i18n.get("api.comentarioPodeTerMaximo", "O comentário pode ter no máximo 500 caracteres."));
 
     let parent = null;
     if (parentId) {
       parent = S().comment(parentId);
-      if (!parent || parent.postId !== postId) fail("Comentário de resposta não encontrado.");
+      if (!parent || parent.postId !== postId) fail(NX.i18n.get("api.comentarioRespostaNaoEncontrado", "Comentário de resposta não encontrado."));
     }
 
     const id = u().uid("cm");
@@ -1847,16 +2321,16 @@ window.NX = window.NX || {};
     };
     if (!NX.store.persist()) {
       delete db().comments[id];
-      fail("Não foi possível salvar neste navegador (armazenamento bloqueado).");
+      fail(NX.i18n.get("api.naoFoiPossivelSalvar4", "Não foi possível salvar neste navegador (armazenamento bloqueado)."));
     }
 
     post.commentsCount = S().commentsOf(postId).length;
     const href = hrefForPost(postId);
 
     if (parent && parent.authorId !== me.id) {
-      socialNotify(parent.authorId, "reply", "@" + me.username + " respondeu seu comentário.", href);
+      socialNotify(parent.authorId, "reply", "@" + me.username + (" " + NX.i18n.get("api.respondeuseucomentario", "respondeu seu comentário.")), href);
     } else if (post.authorId !== me.id) {
-      socialNotify(post.authorId, "comment", "@" + me.username + " comentou sua publicação.", href);
+      socialNotify(post.authorId, "comment", "@" + me.username + (" " + NX.i18n.get("api.comentousuapublicacao", "comentou sua publicação.")), href);
     }
 
     NX.store.commit(SOCIAL_SCOPES);
@@ -1867,8 +2341,8 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const c = S().comment(commentId);
-    if (!c) fail("Este comentário não existe mais.");
-    if (c.authorId !== me.id) fail("Você só pode excluir os seus comentários.");
+    if (!c) fail(NX.i18n.get("api.esteComentarioNaoExiste", "Este comentário não existe mais."));
+    if (c.authorId !== me.id) fail(NX.i18n.get("api.voceSoPodeExcluir2", "Você só pode excluir os seus comentários."));
 
     delete db().comments[commentId];
     Object.values(db().likes || {})
@@ -1896,11 +2370,12 @@ window.NX = window.NX || {};
       likes: ["all", "followers", "self"],
       posts: ["public", "followers", "self"],
       friendRequests: ["all", "common", "none"],
+      country: ["all", "friends", "none"],
     };
     const current = privacyOf(me);
     Object.keys(VALID).forEach((k) => {
       if (patch && patch[k] !== undefined) {
-        if (VALID[k].indexOf(patch[k]) === -1) fail("Opção de privacidade inválida.");
+        if (VALID[k].indexOf(patch[k]) === -1) fail(NX.i18n.get("api.opcaoPrivacidadeInvalida2", "Opção de privacidade inválida."));
         current[k] = patch[k];
       }
     });
@@ -1916,11 +2391,11 @@ window.NX = window.NX || {};
     const me = S().me();
     const owner = requireUser(userId);
     if (kind === "requests") {
-      if (!me || me.id !== owner.id) fail("Só você pode ver quem pediu para seguir você.");
+      if (!me || me.id !== owner.id) fail(NX.i18n.get("api.soVocePodeVer", "Só você pode ver quem pediu para seguir você."));
       return S().followRequestsOf(owner.id).map((x) => x.user);
     }
     if (!S().canViewFollowersOf(me ? me.id : null, owner.id))
-      fail("Esta pessoa mantém sua lista de seguidores privada.");
+      fail(NX.i18n.get("api.estaPessoaMantemSua", "Esta pessoa mantém sua lista de seguidores privada."));
     return kind === "following" ? S().followingOf(owner.id) : S().followersOf(owner.id);
   };
 
@@ -1930,7 +2405,7 @@ window.NX = window.NX || {};
     const me = S().me();
     const owner = requireUser(userId);
     if (!S().canViewLikesOf(me ? me.id : null, owner.id))
-      fail("Esta pessoa mantém as curtidas dela privadas.");
+      fail(NX.i18n.get("api.estaPessoaMantemCurtidas", "Esta pessoa mantém as curtidas dela privadas."));
 
     const posts = S()
       .postsBy(owner.id)
@@ -1959,7 +2434,7 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const other = findUserByIdOrName(userIdOrName);
-    if (!other || !S().isRealPerson(other.id)) fail("Não encontramos ninguém com esse @username.");
+    if (!other || !S().isRealPerson(other.id)) fail(NX.i18n.get("api.naoEncontramosNinguemEsse2", "Não encontramos ninguém com esse @username."));
     const check = S().canSendFriendRequest(me.id, other.id);
     if (!check.ok) fail(check.reason);
 
@@ -1973,7 +2448,7 @@ window.NX = window.NX || {};
     db().friendRequests[req.id] = req;
     NX.store.persist();
 
-    notify(other.id, "friend", "@" + me.username + " enviou uma solicitação de amizade.", {
+    notify(other.id, "friend", "@" + me.username + (" " + NX.i18n.get("api.enviouumasolicitacaodeamizade", "enviou uma solicitação de amizade.")), {
       href: "#/amigos/recebidas",
       actorId: me.id,
       requestId: req.id,
@@ -1987,8 +2462,8 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const req = S().friendRequest(requestId);
-    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
-    if (req.receiverId !== me.id) fail("Esta solicitação não é para você.");
+    if (!req || req.status !== "pending") fail(NX.i18n.get("api.estaSolicitacaoAmizadeNao3", "Esta solicitação de amizade não existe mais."));
+    if (req.receiverId !== me.id) fail(NX.i18n.get("api.estaSolicitacaoNaoVoce2", "Esta solicitação não é para você."));
 
     const key = S().friendKey(req.senderId, req.receiverId);
     if (!db().friendships[key]) {
@@ -2009,7 +2484,7 @@ window.NX = window.NX || {};
     notify(
       req.senderId,
       "friend",
-      "🎉 Agora você e @" + me.username + " são amigos!",
+      (NX.i18n.get("api.agoravocee", "🎉 Agora você e @")) + me.username + (" " + NX.i18n.get("api.saoamigos", "são amigos!")),
       { href: "#/amigos", actorId: me.id }
     );
     NX.store.commit(SOCIAL_SCOPES);
@@ -2021,8 +2496,8 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const req = S().friendRequest(requestId);
-    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
-    if (req.receiverId !== me.id) fail("Esta solicitação não é para você.");
+    if (!req || req.status !== "pending") fail(NX.i18n.get("api.estaSolicitacaoAmizadeNao3", "Esta solicitação de amizade não existe mais."));
+    if (req.receiverId !== me.id) fail(NX.i18n.get("api.estaSolicitacaoNaoVoce2", "Esta solicitação não é para você."));
     req.status = "rejected";
     req.rejectedAt = Date.now();
     NX.store.persist();
@@ -2035,8 +2510,8 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const req = S().friendRequest(requestId);
-    if (!req || req.status !== "pending") fail("Esta solicitação de amizade não existe mais.");
-    if (req.senderId !== me.id) fail("Você não pode cancelar esta solicitação.");
+    if (!req || req.status !== "pending") fail(NX.i18n.get("api.estaSolicitacaoAmizadeNao3", "Esta solicitação de amizade não existe mais."));
+    if (req.senderId !== me.id) fail(NX.i18n.get("api.voceNaoPodeCancelar", "Você não pode cancelar esta solicitação."));
     delete db().friendRequests[requestId];
     NX.store.persist();
     NX.store.commit(["profile"]);
@@ -2049,7 +2524,7 @@ window.NX = window.NX || {};
     const me = requireMe();
     const other = requireUser(userId);
     const key = S().friendKey(me.id, other.id);
-    if (!db().friendships[key]) fail("Vocês não são amigos.");
+    if (!db().friendships[key]) fail(NX.i18n.get("api.vocesNaoSaoAmigos", "Vocês não são amigos."));
     delete db().friendships[key];
     NX.store.persist();
     friendshipCount(me.id);
@@ -2093,16 +2568,16 @@ window.NX = window.NX || {};
     await delay();
     const me = requireMe();
     const server = S().server(serverId);
-    if (!server) fail("Este servidor não existe mais.");
+    if (!server) fail(NX.i18n.get("api.esteServidorNaoExiste2", "Este servidor não existe mais."));
     const friend = requireUser(friendId);
-    if (!S().isFriend(me.id, friend.id)) fail("Esta pessoa não é sua amiga.");
-    requirePerm(serverId, "createInvite", "Você não tem permissão para criar convites.");
-    if (S().membership(serverId, friend.id)) fail("Esta pessoa já participa do servidor.");
+    if (!S().isFriend(me.id, friend.id)) fail(NX.i18n.get("api.estaPessoaNaoSua", "Esta pessoa não é sua amiga."));
+    requirePerm(serverId, "createInvite", NX.i18n.get("adm.voceNaoTemPermissao3", "Você não tem permissão para criar convites."));
+    if (S().membership(serverId, friend.id)) fail(NX.i18n.get("api.estaPessoaJaParticipa", "Esta pessoa já participa do servidor."));
 
     const mapKey = serverId + ":" + friend.id;
     const existing = (db().friendInvites || {})[mapKey];
     if (existing && db().invites[existing.code]) {
-      fail("Você já enviou um convite para esta pessoa.");
+      fail(NX.i18n.get("api.voceJaEnviouConvite2", "Você já enviou um convite para esta pessoa."));
     }
 
     const code = newInviteCode();
@@ -2130,11 +2605,187 @@ window.NX = window.NX || {};
     notify(
       friend.id,
       "invite",
-      "@" + me.username + " te convidou para entrar em " + server.name + ".",
+      "@" + me.username + (" " + NX.i18n.get("api.teconvidouparaentrarem", "te convidou para entrar em") + " ") + server.name + ".",
       { href: "#/convite/" + code, actorId: me.id, serverId: serverId }
     );
     NX.store.commit(["invites", "notifications"]);
     return inv;
+  };
+
+  /* =========================================================
+     APPS / BOTS (Bot Center) — catálogo, instalação e config
+     ========================================================= */
+  api.listApps = async function () {
+    await delay();
+    const counts = {};
+    Object.values(db().serverApps || {}).forEach(function (it) {
+      counts[it.appId] = (counts[it.appId] || 0) + 1;
+    });
+    return Object.values(db().apps || {}).map(function (a) {
+      return Object.assign({}, a, { installCount: counts[a.id] || 0 });
+    });
+  };
+
+  api.getApp = async function (appId) {
+    await delay();
+    const app = (db().apps || {})[appId];
+    if (!app) fail(NX.i18n.get("apps.esteAppNaoExiste", "Este app não existe."));
+    return Object.assign({}, app, { installCount: 0 });
+  };
+
+  api.listServerApps = async function (serverId) {
+    await delay();
+    return Object.values(db().serverApps || {}).filter(function (i) {
+      return i.serverId === serverId;
+    });
+  };
+
+  function canManageServer(serverId) {
+    const me = S().me();
+    const srv = S().server(serverId);
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
+    if (!srv) fail(NX.i18n.get("api.esteServidorNaoExiste2", "Este servidor não existe mais."));
+    if (srv.ownerId !== me.id && !S().can(serverId, me.id, "manageServer"))
+      fail(NX.i18n.get("apps.semPermissaoInstalar", "Você não tem permissão para instalar apps neste servidor."));
+    return me;
+  }
+
+  api.installApp = async function (serverId, data) {
+    await delay();
+    const me = canManageServer(serverId);
+    data = data || {};
+    const app = (db().apps || {})[data.appId];
+    if (!app || app.enabled === false)
+      fail(NX.i18n.get("apps.naoDisponivel", "Este app não está disponível."));
+    if (S().appInstall(serverId, app.id))
+      fail(NX.i18n.get("apps.jaInstalado", "Este app já está instalado neste servidor."));
+    const install = {
+      id: u().uid("sa"),
+      serverId: serverId,
+      appId: app.id,
+      installedBy: me.id,
+      permissions: Array.isArray(data.permissions) ? data.permissions.slice() : (app.permissions || []).slice(),
+      enabled: true,
+      configuration: Object.assign({}, (app.config || {}), data.configuration || {}),
+      installedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    db().serverApps = db().serverApps || {};
+    db().serverApps[install.id] = install;
+    log(serverId, "app.install", { app: app.name });
+    NX.store.commit(["apps"]);
+    return install;
+  };
+
+  api.updateServerApp = async function (serverId, installId, patch) {
+    await delay();
+    canManageServer(serverId);
+    patch = patch || {};
+    const install = (db().serverApps || {})[installId];
+    if (!install || install.serverId !== serverId)
+      fail(NX.i18n.get("apps.instalacaoNaoExiste", "Esta instalação não existe."));
+    if (patch.enabled !== undefined) install.enabled = !!patch.enabled;
+    if (patch.configuration !== undefined)
+      install.configuration = Object.assign({}, install.configuration || {}, patch.configuration);
+    if (patch.permissions !== undefined) install.permissions = patch.permissions.slice();
+    install.updatedAt = Date.now();
+    log(serverId, "app.update", { app: install.appId, enabled: install.enabled });
+    NX.store.commit(["apps"]);
+    return install;
+  };
+
+  api.removeServerApp = async function (serverId, installId) {
+    await delay();
+    canManageServer(serverId);
+    const install = (db().serverApps || {})[installId];
+    if (!install || install.serverId !== serverId)
+      fail(NX.i18n.get("apps.instalacaoNaoExiste", "Esta instalação não existe."));
+    delete db().serverApps[installId];
+    log(serverId, "app.remove", { app: install.appId });
+    NX.store.commit(["apps"]);
+    return true;
+  };
+
+  /* =========================================================
+     CHAMADAS — WebRTC no cliente, estado aqui (fallback local)
+     ========================================================= */
+  function localCall(id, patch) {
+    db().calls = db().calls || {};
+    const cur = db().calls[id] || null;
+    const next = Object.assign({}, cur || {}, patch || {});
+    db().calls[id] = next;
+    return next;
+  }
+
+  api.startCall = async function (peerId) {
+    await delay();
+    const me = S().me();
+    if (!me) fail(NX.i18n.get("api.suaSessaoExpirouEntre8", "Sua sessão expirou. Entre novamente."));
+    if (!peerId || peerId === me.id) fail(NX.i18n.get("call.naoLigarParaSi", "Você não pode ligar para si mesmo."));
+    if (S().activeCall()) fail(NX.i18n.get("call.jaEmChamada", "Você já está em uma chamada."));
+    const id = u().uid("cl");
+    const call = localCall(id, {
+      id: id,
+      peerId: peerId,
+      role: "caller",
+      state: "ringing",
+      startedAt: Date.now(),
+      answeredAt: null,
+      endedAt: null,
+      reason: null,
+    });
+    notify(
+      peerId,
+      "call",
+      "📞 " + (me.displayName || me.username) + " está ligando para você.",
+      { callId: id, href: "#/mensagens", actorId: me.id }
+    );
+    NX.store.commit(["calls", "notifications"]);
+    return call;
+  };
+
+  api.respondCall = async function (callId, accept) {
+    await delay();
+    const call = (db().calls || {})[callId];
+    if (!call) fail(NX.i18n.get("call.naoExiste", "Esta chamada não existe mais."));
+    const ok = accept !== false;
+    const next = localCall(callId, {
+      state: ok ? "active" : "declined",
+      answeredAt: ok ? Date.now() : null,
+      endedAt: ok ? null : Date.now(),
+      reason: ok ? null : "declined",
+    });
+    NX.store.commit(["calls"]);
+    return next;
+  };
+
+  api.endCall = async function (callId, reason) {
+    await delay();
+    const call = (db().calls || {})[callId];
+    if (!call) fail(NX.i18n.get("call.naoExiste", "Esta chamada não existe mais."));
+    const missed = reason === "missed";
+    const next = localCall(callId, {
+      state: missed ? "missed" : "ended",
+      endedAt: Date.now(),
+      reason: reason || "hangup",
+    });
+    NX.store.commit(["calls"]);
+    return next;
+  };
+
+  api.sendSignal = async function (callId, kind, payload) {
+    await delay();
+    return true;
+  };
+
+  api.peekCalls = async function () {
+    await delay();
+    return {
+      calls: db().calls || {},
+      signals: [],
+      peers: {},
+      serverTime: Date.now(),
+    };
   };
 
   NX.api = api;

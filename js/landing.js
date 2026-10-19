@@ -34,79 +34,79 @@ window.NX = window.NX || {};
 
   /* ---------------- conteúdo ---------------- */
   const NAV = [
-    { label: "Recursos", target: "sec-recursos" },
-    { label: "Comunidades", target: "sec-comunidades" },
-    { label: "Segurança", target: "sec-seguranca" },
-    { label: "Sobre", target: "sec-sobre" },
+    { label: (NX.i18n.get("landing.recursos", "Recursos")), target: "sec-recursos" },
+    { label: (NX.i18n.get("landing.comunidades", "Comunidades")), target: "sec-comunidades" },
+    { label: (NX.i18n.get("adm.seguranca", "Segurança")), target: "sec-seguranca" },
+    { label: (NX.i18n.get("landing.sobre", "Sobre")), target: "sec-sobre" },
   ];
 
   const SERVER_CARDS = [
-    { emoji: "🏠", tint: "53, 224, 168", title: "Servidores", desc: "Crie quantos servidores quiser." },
-    { emoji: "💬", tint: "76, 201, 240", title: "Canais", desc: "Organize conversas em canais e categorias." },
-    { emoji: "🛡️", tint: "143, 131, 255", title: "Cargos", desc: "Defina cargos e permissões para sua comunidade." },
+    { emoji: "🏠", tint: "53, 224, 168", title: (NX.i18n.get("ex.servidores", "Servidores")), desc: NX.i18n.get("landing.crieQuantosServidoresQuiser", "Crie quantos servidores quiser.") },
+    { emoji: "💬", tint: "76, 201, 240", title: (NX.i18n.get("adm.canais2", "Canais")), desc: NX.i18n.get("landing.organizeConversasCanaisCategorias", "Organize conversas em canais e categorias.") },
+    { emoji: "🛡️", tint: "143, 131, 255", title: (NX.i18n.get("adm.cargos", "Cargos")), desc: NX.i18n.get("landing.definaCargosPermissoesSua", "Defina cargos e permissões para sua comunidade.") },
   ];
 
   const FEATURES = [
-    { emoji: "💬", tint: "53, 224, 168", title: "Chat em tempo real", desc: "Mensagens que chegam na hora, em canais e direct." },
-    { emoji: "🔊", tint: "76, 201, 240", title: "Canais de voz", desc: "Salas de voz para conversar, jogar ou só estar junto." },
-    { emoji: "👥", tint: "255, 200, 87", title: "Comunidades", desc: "Reúna amigos, times, fãs e grupos em um só lugar." },
-    { emoji: "🛡️", tint: "143, 131, 255", title: "Cargos e permissões", desc: "Cada pessoa com o papel certo e o controle certo." },
-    { emoji: "🔗", tint: "255, 122, 182", title: "Convites", desc: "Links simples para chamar quem faz parte da conversa." },
-    { emoji: "🎨", tint: "53, 224, 168", title: "Personalização", desc: "Nome, ícone e identidade com a cara da sua galera." },
-    { emoji: "🔔", tint: "255, 200, 87", title: "Notificações", desc: "Avisos que respeitam o seu foco e os seus canais." },
-    { emoji: "📱", tint: "76, 201, 240", title: "Celular e computador", desc: "A mesma conversa, no navegador de qualquer tela." },
+    { emoji: "💬", tint: "53, 224, 168", title: NX.i18n.get("landing.chatTempoReal", "Chat em tempo real"), desc: NX.i18n.get("landing.mensagensChegamHoraCanais", "Mensagens que chegam na hora, em canais e direct.") },
+    { emoji: "🔊", tint: "76, 201, 240", title: NX.i18n.get("landing.canaisVoz", "Canais de voz"), desc: NX.i18n.get("landing.salasVozConversarJogar", "Salas de voz para conversar, jogar ou só estar junto.") },
+    { emoji: "👥", tint: "255, 200, 87", title: (NX.i18n.get("landing.comunidades", "Comunidades")), desc: NX.i18n.get("landing.reunaAmigosTimesFas", "Reúna amigos, times, fãs e grupos em um só lugar.") },
+    { emoji: "🛡️", tint: "143, 131, 255", title: NX.i18n.get("landing.cargosPermissoes2", "Cargos e permissões"), desc: NX.i18n.get("landing.cadaPessoaPapelCerto", "Cada pessoa com o papel certo e o controle certo.") },
+    { emoji: "🔗", tint: "255, 122, 182", title: (NX.i18n.get("set.item.privacyInvites", "Convites")), desc: NX.i18n.get("landing.linksSimplesChamarQuem", "Links simples para chamar quem faz parte da conversa.") },
+    { emoji: "🎨", tint: "53, 224, 168", title: (NX.i18n.get("landing.personalizacao", "Personalização")), desc: NX.i18n.get("landing.nomeIconeIdentidadeCara", "Nome, ícone e identidade com a cara da sua galera.") },
+    { emoji: "🔔", tint: "255, 200, 87", title: (NX.i18n.get("nav.notifications", "Notificações")), desc: NX.i18n.get("landing.avisosRespeitamSeuFoco", "Avisos que respeitam o seu foco e os seus canais.") },
+    { emoji: "📱", tint: "76, 201, 240", title: NX.i18n.get("landing.celularComputador", "Celular e computador"), desc: NX.i18n.get("landing.mesmaConversaNavegadorQualquer", "A mesma conversa, no navegador de qualquer tela.") },
   ];
 
   const SEC_POINTS = [
-    { emoji: "🛡️", title: "Cargos e permissões", desc: "Defina quem pode falar, moderar e configurar cada canal." },
-    { emoji: "🔗", title: "Convites sob controle", desc: "Gere e revogue convites quando a sua comunidade pedir." },
-    { emoji: "🕶️", title: "Privacidade em primeiro lugar", desc: "O que acontece no seu espaço continua sendo do seu espaço." },
+    { emoji: "🛡️", title: NX.i18n.get("landing.cargosPermissoes2", "Cargos e permissões"), desc: NX.i18n.get("landing.definaQuemPodeFalar", "Defina quem pode falar, moderar e configurar cada canal.") },
+    { emoji: "🔗", title: NX.i18n.get("landing.convitesSobControle", "Convites sob controle"), desc: NX.i18n.get("landing.gereRevogueConvitesQuando", "Gere e revogue convites quando a sua comunidade pedir.") },
+    { emoji: "🕶️", title: NX.i18n.get("landing.privacidadePrimeiroLugar", "Privacidade em primeiro lugar"), desc: NX.i18n.get("landing.aconteceSeuEspacoContinua", "O que acontece no seu espaço continua sendo do seu espaço.") },
   ];
 
   const STEPS = [
-    { n: "01", title: "Crie sua conta", desc: "Cadastre-se gratuitamente." },
-    { n: "02", title: "Crie seu servidor", desc: "Dê um nome e personalize sua comunidade." },
-    { n: "03", title: "Convide seus amigos", desc: "Compartilhe um convite e comece a conversar." },
+    { n: "01", title: NX.i18n.get("landing.crieSuaConta", "Crie sua conta"), desc: NX.i18n.get("landing.cadastreGratuitamente", "Cadastre-se gratuitamente.") },
+    { n: "02", title: NX.i18n.get("landing.crieSeuServidor", "Crie seu servidor"), desc: NX.i18n.get("landing.nomePersonalizeSuaComunidade", "Dê um nome e personalize sua comunidade.") },
+    { n: "03", title: NX.i18n.get("landing.convideSeusAmigos", "Convide seus amigos"), desc: NX.i18n.get("landing.compartilheConviteComeceConversar", "Compartilhe um convite e comece a conversar.") },
   ];
 
   const FOOTER_COLS = [
     {
-      title: "Plataforma",
+      title: (NX.i18n.get("landing.plataforma", "Plataforma")),
       links: [
-        { label: "Início", target: "lp-top" },
-        { label: "Recursos", target: "sec-recursos" },
-        { label: "Comunidades", target: "sec-comunidades" },
-        { label: "Segurança", target: "sec-seguranca" },
+        { label: (NX.i18n.get("nav.home", "Início")), target: "lp-top" },
+        { label: (NX.i18n.get("landing.recursos", "Recursos")), target: "sec-recursos" },
+        { label: (NX.i18n.get("landing.comunidades", "Comunidades")), target: "sec-comunidades" },
+        { label: (NX.i18n.get("adm.seguranca", "Segurança")), target: "sec-seguranca" },
       ],
     },
     {
-      title: "Ajuda",
+      title: (NX.i18n.get("landing.ajuda", "Ajuda")),
       links: [
-        { label: "Central de ajuda" },
-        { label: "Suporte" },
-        { label: "Termos" },
-        { label: "Privacidade" },
+        { label: NX.i18n.get("landing.centralAjuda", "Central de ajuda") },
+        { label: (NX.i18n.get("landing.suporte", "Suporte")) },
+        { label: (NX.i18n.get("landing.termos", "Termos")) },
+        { label: (NX.i18n.get("landing.privacidade", "Privacidade")) },
       ],
     },
     {
-      title: "Redes",
-      links: [{ label: "YouTube" }, { label: "Instagram" }, { label: "X" }, { label: "TikTok" }],
+      title: (NX.i18n.get("landing.redes", "Redes")),
+      links: [{ label: (NX.i18n.get("landing.youtube", "YouTube")) }, { label: (NX.i18n.get("landing.instagram", "Instagram")) }, { label: "X" }, { label: (NX.i18n.get("landing.tiktok", "TikTok")) }],
     },
   ];
 
   /* conteúdo do mockup (informativo, sem imagem) */
   const MOCK_SERVERS = ["🎮", "📚", "🛠️"];
   const MOCK_MSGS = [
-    { name: "Marina", time: "10:02", text: "Bem-vindos ao servidor! 🚀" },
-    { name: "Rafa", time: "10:03", text: "Separei os canais por categoria." },
-    { name: "Lia", time: "10:04", text: "Alguém entra na call depois?" },
-    { name: "Téo", time: "10:05", text: "Já tô entrando!" },
+    { name: (NX.i18n.get("landing.marina", "Marina")), time: "10:02", text: NX.i18n.get("landing.bemVindosServidor", "Bem-vindos ao servidor! 🚀") },
+    { name: (NX.i18n.get("landing.rafa", "Rafa")), time: "10:03", text: NX.i18n.get("landing.separeiCanaisCategoria", "Separei os canais por categoria.") },
+    { name: (NX.i18n.get("landing.lia", "Lia")), time: "10:04", text: NX.i18n.get("landing.alguemEntraCallDepois", "Alguém entra na call depois?") },
+    { name: (NX.i18n.get("landing.teo", "Téo")), time: "10:05", text: NX.i18n.get("landing.jaToEntrando", "Já tô entrando!") },
   ];
   const MOCK_MEMBERS = [
-    { name: "Marina", status: "online" },
-    { name: "Rafa", status: "online" },
-    { name: "Lia", status: "typing" },
-    { name: "Téo", status: "idle" },
+    { name: (NX.i18n.get("landing.marina", "Marina")), status: "online" },
+    { name: (NX.i18n.get("landing.rafa", "Rafa")), status: "online" },
+    { name: (NX.i18n.get("landing.lia", "Lia")), status: "typing" },
+    { name: (NX.i18n.get("landing.teo", "Téo")), status: "idle" },
   ];
 
   /* ---------------- blocos de HTML ---------------- */
@@ -123,15 +123,15 @@ window.NX = window.NX || {};
     return (
       '<header class="lp-header">' +
         '<div class="lp-wrap lp-header__inner">' +
-          '<button type="button" class="lp-brand" data-action="landing-scroll" data-target="lp-top" aria-label="Nexo — voltar ao início">' +
+          '<button type="button" class="lp-brand" data-action="landing-scroll" data-target="lp-top" aria-label="' + NX.i18n.get("ui.nexovoltaraoinicio", "Nexo — voltar ao início") + '">' +
             mark(30) +
             '<span class="lp-brand__name">Nexo</span>' +
           "</button>" +
-          '<nav class="lp-nav" aria-label="Navegação da página">' + navBtns("lp-nav__link") + "</nav>" +
+          '<nav class="lp-nav" aria-label="' + NX.i18n.get("ui.navegacaodapagina", "Navegação da página") + '">' + navBtns("lp-nav__link") + "</nav>" +
           '<div class="lp-header__actions">' +
-            '<button type="button" class="lp-btn lp-btn--ghost lp-btn--sm" data-action="goto-login">Entrar</button>' +
-            '<button type="button" class="lp-btn lp-btn--primary lp-btn--sm" data-action="goto-signup">Criar conta</button>' +
-            '<button type="button" class="lp-burger" data-action="landing-menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="lp-drawer">' +
+            ("<button type=\"button\" class=\"lp-btn lp-btn--ghost lp-btn--sm\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>") +
+            ("<button type=\"button\" class=\"lp-btn lp-btn--primary lp-btn--sm\" data-action=\"goto-signup\">" + NX.i18n.get("app.criarconta", "Criar conta") + "</button>") +
+            '<button type="button" class="lp-burger" data-action="landing-menu" aria-label="' + NX.i18n.get("landing.abrirMenu", "Abrir menu") + '" aria-expanded="false" aria-controls="lp-drawer">' +
               ico("menu", 22) +
             "</button>" +
           "</div>" +
@@ -140,8 +140,8 @@ window.NX = window.NX || {};
           '<div class="lp-wrap lp-drawer__inner">' +
             '<div class="lp-drawer__links">' + navBtns("lp-drawer__link") + "</div>" +
             '<div class="lp-drawer__cta">' +
-              '<button type="button" class="lp-btn lp-btn--ghost" data-action="goto-login">Entrar</button>' +
-              '<button type="button" class="lp-btn lp-btn--primary" data-action="goto-signup">Criar conta</button>' +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--ghost\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>") +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--primary\" data-action=\"goto-signup\">" + NX.i18n.get("app.criarconta", "Criar conta") + "</button>") +
             "</div>" +
           "</div>" +
         "</div>" +
@@ -171,17 +171,17 @@ window.NX = window.NX || {};
 
     const side =
       '<div class="lp-mock__side" aria-hidden="true">' +
-        '<div class="lp-mock__srvhead"><span>Comunidade Nexo</span>' + ico("chevronDown", 14) + "</div>" +
-        '<div class="lp-mock__cat">INFORMAÇÕES</div>' +
-        '<div class="lp-mock__chan">' + ico("hash", 14) + "<span>boas-vindas</span></div>" +
-        '<div class="lp-mock__chan">' + ico("hash", 14) + "<span>regras</span></div>" +
-        '<div class="lp-mock__cat">COMUNIDADE</div>' +
-        '<div class="lp-mock__chan is-active">' + ico("hash", 14) + "<span>geral</span>" +
+        ("<div class=\"lp-mock__srvhead\"><span>" + NX.i18n.get("landing.comunidadenexo", "Comunidade Nexo") + "</span>") + ico("chevronDown", 14) + "</div>" +
+        ("<div class=\"lp-mock__cat\">" + NX.i18n.get("core.informacoes", "INFORMAÇÕES") + "</div>") +
+        '<div class="lp-mock__chan">' + ico("hash", 14) + ("<span>" + NX.i18n.get("landing.boasvindas", "boas-vindas") + "</span></div>") +
+        '<div class="lp-mock__chan">' + ico("hash", 14) + ("<span>" + NX.i18n.get("landing.regras", "regras") + "</span></div>") +
+        ("<div class=\"lp-mock__cat\">" + NX.i18n.get("core.comunidade2", "COMUNIDADE") + "</div>") +
+        '<div class="lp-mock__chan is-active">' + ico("hash", 14) + ("<span>" + NX.i18n.get("landing.geral", "geral") + "</span>") +
           '<i class="lp-mock__pulse"></i></div>' +
-        '<div class="lp-mock__chan">' + ico("hash", 14) + "<span>memes</span></div>" +
-        '<div class="lp-mock__chan">' + ico("hash", 14) + "<span>novidades</span></div>" +
-        '<div class="lp-mock__cat">VOZ</div>' +
-        '<div class="lp-mock__chan">' + ico("voice", 14) + "<span>Sala Geral</span>" +
+        '<div class="lp-mock__chan">' + ico("hash", 14) + ("<span>" + NX.i18n.get("landing.memes", "memes") + "</span></div>") +
+        '<div class="lp-mock__chan">' + ico("hash", 14) + ("<span>" + NX.i18n.get("landing.novidades", "novidades") + "</span></div>") +
+        ("<div class=\"lp-mock__cat\">" + NX.i18n.get("core.voz", "VOZ") + "</div>") +
+        '<div class="lp-mock__chan">' + ico("voice", 14) + ("<span>" + NX.i18n.get("core.salaGeral", "Sala Geral") + "</span>") +
           '<em class="lp-mock__peers">2</em></div>' +
       "</div>";
 
@@ -198,21 +198,21 @@ window.NX = window.NX || {};
 
     const chat =
       '<div class="lp-mock__chat">' +
-        '<div class="lp-mock__chathead">' + ico("hash", 15) + "<span>geral</span>" +
-          '<em class="lp-mock__topic">Comunidade, novidades e conversa</em></div>' +
+        '<div class="lp-mock__chathead">' + ico("hash", 15) + ("<span>" + NX.i18n.get("landing.geral", "geral") + "</span>") +
+          ("<em class=\"lp-mock__topic\">" + NX.i18n.get("landing.comunidadenovidadeseconversa", "Comunidade, novidades e conversa") + "</em></div>") +
         '<div class="lp-mock__msgs">' + msgs + "</div>" +
-        '<div class="lp-mock__composer"><span>Mensagem para #geral</span>' + ico("send", 15) + "</div>" +
+        ("<div class=\"lp-mock__composer\"><span>" + NX.i18n.get("landing.mensagemparageral", "Mensagem para #geral") + "</span>") + ico("send", 15) + "</div>" +
       "</div>";
 
     const members =
       '<div class="lp-mock__members" aria-hidden="true">' +
-        '<div class="lp-mock__cat">ONLINE — ' + MOCK_MEMBERS.length + "</div>" +
+        ("<div class=\"lp-mock__cat\">" + NX.i18n.get("landing.online", "ONLINE —") + " ") + MOCK_MEMBERS.length + "</div>" +
         MOCK_MEMBERS.map((m) => {
           if (m.status === "typing") {
             return (
               '<div class="lp-mrow">' + avHTML(m.name, "", null) +
                 '<span class="lp-mrow__txt"><b>' + h(m.name) + "</b>" +
-                '<em class="lp-typing">digitando<span class="lp-tdots"><i></i><i></i><i></i></span></em>' +
+                ("<em class=\"lp-typing\">" + NX.i18n.get("landing.digitando", "digitando") + "<span class=\"lp-tdots\"><i></i><i></i><i></i></span></em>") +
                 "</span></div>"
             );
           }
@@ -226,12 +226,12 @@ window.NX = window.NX || {};
 
     return (
       '<figure class="lp-mock">' +
-        '<figcaption class="lp-mock__badge">' + ico("sparkles", 14) + "<span>Prévia da interface</span></figcaption>" +
+        '<figcaption class="lp-mock__badge">' + ico("sparkles", 14) + ("<span>" + NX.i18n.get("landing.previadainterface", "Prévia da interface") + "</span></figcaption>") +
         '<div class="lp-mock__frame">' +
           '<div class="lp-mock__bar">' +
             '<span class="lp-mock__dots"><i></i><i></i><i></i></span>' +
-            '<span class="lp-mock__url">nexo · comunidade</span>' +
-            '<span class="lp-mock__env">' + ico("shield", 13) + "<span>convite válido</span></span>" +
+            ("<span class=\"lp-mock__url\">" + NX.i18n.get("landing.nexocomunidade", "nexo · comunidade") + "</span>") +
+            '<span class="lp-mock__env">' + ico("shield", 13) + ("<span>" + NX.i18n.get("landing.convitevalido", "convite válido") + "</span></span>") +
           "</div>" +
           '<div class="lp-mock__body">' + rail + side + chat + members + "</div>" +
         "</div>" +
@@ -245,14 +245,14 @@ window.NX = window.NX || {};
       '<section class="lp-sec lp-hero" id="lp-top">' +
         '<div class="lp-wrap lp-hero__grid">' +
           '<div class="lp-hero__text">' +
-            '<span class="lp-pill">' + ico("sparkles", 14) + "<span>Plataforma de comunidades</span></span>" +
-            '<h1 class="lp-hero__title">Seu espaço. Sua comunidade. <span class="lp-grad">Sua conversa.</span></h1>' +
-            '<p class="lp-hero__sub">Crie comunidades, converse com seus amigos, organize canais e construa seu próprio espaço online.</p>' +
+            '<span class="lp-pill">' + ico("sparkles", 14) + ("<span>" + NX.i18n.get("landing.plataformadecomunidades", "Plataforma de comunidades") + "</span></span>") +
+            ("<h1 class=\"lp-hero__title\">" + NX.i18n.get("landing.seuespacosuacomunidade", "Seu espaço. Sua comunidade.") + " " + "<span class=\"lp-grad\">" + NX.i18n.get("landing.suaconversa", "Sua conversa.") + "</span></h1>") +
+            ("<p class=\"lp-hero__sub\">" + NX.i18n.get("landing.criecomunidadesconversecomseusamigos", "Crie comunidades, converse com seus amigos, organize canais e construa seu próprio espaço online.") + "</p>") +
             '<div class="lp-hero__cta">' +
-              '<button type="button" class="lp-btn lp-btn--primary lp-btn--lg" data-action="goto-signup">Começar agora</button>' +
-              '<button type="button" class="lp-btn lp-btn--ghost lp-btn--lg" data-action="goto-login">Entrar</button>' +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--primary lp-btn--lg\" data-action=\"goto-signup\">" + NX.i18n.get("landing.comecaragora", "Começar agora") + "</button>") +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--ghost lp-btn--lg\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>") +
             "</div>" +
-            '<p class="lp-hero__note">' + ico("check", 16) + "<span>Grátis para começar · no celular e no computador</span></p>" +
+            '<p class="lp-hero__note">' + ico("check", 16) + ("<span>" + NX.i18n.get("landing.gratisparacomecarnocelulare", "Grátis para começar · no celular e no computador") + "</span></p>") +
           "</div>" +
           '<div class="lp-hero__visual" data-reveal style="--d:1">' + mockHTML() + "</div>" +
         "</div>" +
@@ -275,9 +275,9 @@ window.NX = window.NX || {};
       '<section class="lp-sec" id="sec-comunidades">' +
         '<div class="lp-wrap">' +
           '<div class="lp-sec__head lp-reveal" data-reveal>' +
-            '<span class="lp-eyebrow">Sua comunidade</span>' +
-            '<h2 class="lp-h2">Crie seu próprio servidor</h2>' +
-            '<p class="lp-lead">Crie um espaço personalizado para seus amigos, comunidade, projeto ou grupo.</p>' +
+            ("<span class=\"lp-eyebrow\">" + NX.i18n.get("landing.suacomunidade", "Sua comunidade") + "</span>") +
+            ("<h2 class=\"lp-h2\">" + NX.i18n.get("landing.crieseuproprioservidor", "Crie seu próprio servidor") + "</h2>") +
+            ("<p class=\"lp-lead\">" + NX.i18n.get("landing.crieumespacopersonalizadoparaseus", "Crie um espaço personalizado para seus amigos, comunidade, projeto ou grupo.") + "</p>") +
           "</div>" +
           '<div class="lp-grid lp-grid--3">' + SERVER_CARDS.map(cardHTML).join("") + "</div>" +
         "</div>" +
@@ -290,9 +290,9 @@ window.NX = window.NX || {};
       '<section class="lp-sec lp-sec--tint" id="sec-recursos">' +
         '<div class="lp-wrap">' +
           '<div class="lp-sec__head lp-reveal" data-reveal>' +
-            '<span class="lp-eyebrow">Recursos</span>' +
-            '<h2 class="lp-h2">Tudo o que a sua conversa precisa</h2>' +
-            '<p class="lp-lead">Do primeiro oi ao servidor gigante: recursos pensados para conversas de verdade.</p>' +
+            ("<span class=\"lp-eyebrow\">" + NX.i18n.get("landing.recursos", "Recursos") + "</span>") +
+            ("<h2 class=\"lp-h2\">" + NX.i18n.get("landing.tudooqueasuaconversa", "Tudo o que a sua conversa precisa") + "</h2>") +
+            ("<p class=\"lp-lead\">" + NX.i18n.get("landing.doprimeirooiaoservidorgigante", "Do primeiro oi ao servidor gigante: recursos pensados para conversas de verdade.") + "</p>") +
           "</div>" +
           '<div class="lp-grid lp-grid--4">' + FEATURES.map(cardHTML).join("") + "</div>" +
         "</div>" +
@@ -306,10 +306,10 @@ window.NX = window.NX || {};
         '<div class="lp-wrap">' +
           '<div class="lp-secure lp-reveal" data-reveal>' +
             '<div class="lp-secure__text">' +
-              '<span class="lp-eyebrow">Segurança</span>' +
-              '<h2 class="lp-h2">Sua comunidade, sob o seu controle</h2>' +
-              '<p class="lp-lead">Permissões claras, convites sob controle e tranquilidade para moderar o seu espaço.</p>' +
-              '<button type="button" class="lp-btn lp-btn--ghost" data-action="goto-signup">Criar minha conta</button>' +
+              ("<span class=\"lp-eyebrow\">" + NX.i18n.get("adm.seguranca", "Segurança") + "</span>") +
+              ("<h2 class=\"lp-h2\">" + NX.i18n.get("landing.suacomunidadesoboseucontrole", "Sua comunidade, sob o seu controle") + "</h2>") +
+              ("<p class=\"lp-lead\">" + NX.i18n.get("landing.permissoesclarasconvitessobcontrolee", "Permissões claras, convites sob controle e tranquilidade para moderar o seu espaço.") + "</p>") +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--ghost\" data-action=\"goto-signup\">" + NX.i18n.get("landing.criarminhaconta", "Criar minha conta") + "</button>") +
             "</div>" +
             '<ul class="lp-secure__list">' +
               SEC_POINTS.map(
@@ -331,9 +331,9 @@ window.NX = window.NX || {};
       '<section class="lp-sec" id="sec-como">' +
         '<div class="lp-wrap">' +
           '<div class="lp-sec__head lp-reveal" data-reveal>' +
-            '<span class="lp-eyebrow">Como funciona</span>' +
-            '<h2 class="lp-h2">Como funciona</h2>' +
-            '<p class="lp-lead">Três passos e a conversa começa.</p>' +
+            ("<span class=\"lp-eyebrow\">" + NX.i18n.get("landing.comofunciona", "Como funciona") + "</span>") +
+            ("<h2 class=\"lp-h2\">" + NX.i18n.get("landing.comofunciona", "Como funciona") + "</h2>") +
+            ("<p class=\"lp-lead\">" + NX.i18n.get("landing.trespassoseaconversacomeca", "Três passos e a conversa começa.") + "</p>") +
           "</div>" +
           '<ol class="lp-steps">' +
             STEPS.map(
@@ -355,12 +355,12 @@ window.NX = window.NX || {};
       '<section class="lp-sec lp-cta" id="sec-cta">' +
         '<div class="lp-wrap">' +
           '<div class="lp-cta__panel lp-reveal" data-reveal>' +
-            '<span class="lp-eyebrow">Comece agora</span>' +
-            '<h2 class="lp-h2">Pronto para criar sua comunidade?</h2>' +
-            '<p class="lp-lead">Crie seu servidor em minutos e chame quem importa.</p>' +
+            ("<span class=\"lp-eyebrow\">" + NX.i18n.get("landing.comeceagora", "Comece agora") + "</span>") +
+            ("<h2 class=\"lp-h2\">" + NX.i18n.get("landing.prontoparacriarsuacomunidade", "Pronto para criar sua comunidade?") + "</h2>") +
+            ("<p class=\"lp-lead\">" + NX.i18n.get("landing.crieseuservidoremminutose", "Crie seu servidor em minutos e chame quem importa.") + "</p>") +
             '<div class="lp-cta__actions">' +
-              '<button type="button" class="lp-btn lp-btn--primary lp-btn--lg" data-action="goto-signup">Criar minha conta</button>' +
-              '<button type="button" class="lp-btn lp-btn--ghost lp-btn--lg" data-action="goto-login">Entrar</button>' +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--primary lp-btn--lg\" data-action=\"goto-signup\">" + NX.i18n.get("landing.criarminhaconta", "Criar minha conta") + "</button>") +
+              ("<button type=\"button\" class=\"lp-btn lp-btn--ghost lp-btn--lg\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>") +
             "</div>" +
           "</div>" +
         "</div>" +
@@ -385,8 +385,8 @@ window.NX = window.NX || {};
           '<div class="lp-foot__top">' +
             '<div class="lp-foot__about" id="sec-sobre">' +
               '<span class="lp-brand lp-brand--foot">' + mark(32) + '<span class="lp-brand__name">Nexo</span></span>' +
-              '<h2 class="lp-foot__title">Sobre o Nexo</h2>' +
-              '<p class="lp-foot__about-text">Nexo é um espaço para criar comunidades, organizar canais e conversar com as pessoas que importam — do seu jeito, em qualquer tela.</p>' +
+              ("<h2 class=\"lp-foot__title\">" + NX.i18n.get("landing.sobreonexo", "Sobre o Nexo") + "</h2>") +
+              ("<p class=\"lp-foot__about-text\">" + NX.i18n.get("landing.nexoeumespacoparacriar", "Nexo é um espaço para criar comunidades, organizar canais e conversar com as pessoas que importam — do seu jeito, em qualquer tela.") + "</p>") +
             "</div>" +
             FOOTER_COLS.map(
               (col) =>
@@ -397,8 +397,8 @@ window.NX = window.NX || {};
             ).join("") +
           "</div>" +
           '<div class="lp-foot__bottom">' +
-            "<span>© 2026 Nexo</span>" +
-            '<button type="button" class="lp-top" data-action="landing-scroll" data-target="lp-top" aria-label="Voltar ao topo">' +
+            ("<span>" + NX.i18n.get("landing.2026nexo", "© 2026 Nexo") + "</span>") +
+            '<button type="button" class="lp-top" data-action="landing-scroll" data-target="lp-top" aria-label="' + NX.i18n.get("ui.voltaraotopo", "Voltar ao topo") + '">' +
               ico("arrowRight", 16) + "</button>" +
           "</div>" +
         "</div>" +
@@ -516,7 +516,7 @@ window.NX = window.NX || {};
     if (open) drawer.removeAttribute("hidden");
     else drawer.setAttribute("hidden", "");
     burger.setAttribute("aria-expanded", open ? "true" : "false");
-    burger.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
+    burger.setAttribute("aria-label", open ? NX.i18n.get("landing.fecharMenu", "Fechar menu") : NX.i18n.get("landing.abrirMenu", "Abrir menu"));
     burger.innerHTML = open ? ico("x", 22) : ico("menu", 22);
   }
 
@@ -556,7 +556,7 @@ window.NX = window.NX || {};
     const onRootScroll = () => updateHeader(root.scrollTop);
     const onWinScroll = () => updateHeader(window.pageYOffset || document.documentElement.scrollTop || 0);
     const onResize = () => { if (window.innerWidth > 860) setDrawer(false); };
-    const onKey = (e) => { if (e.key === "Escape") setDrawer(false); };
+    const onKey = (e) => { if (e.key === (NX.i18n.get("app.escape", "Escape"))) setDrawer(false); };
 
     /* fallback de clique: assumes as ações prefixadas "landing-*".
        stopPropagation evita execução dupla pelo delegador global do app. */
@@ -610,7 +610,7 @@ window.NX = window.NX || {};
 
   NX.action("landing-menu", () => toggleDrawer());
 
-  NX.action("landing-stub", () => toast("Esta página chega em breve.", "info"));
+  NX.action("landing-stub", () => toast(NX.i18n.get("landing.estaPaginaChegaBreve", "Esta página chega em breve."), "info"));
 
   /* ---------------- API ---------------- */
   landing.sections = ["lp-top", "sec-comunidades", "sec-recursos", "sec-seguranca", "sec-como", "sec-cta", "sec-sobre"];

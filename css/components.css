@@ -910,67 +910,6 @@
   flex-wrap: wrap;
 }
 
-.auth__demo {
-  margin-top: 22px;
-  padding: 13px 15px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-md);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  background: var(--bg-panel);
-}
-
-.auth__demo div { display: flex; flex-direction: column; gap: 2px; }
-.auth__demo strong { font-size: 13.5px; color: var(--text); }
-.auth__demo span { font-size: 12.5px; color: var(--text-dim); }
-.auth__demo code {
-  font-family: var(--font-mono);
-  background: var(--bg-input);
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: var(--accent);
-}
-
-/* divisor "ou" */
-.auth__divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 0 14px;
-  color: var(--text-dim);
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.auth__divider::before,
-.auth__divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-/* aviso honesto sobre o provedor de e-mail */
-.auth__notice {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 11px 13px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  margin: 0 0 18px;
-}
-.auth__notice svg { flex: 0 0 auto; margin-top: 1px; }
-.auth__notice--ok { border-color: rgba(53, 224, 168, 0.4); background: var(--accent-soft); color: var(--text); }
-.auth__notice--warn { border-color: rgba(255, 200, 87, 0.42); background: rgba(255, 200, 87, 0.11); color: var(--text); }
-
 /* aviso genérico em modais/notices */
 .notice {
   display: flex;

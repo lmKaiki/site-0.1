@@ -446,6 +446,21 @@
   margin-left: 2px;
 }
 
+/* país no perfil (quando a privacidade permite) */
+.pp-meta__item > span.pp-meta__flag {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  font-size: 19px;
+  line-height: 1;
+  border-radius: 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: initial;
+}
+
 /* ---- servidores ---- */
 .pp-srv-list {
   display: flex;
@@ -1227,5 +1242,332 @@
 @media (prefers-reduced-motion: reduce) {
   .pp-page {
     animation: none;
+  }
+}
+
+/* =========================================================
+   AMIGOS — cabeçalho, busca de pessoas, abas e linhas
+   ========================================================= */
+.page--friends .block__head {
+  flex-wrap: wrap;
+}
+
+.fr-addbtn {
+  margin-left: auto;
+}
+
+/* ---- busca de pessoas reais ---- */
+.fr-add {
+  margin: 10px 0 2px;
+  padding: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.fr-add[hidden] {
+  display: none;
+}
+
+.fr-add__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+}
+
+.fr-add__field:focus-within {
+  border-color: var(--accent);
+}
+
+.fr-add__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 14px;
+  outline: none;
+}
+
+.fr-add__input::placeholder {
+  color: var(--text-dim);
+}
+
+.fr-add__results {
+  margin-top: 8px;
+}
+
+.fr-add__hint {
+  margin: 8px 2px 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---- chips de estado da relação ---- */
+.fr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fr-chip--ok {
+  color: var(--online);
+  background: rgba(59, 224, 138, 0.1);
+  border-color: rgba(59, 224, 138, 0.32);
+}
+
+.fr-chip--wait {
+  color: var(--idle);
+  background: rgba(255, 200, 87, 0.1);
+  border-color: rgba(255, 200, 87, 0.3);
+}
+
+/* ---- abas ---- */
+.fr-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 14px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.fr-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--fast), color var(--fast), border-color var(--fast);
+}
+
+.fr-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.fr-tab.is-on {
+  background: var(--accent-soft);
+  border-color: rgba(53, 224, 168, 0.38);
+  color: var(--accent);
+}
+
+.fr-tab__badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ---- grupos e linhas ---- */
+.fr-group {
+  margin-bottom: 16px;
+}
+
+.fr-group__head {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.fr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fr-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  transition: background var(--fast), border-color var(--fast);
+}
+
+.fr-row:hover {
+  background: var(--bg-elev);
+  border-color: var(--accent-soft);
+}
+
+.fr-row__txt {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fr-row__txt strong {
+  font-size: 14.5px;
+  color: var(--text-strong);
+}
+
+.fr-row__txt small {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.fr-row__status {
+  margin-top: 3px;
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.fr-row__acts {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-state__cta {
+  margin-top: 14px;
+}
+
+/* ---- responsivo ---- */
+@media (max-width: 680px) {
+  .fr-addbtn span {
+    display: none;
+  }
+
+  .fr-tabs {
+    margin-right: -4px;
+  }
+
+  .fr-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .fr-row__acts {
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 8px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .fr-chip {
+    height: 30px;
+  }
+}
+
+/* ---- tela "Adicionar pessoas" (modal) ---- */
+.fr-add--modal {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.fr-add__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.fr-add__label b {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.fr-add__hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fr-add__hint--err {
+  color: var(--danger);
+}
+
+.fr-add__hint--load {
+  color: var(--text-muted);
+}
+
+.fr-add__hint--load .spinner {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+/* User ID junto do status nos resultados da busca */
+.fr-row__id {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* a tela ocupa quase toda a tela no celular */
+@media (max-width: 560px) {
+  .fr-add--modal .fr-add__field {
+    height: 46px;
+  }
+
+  .fr-add--modal .fr-add__input {
+    height: 44px;
+    font-size: 16px; /* evita o zoom automatico do iOS ao focar */
+  }
+
+  .fr-row__id {
+    display: none;
   }
 }

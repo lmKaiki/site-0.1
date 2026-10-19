@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    NEXO · tela de configurações do usuário
    Preenche o container #screen-settings (criado no index.html).
    Auto-suficiente:
@@ -65,7 +65,7 @@ window.NX = window.NX || {};
     themeMode: "nexo.themeMode", // 'dark' | 'light' | 'auto'
     theme: "nexo.theme",         // valor resolvido (escrito por NX.applyTheme)
     uiScale: "nexo.uiScale",     // 'sm' | 'md' | 'lg'
-    prefs: "nexo.prefs",         // { messages, mentions, sounds }
+    prefs: "nexo.prefs",         // { messages, mentions, sounds: {...} } (sounds: objeto do NX.sfx)
     privacy: "nexo.privacy",     // { dms, invites }
     blocks: "nexo.blocks",       // [{ id, name, at }]
     sessions: "nexo.sessions",   // [{ id, name, current, last, os }]
@@ -125,7 +125,7 @@ window.NX = window.NX || {};
      TAMANHO DA INTERFACE
      ========================================================= */
   const SCALES = { sm: 0.94, md: 1, lg: 1.07 };
-  const SCALE_LABEL = { sm: "Pequeno", md: "Padrão", lg: "Grande" };
+  const SCALE_LABEL = { sm: (NX.i18n.get("set.pequeno", "Pequeno")), md: (NX.i18n.get("people.padrao", "Padrão")), lg: (NX.i18n.get("set.grande", "Grande")) };
 
   function uiScale() {
     const v = get(K.uiScale, "md");
@@ -150,16 +150,23 @@ window.NX = window.NX || {};
   /* =========================================================
      PREFERÊNCIAS · PRIVACIDADE · BLOQUEIOS · SESSÕES
      ========================================================= */
+  /* `sounds` era um booleano e agora é o objeto do NX.sfx.
+     O booleano continua sendo aceito aqui (migração de leitura) e é
+     normalizado antes de qualquer gravação. */
   const PREF_DEFAULTS = { messages: true, mentions: true, sounds: true };
 
   function prefs() {
     const saved = get(K.prefs, null);
-    return Object.assign({}, PREF_DEFAULTS, saved && typeof saved === "object" ? saved : {});
+    const p = Object.assign({}, PREF_DEFAULTS, saved && typeof saved === "object" ? saved : {});
+    p.sounds = normalizeSounds(p.sounds);
+    return p;
   }
 
   function savePref(key, value) {
     const p = prefs();
-    p[key] = !!value;
+    /* sons nunca são gravados "cruos": passam pela normalização do NX.sfx */
+    if (key === "sounds") p.sounds = normalizeSounds(value);
+    else p[key] = !!value;
     set(K.prefs, p);
     return p;
   }
@@ -190,8 +197,8 @@ window.NX = window.NX || {};
   function defaultSessions() {
     const now = Date.now();
     return [
-      { id: "sess-this", name: "Este navegador", current: true, last: now, os: platformInfo() },
-      { id: "sess-other", name: "Outro dispositivo", current: false, last: now - 2 * 86400000, os: "Android · Chrome" },
+      { id: "sess-this", name: NX.i18n.get("set.esteNavegador2", "Este navegador"), current: true, last: now, os: platformInfo() },
+      { id: "sess-other", name: NX.i18n.get("set.outroDispositivo", "Outro dispositivo"), current: false, last: now - 2 * 86400000, os: NX.i18n.get("set.androidChrome", "Android · Chrome") },
     ];
   }
 
@@ -211,58 +218,147 @@ window.NX = window.NX || {};
   function platformInfo() {
     try {
       const ua = navigator.userAgent || "";
-      let os = "Sistema desconhecido";
-      if (/Windows/i.test(ua)) os = "Windows";
-      else if (/Android/i.test(ua)) os = "Android";
+      let os = NX.i18n.get("set.sistemaDesconhecido2", "Sistema desconhecido");
+      if (/Windows/i.test(ua)) os = (NX.i18n.get("set.windows", "Windows"));
+      else if (/Android/i.test(ua)) os = (NX.i18n.get("set.android", "Android"));
       else if (/iPhone|iPad|iPod|iOS/i.test(ua)) os = "iOS";
       else if (/Mac OS X|Macintosh/i.test(ua)) os = "macOS";
-      else if (/Linux/i.test(ua)) os = "Linux";
+      else if (/Linux/i.test(ua)) os = (NX.i18n.get("set.linux", "Linux"));
 
-      let br = "Navegador";
-      if (/Edg\//.test(ua)) br = "Edge";
-      else if (/OPR\/|Opera/.test(ua)) br = "Opera";
-      else if (/Firefox\//.test(ua)) br = "Firefox";
-      else if (/Chrome\//.test(ua)) br = "Chrome";
-      else if (/Safari\//.test(ua)) br = "Safari";
+      let br = (NX.i18n.get("set.navegador", "Navegador"));
+      if (/Edg\//.test(ua)) br = (NX.i18n.get("set.edge", "Edge"));
+      else if (/OPR\/|Opera/.test(ua)) br = (NX.i18n.get("set.opera", "Opera"));
+      else if (/Firefox\//.test(ua)) br = (NX.i18n.get("set.firefox", "Firefox"));
+      else if (/Chrome\//.test(ua)) br = (NX.i18n.get("set.chrome", "Chrome"));
+      else if (/Safari\//.test(ua)) br = (NX.i18n.get("set.safari", "Safari"));
 
       return os + " · " + br;
     } catch (e) {
-      return "Sistema desconhecido";
+      return NX.i18n.get("set.sistemaDesconhecido2", "Sistema desconhecido");
     }
   }
 
   /* =========================================================
-     SOM (teste de notificação)
+     SOM · preferências gravadas por NX.sfx (js/sounds.js)
+     Este bloco só lê e monta a interface: o escritor único
+     das preferências de som é o próprio NX.sfx.
      ========================================================= */
-  function beep() {
+  const SOUND_CATS = [
+    { key: "messages", tk: "nav.messages", fb: "Mensagens" },
+    { key: "notifications", tk: "nav.notifications", fb: "Notificações" },
+    { key: "calls", tk: "set.sndCatCalls", fb: "Chamadas" },
+    { key: "invites", tk: "set.item.privacyInvites", fb: "Convites" },
+    { key: "interface", tk: "set.sndCatInterface", fb: "Interface" },
+  ];
+
+  /* espelho defensivo de normalize() do NX.sfx: usado apenas como
+     fallback de leitura caso js/sounds.js não tenha sido carregado */
+  function normalizeSounds(value) {
+    const out = {
+      on: true,
+      volume: 0.7,
+      muted: false,
+      categories: { messages: true, notifications: true, calls: true, invites: true, interface: true },
+    };
+    if (typeof value === "boolean") {
+      out.on = value !== false;
+      return out;
+    }
+    if (!value || typeof value !== "object") return out;
+    if (value.on === false) out.on = false;
+    if (value.muted === true) out.muted = true;
+    if (value.volume != null) {
+      const n = Number(value.volume);
+      out.volume = isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7;
+    }
+    const cats = value.categories;
+    if (cats && typeof cats === "object") {
+      Object.keys(out.categories).forEach((k) => {
+        out.categories[k] = cats[k] !== false;
+      });
+    }
+    return out;
+  }
+
+  function soundPrefs() {
     try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) {
-        toast("Seu navegador não permitiu tocar o som de teste.", "info");
+      if (NX.sfx && typeof NX.sfx.prefs === "function") return NX.sfx.prefs();
+    } catch (e) {
+      /* NX.sfx indisponível: cai na leitura local */
+    }
+    return normalizeSounds(prefs().sounds);
+  }
+
+  /* gravação de contingência (sem NX.sfx): preserva messages/mentions */
+  function writeSounds(patch) {
+    const p = prefs();
+    const merged = Object.assign({}, p.sounds, patch);
+    if (patch && patch.categories) merged.categories = Object.assign({}, p.sounds.categories, patch.categories);
+    p.sounds = normalizeSounds(merged);
+    set(K.prefs, p);
+    return p.sounds;
+  }
+
+  function sfxEnabled(value) {
+    try {
+      if (NX.sfx && typeof NX.sfx.setEnabled === "function") {
+        NX.sfx.setEnabled(!!value);
         return;
       }
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(660, ctx.currentTime);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-      osc.onended = () => {
-        try {
-          if (ctx.close) ctx.close();
-        } catch (e) {
-          /* contexto já fechado */
-        }
-      };
     } catch (e) {
-      /* protótipo local: segue sem som */
+      /* fallback abaixo */
     }
+    writeSounds({ on: !!value });
+  }
+
+  function sfxVolume(value) {
+    try {
+      if (NX.sfx && typeof NX.sfx.setVolume === "function") {
+        NX.sfx.setVolume(value);
+        return;
+      }
+    } catch (e) {
+      /* fallback abaixo */
+    }
+    writeSounds({ volume: value });
+  }
+
+  function sfxSilent(value) {
+    try {
+      if (NX.sfx && typeof NX.sfx.setSilent === "function") {
+        NX.sfx.setSilent(!!value);
+        return;
+      }
+    } catch (e) {
+      /* fallback abaixo */
+    }
+    writeSounds({ muted: !!value });
+  }
+
+  function sfxCategory(cat, value) {
+    try {
+      if (NX.sfx && typeof NX.sfx.setCategory === "function") {
+        NX.sfx.setCategory(cat, !!value);
+        return;
+      }
+    } catch (e) {
+      /* fallback abaixo */
+    }
+    const patch = { categories: {} };
+    patch.categories[cat] = !!value;
+    writeSounds(patch);
+  }
+
+  function playTestSound() {
+    try {
+      if (NX.sfx && typeof NX.sfx.play === "function") {
+        NX.sfx.play("notification");
+        return true; /* motor disponível (pode estar silenciado de propósito) */
+      }
+    } catch (e) {
+      /* sem motor de som: avisa abaixo */
+    }
+    return false;
   }
 
   /* =========================================================
@@ -270,48 +366,53 @@ window.NX = window.NX || {};
      ========================================================= */
   const GROUPS = [
     {
-      title: "MINHA CONTA",
+      title: NX.i18n.get("set.group.account", "MINHA CONTA"),
+      tk: "set.group.account",
       items: [
-        { id: "account", label: "Perfil", icon: "user" },
-        { id: "password", label: "Senha", icon: "lock" },
+        { id: "account", label: (NX.i18n.get("set.item.profile", "Perfil")), icon: "user", tk: "set.item.profile" },
+        { id: "password", label: (NX.i18n.get("set.item.password", "Senha")), icon: "lock", tk: "set.item.password" },
       ],
     },
     {
-      title: "APARÊNCIA",
+      title: (NX.i18n.get("set.group.appearance", "APARÊNCIA")),
+      tk: "set.group.appearance",
       items: [
-        { id: "theme-dark", label: "Tema escuro", icon: "sparkles" },
-        { id: "theme-light", label: "Tema claro", icon: "sparkle" },
-        { id: "theme-auto", label: "Tema automático", icon: "refresh" },
-        { id: "ui-size", label: "Tamanho da interface", icon: "menu" },
+        { id: "theme-dark", label: NX.i18n.get("set.item.themeDark", "Tema escuro"), icon: "sparkles", tk: "set.item.themeDark" },
+        { id: "theme-light", label: NX.i18n.get("set.item.themeLight", "Tema claro"), icon: "sparkle", tk: "set.item.themeLight" },
+        { id: "theme-auto", label: NX.i18n.get("set.item.themeAuto", "Tema automático"), icon: "refresh", tk: "set.item.themeAuto" },
+        { id: "ui-size", label: NX.i18n.get("set.item.uiSize", "Tamanho da interface"), icon: "menu", tk: "set.item.uiSize" },
       ],
     },
     {
-      title: "NOTIFICAÇÕES",
+      title: (NX.i18n.get("set.group.notifications", "NOTIFICAÇÕES")),
+      tk: "set.group.notifications",
       items: [
-        { id: "notif-messages", label: "Mensagens", icon: "chat" },
-        { id: "notif-mentions", label: "Menções", icon: "bell" },
-        { id: "notif-sounds", label: "Sons", icon: "headset" },
+        { id: "notif-messages", label: (NX.i18n.get("nav.messages", "Mensagens")), icon: "chat", tk: "set.item.notifMessages" },
+        { id: "notif-mentions", label: (NX.i18n.get("set.item.notifMentions", "Menções")), icon: "bell", tk: "set.item.notifMentions" },
+        { id: "notif-sounds", label: (NX.i18n.get("set.item.notifSounds", "Sons")), icon: "headset", tk: "set.item.notifSounds" },
       ],
     },
     {
-      title: "PRIVACIDADE",
+      title: (NX.i18n.get("set.group.privacy", "PRIVACIDADE")),
+      tk: "set.group.privacy",
       items: [
-        { id: "privacy-social", label: "Quem pode interagir", icon: "userPlus" },
-        { id: "privacy-dms", label: "Mensagens privadas", icon: "lock" },
-        { id: "privacy-invites", label: "Convites", icon: "link" },
-        { id: "privacy-blocks", label: "Bloqueios", icon: "alert" },
+        { id: "privacy-social", label: NX.i18n.get("set.item.privacySocial", "Quem pode interagir"), icon: "userPlus", tk: "set.item.privacySocial" },
+        { id: "privacy-dms", label: NX.i18n.get("set.item.privacyDms", "Mensagens privadas"), icon: "lock", tk: "set.item.privacyDms" },
+        { id: "privacy-invites", label: (NX.i18n.get("set.item.privacyInvites", "Convites")), icon: "link", tk: "set.item.privacyInvites" },
+        { id: "privacy-blocks", label: (NX.i18n.get("set.item.privacyBlocks", "Bloqueios")), icon: "alert", tk: "set.item.privacyBlocks" },
       ],
     },
     {
-      title: "SEGURANÇA",
+      title: (NX.i18n.get("set.group.security", "SEGURANÇA")),
+      tk: "set.group.security",
       items: [
-        { id: "security-sessions", label: "Sessões", icon: "clock" },
-        { id: "security-devices", label: "Dispositivos", icon: "grid" },
+        { id: "security-sessions", label: (NX.i18n.get("set.item.securitySessions", "Sessões")), icon: "clock", tk: "set.item.securitySessions" },
+        { id: "security-devices", label: (NX.i18n.get("set.item.securityDevices", "Dispositivos")), icon: "grid", tk: "set.item.securityDevices" },
       ],
     },
   ];
 
-  const SIGNOUT_ITEM = { id: "logout", label: "Sair", icon: "logout", danger: true };
+  const SIGNOUT_ITEM = { id: "logout", label: (NX.i18n.get("set.item.logout", "Sair")), icon: "logout", danger: true, tk: "set.item.logout" };
 
   const SECTION_IDS = GROUPS.reduce((acc, g) => acc.concat(g.items.map((i) => i.id)), []).concat(["logout"]);
 
@@ -449,7 +550,7 @@ window.NX = window.NX || {};
   }
 
   function statusOptions(current) {
-    const labels = NX.STATUS_LABEL || { online: "Online", idle: "Ausente", dnd: "Não perturbe", offline: "Offline" };
+    const labels = NX.STATUS_LABEL || { online: NX.i18n.get("core.statusOnline", "Online"), idle: (NX.i18n.get("core.ausente", "Ausente")), dnd: NX.i18n.get("core.naoPerturbe", "Não perturbe"), offline: NX.i18n.get("core.statusOffline", "Offline") };
     return Object.keys(labels)
       .map(
         (k) =>
@@ -459,8 +560,8 @@ window.NX = window.NX || {};
   }
 
   function needAccount(text) {
-    return '<section class="set-card">' + headBlock("Sua conta", text) +
-      '<div class="set-card__foot"><button type="button" class="set-btn set-btn--primary" data-set="close">Fechar</button></div></section>';
+    return '<section class="set-card">' + headBlock(NX.i18n.get("modal.suaConta", "Sua conta"), text) +
+      ("<div class=\"set-card__foot\"><button type=\"button\" class=\"set-btn set-btn--primary\" data-set=\"close\">" + NX.i18n.get("common.close", "Fechar") + "</button></div></section>");
   }
 
   function formData(form) {
@@ -497,7 +598,7 @@ window.NX = window.NX || {};
   /* ---------- 1. Perfil ---------- */
   PANELS.account = function () {
     const m = me();
-    if (!m) return { html: needAccount("Entre na sua conta para editar seu perfil.") };
+    if (!m) return { html: needAccount(NX.i18n.get("set.entreSuaContaEditar", "Entre na sua conta para editar seu perfil.")) };
 
     const avatar = m.avatar || {};
     const emoji = avatar.emoji || (NX.util && NX.util.emojiFor ? NX.util.emojiFor(m.username) : "🌙");
@@ -506,49 +607,49 @@ window.NX = window.NX || {};
 
     const html =
       '<section class="set-card">' +
-      headBlock("Seu perfil", "Como você aparece nas comunidades e nas conversas.") +
+      headBlock(NX.i18n.get("set.seuPerfil", "Seu perfil"), NX.i18n.get("set.comoVoceApareceComunidades", "Como você aparece nas comunidades e nas conversas.")) +
       '<div class="set-avatar">' +
       '<span class="set-avatar__img" data-av style="--av:' + esc(color) + '">' +
       '<span data-av-glyph>' + esc(emoji) + "</span>" +
       '<i class="set-avatar__dot" data-av-dot data-status="' + esc(m.status || "offline") + '"></i></span>' +
       '<div class="set-avatar__meta"><strong data-live>' + esc(m.displayName || m.username) + "</strong>" +
-      "<span>@" + esc(m.username) + (m.createdAt ? " · no Nexo desde " + new Date(m.createdAt).getFullYear() : "") + "</span></div>" +
+      "<span>@" + esc(m.username) + (m.createdAt ? (" " + NX.i18n.get("set.nonexodesde", "· no Nexo desde") + " ") + NX.util.formatDate(m.createdAt) : "") + "</span></div>" +
       "</div>" +
       '<form data-form="profile" novalidate>' +
-      fieldBlock("Emoji do avatar", emojiGrid(emoji)) +
-      fieldBlock("Cor do avatar", swatches(color)) +
+      fieldBlock(NX.i18n.get("set.emojiAvatar", "Emoji do avatar"), emojiGrid(emoji)) +
+      fieldBlock(NX.i18n.get("set.corAvatar", "Cor do avatar"), swatches(color)) +
       fieldBlock(
-        "Nome de exibição",
+        NX.i18n.get("set.nomeExibicao", "Nome de exibição"),
         '<input class="set-input" name="displayName" maxlength="32" autocomplete="display-name" value="' +
           esc(m.displayName || "") + '" />'
       ) +
       fieldBlock(
-        "Nome de usuário",
+        NX.i18n.get("set.nomeUsuario", "Nome de usuário"),
         '<input class="set-input" name="username" maxlength="18" autocomplete="username" value="' +
           esc(m.username || "") + '" />',
-        "De 3 a 18 caracteres: letras, números, ponto e _."
+        NX.i18n.get("set.318CaracteresLetras", "De 3 a 18 caracteres: letras, números, ponto e _.")
       ) +
       fieldBlock(
-        "Bio",
-        '<textarea class="set-textarea" name="bio" rows="3" maxlength="190" placeholder="Conte em uma linha quem é você">' +
+        (NX.i18n.get("modal.bio", "Bio")),
+        '<textarea class="set-textarea" name="bio" rows="3" maxlength="190" placeholder="' + NX.i18n.get("ui.conteemumalinhaquemevoce", "Conte em uma linha quem é você") + '">' +
           esc(bio) + "</textarea>",
         '<span data-count>' + String(bio).length + "</span>/190 caracteres"
       ) +
       '<div class="set-grid-2">' +
       fieldBlock(
-        "Status",
+        (NX.i18n.get("modal.status", "Status")),
         '<select class="set-select" name="status">' + statusOptions(m.status || "online") + "</select>"
       ) +
       fieldBlock(
-        "Status personalizado",
-        '<input class="set-input" name="statusText" maxlength="60" placeholder="ex.: estudando" value="' +
+        NX.i18n.get("set.statusPersonalizado", "Status personalizado"),
+        '<input class="set-input" name="statusText" maxlength="60" placeholder="' + NX.i18n.get("ui.settings.exestudando", "ex.: estudando") + '" value="' +
           esc(m.statusText || "") + '" />'
       ) +
       "</div>" +
       errorBlock() +
       '<div class="set-card__foot">' +
-      '<button type="button" class="set-btn set-btn--ghost" data-set="reset-profile">Descartar</button>' +
-      '<button type="submit" class="set-btn set-btn--primary" data-busy-label="Salvando">Salvar alterações</button>' +
+      ("<button type=\"button\" class=\"set-btn set-btn--ghost\" data-set=\"reset-profile\">" + NX.i18n.get("set.descartar", "Descartar") + "</button>") +
+      ("<button type=\"submit\" class=\"set-btn set-btn--primary\" data-busy-label=\"Salvando\">" + NX.i18n.get("adm.salvarAlteracoes", "Salvar alterações") + "</button>") +
       "</div>" +
       "</form></section>";
 
@@ -613,11 +714,11 @@ window.NX = window.NX || {};
     const username = String(d.username || "").trim();
 
     if (displayName.length < 2) {
-      showErr(err, "Digite um nome com pelo menos 2 caracteres.");
+      showErr(err, NX.i18n.get("api.digiteNomePeloMenos", "Digite um nome com pelo menos 2 caracteres."));
       return;
     }
     if (NX.util && NX.util.usernameOk && !NX.util.usernameOk(username)) {
-      showErr(err, "Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e _).");
+      showErr(err, NX.i18n.get("set.nomeUsuarioPrecisa3", "Nome de usuário precisa de 3 a 18 caracteres (letras, números, ponto e _)."));
       return;
     }
 
@@ -634,11 +735,11 @@ window.NX = window.NX || {};
         avatar: { emoji: state.emoji, color: state.color },
       })
       .then(() => {
-        toast("Perfil atualizado.", "success");
+        toast(NX.i18n.get("modal.perfilAtualizado", "Perfil atualizado."), "success");
         refresh();
       })
       .catch((e) => {
-        const msg = (e && e.message) || "Não foi possível salvar agora. Tente de novo.";
+        const msg = (e && e.message) || NX.i18n.get("reg.invalid", "Não foi possível salvar agora. Tente de novo.");
         showErr(err, msg);
         toast(msg, "error");
       })
@@ -648,7 +749,7 @@ window.NX = window.NX || {};
   /* ---------- 2. Senha ---------- */
   PANELS.password = function () {
     const m = me();
-    if (!m) return { html: needAccount("Entre na sua conta para alterar sua senha.") };
+    if (!m) return { html: needAccount(NX.i18n.get("set.entreSuaContaAlterar", "Entre na sua conta para alterar sua senha.")) };
 
     const passField = (name, label, placeholder) =>
       fieldBlock(
@@ -657,22 +758,20 @@ window.NX = window.NX || {};
           '<input class="set-input" type="password" name="' + name + '" maxlength="64" autocomplete="new-password" placeholder="' +
           esc(placeholder) + '" />' +
           '<button type="button" class="set-pass__eye" data-set="toggle-pass" data-target="' + name +
-          '" aria-label="Mostrar senha">' + ico("eye", 18) + "</button></span>"
+          '" aria-label="' + NX.i18n.get("set.mostrarSenha", "Mostrar senha") + '">' + ico("eye", 18) + "</button></span>"
       );
 
     const html =
       '<section class="set-card">' +
-      headBlock("Alterar senha", "Escolha uma senha com pelo menos 6 caracteres e confirme abaixo.") +
+      headBlock(NX.i18n.get("set.alterarSenha", "Alterar senha"), NX.i18n.get("set.escolhaSenhaPeloMenos", "Escolha uma senha com pelo menos 6 caracteres e confirme abaixo.")) +
       '<form data-form="password" novalidate>' +
-      passField("password", "Nova senha", "Mínimo de 6 caracteres") +
-      passField("confirm", "Confirmar nova senha", "Digite a mesma senha de novo") +
+      passField("password", NX.i18n.get("set.novaSenha", "Nova senha"), NX.i18n.get("set.minimo6Caracteres", "Mínimo de 6 caracteres")) +
+      passField("confirm", NX.i18n.get("set.confirmarNovaSenha", "Confirmar nova senha"), NX.i18n.get("set.digiteMesmaSenhaNovo", "Digite a mesma senha de novo")) +
       errorBlock() +
       '<div class="set-card__foot">' +
-      '<button type="submit" class="set-btn set-btn--primary" data-busy-label="Verificando">Atualizar senha</button>' +
+      ("<button type=\"submit\" class=\"set-btn set-btn--primary\" data-busy-label=\"Verificando\">" + NX.i18n.get("set.atualizarsenha", "Atualizar senha") + "</button>") +
       "</div></form>" +
-      '<div style="margin-top:14px">' +
-      noteBlock("Protótipo local: a senha é validada aqui na tela. A gravação real sai junto com o backend.", null) +
-      "</div></section>";
+      "</section>";
 
     return {
       html: html,
@@ -688,15 +787,15 @@ window.NX = window.NX || {};
           const confirm = String(d.confirm || "");
 
           if (!NX.util || !NX.util.passwordOk || !NX.util.passwordOk(pw)) {
-            showErr(err, "A senha precisa ter no menos 6 caracteres.");
+            showErr(err, NX.i18n.get("set.senhaPrecisaTerMenos", "A senha precisa ter no menos 6 caracteres."));
             return;
           }
           if (pw !== confirm) {
-            showErr(err, "As senhas não conferem. Digite a mesma senha nos dois campos.");
+            showErr(err, NX.i18n.get("set.senhasNaoConferemDigite", "As senhas não conferem. Digite a mesma senha nos dois campos."));
             return;
           }
           form.reset();
-          toast("Senha alterada! Em produção esta troca é gravada pelo backend.", "success");
+          toast(NX.i18n.get("set.senhaAlteradaProducaoEsta", "Senha alterada! Em produção esta troca é gravada pelo backend."), "success");
         });
       },
     };
@@ -704,9 +803,9 @@ window.NX = window.NX || {};
 
   /* ---------- 4. Aparência (tema + tamanho) ---------- */
   const THEME_CARDS = [
-    { key: "dark", label: "Escuro", icon: "sparkles", desc: "Paleta carvão com acento menta. Padrão do Nexo.", bg: "#0d1416", fg: "#e8f3f0", ac: "#35e0a8" },
-    { key: "light", label: "Claro", icon: "sparkle", desc: "Névoa clara para ambientes com muita luz.", bg: "#fbfdfc", fg: "#12211e", ac: "#0b9e75" },
-    { key: "auto", label: "Automático", icon: "refresh", desc: "Segue a preferência de claro/escuro do seu sistema.", bg: "linear-gradient(90deg,#0d1416 50%,#fbfdfc 50%)", fg: "#93a8a4", ac: "#4cc9f0" },
+    { key: "dark", label: (NX.i18n.get("people.escuro", "Escuro")), icon: "sparkles", desc: NX.i18n.get("set.paletaCarvaoAcentoMenta", "Paleta carvão com acento menta. Padrão do Nexo."), bg: "#0d1416", fg: "#e8f3f0", ac: "#35e0a8" },
+    { key: "light", label: (NX.i18n.get("adm.claro", "Claro")), icon: "sparkle", desc: NX.i18n.get("set.nevoaClaraAmbientesMuita", "Névoa clara para ambientes com muita luz."), bg: "#fbfdfc", fg: "#12211e", ac: "#0b9e75" },
+    { key: "auto", label: (NX.i18n.get("set.automatico", "Automático")), icon: "refresh", desc: NX.i18n.get("set.seguePreferenciaClaroEscuro", "Segue a preferência de claro/escuro do seu sistema."), bg: "linear-gradient(90deg,#0d1416 50%,#fbfdfc 50%)", fg: "#93a8a4", ac: "#4cc9f0" },
   ];
 
   PANELS.appearance = function (focusKey) {
@@ -739,16 +838,16 @@ window.NX = window.NX || {};
 
     const html =
       '<section class="set-card" data-focus-card="theme">' +
-      headBlock("Tema", "Escolha como o Nexo aparece. O modo automático acompanha a preferência de claro/escuro do seu sistema.") +
+      headBlock((NX.i18n.get("people.tema", "Tema")), (NX.i18n.get("set.escolhacomoonexoapareceo", "Escolha como o Nexo aparece. O modo automático acompanha a preferência de claro/escuro do seu sistema."))) +
       '<div class="set-themes" data-themes>' + themes + "</div>" +
       "</section>" +
       '<section class="set-card" data-focus-card="ui-size">' +
-      headBlock("Tamanho da interface", "Aumente ou reduza o conjunto da interface neste dispositivo.") +
+      headBlock(NX.i18n.get("set.item.uiSize", "Tamanho da interface"), NX.i18n.get("set.aumenteReduzaConjuntoInterface", "Aumente ou reduza o conjunto da interface neste dispositivo.")) +
       '<div class="set-seg" data-segments>' + segs + "</div>" +
       '<div class="set-preview" data-preview style="--pv:' + SCALES[scale] + '">' +
-      "<strong>Interface Nexo Aa</strong><span>Amostra de texto para conferir o tamanho antes de fechar.</span></div>" +
+      ("<strong>" + NX.i18n.get("set.interfacenexoaa", "Interface Nexo Aa") + "</strong><span>" + NX.i18n.get("set.amostradetextoparaconferiro", "Amostra de texto para conferir o tamanho antes de fechar.") + "</span></div>") +
       '<div style="margin-top:14px">' +
-      noteBlock("A escolha fica salva neste navegador e volta assim que você abrir o Nexo de novo.", "accent") +
+      noteBlock((NX.i18n.get("set.aescolhaficasalvanestenavegador", "A escolha fica salva neste navegador e volta assim que você abrir o Nexo de novo.")), "accent") +
       "</div></section>";
 
     return {
@@ -795,25 +894,147 @@ window.NX = window.NX || {};
   }
 
   /* ---------- 5. Notificações ---------- */
+  function updateVolumeLabel(host, pct) {
+    const val = host.querySelector("[data-sfx-vol]");
+    if (val) val.textContent = Math.round(Number(pct) || 0) + "%";
+  }
+
+  /* sincroniza o cartão de som com as preferências atuais
+     (desliga os controles quando o som master está desligado) */
+  function syncSoundCard(host) {
+    const card = host.querySelector("[data-sound-card]");
+    if (!card) return;
+    const s = soundPrefs();
+    const off = !s.on;
+    card.setAttribute("data-master", off ? "off" : "on");
+    Array.prototype.forEach.call(card.querySelectorAll("[data-sfx], [data-sfx-cat]"), (el) => {
+      if (el.getAttribute("data-sfx") === "on") return; /* o master nunca desliga */
+      try {
+        el.disabled = off;
+      } catch (e) {
+        /* atributo somente leitura */
+      }
+    });
+    updateVolumeLabel(host, Math.round(s.volume * 100));
+  }
+
+  function handleSoundInput(host, input) {
+    const cat = input.getAttribute("data-sfx-cat");
+    if (cat) {
+      sfxCategory(cat, input.checked);
+      const label = input.closest ? input.closest("label") : null;
+      if (label) label.classList.toggle("is-on", !!input.checked);
+      return true;
+    }
+    const key = input.getAttribute("data-sfx");
+    if (!key) return false;
+    if (key === "on") {
+      sfxEnabled(input.checked);
+      syncSoundCard(host);
+      return true;
+    }
+    if (key === "volume") {
+      const pct = Number(input.value);
+      sfxVolume(isFinite(pct) ? pct / 100 : 0.7);
+      updateVolumeLabel(host, pct);
+      return true;
+    }
+    if (key === "muted") {
+      sfxSilent(input.checked);
+      return true;
+    }
+    return false;
+  }
+
+  function soundCardHTML() {
+    const s = soundPrefs();
+    const off = !s.on;
+    const volPct = Math.round(s.volume * 100);
+    const masterLabel = NX.i18n.get("set.sndMaster", "Sons ativados");
+    const volLabel = NX.i18n.get("set.sndVolume", "Volume geral");
+
+    const masterRow =
+      '<label class="set-row" data-row="sounds">' +
+      '<span class="set-row__txt"><strong>' + esc(masterLabel) + "</strong>" +
+      "<small>" + esc(NX.i18n.get("set.sndMasterDesc", "Toca alertas sonoros nas ações do Nexo.")) + "</small></span>" +
+      '<span class="set-switch"><input type="checkbox" data-sfx="on"' + (off ? "" : " checked") + " /><i></i></span></label>";
+
+    const volumeRow =
+      '<div class="set-row sfx-vol">' +
+      '<span class="set-row__txt"><strong>' + esc(volLabel) + "</strong>" +
+      "<small>" + esc(NX.i18n.get("set.sndVolumeDesc", "Ajuste o volume dos alertas sonoros em todo o Nexo.")) + "</small></span>" +
+      '<span class="sfx-vol__ctl">' +
+      '<input type="range" class="sfx-range" min="0" max="100" step="1" value="' + volPct + '" data-sfx="volume"' +
+      (off ? " disabled" : "") + ' aria-label="' + esc(volLabel) + '" />' +
+      '<span class="sfx-vol__val" data-sfx-vol>' + volPct + "%</span></span></div>";
+
+    const cats =
+      SOUND_CATS.map((c) => {
+        const on = s.categories[c.key] !== false;
+        return (
+          '<label class="sfx-check' + (on ? " is-on" : "") + '">' +
+          '<input type="checkbox" data-sfx-cat="' + c.key + '"' + (on ? " checked" : "") + (off ? " disabled" : "") + " />" +
+          '<span class="sfx-check__box">' + ico("check", 13) + "</span>" +
+          "<span>" + esc(NX.i18n.get(c.tk, c.fb)) + "</span></label>"
+        );
+      }).join("");
+
+    const catsBlock =
+      '<div class="sfx-cats"><span class="set-label">' +
+      esc(NX.i18n.get("set.sndCats", "Categorias de som")) +
+      '</span><div class="sfx-cats__grid">' + cats + "</div></div>";
+
+    const silentRow =
+      '<label class="set-row" data-row="silent">' +
+      '<span class="set-row__txt"><strong>' + esc(NX.i18n.get("set.sndSilent", "Modo silencioso")) + "</strong>" +
+      "<small>" + esc(NX.i18n.get("set.sndSilentDesc", "Pausa todos os alertas sonoros até você desligar.")) + "</small></span>" +
+      '<span class="set-switch"><input type="checkbox" data-sfx="muted"' + (s.muted ? " checked" : "") + (off ? " disabled" : "") +
+      " /><i></i></span></label>" +
+      noteBlock(NX.i18n.get("set.sndSilentNote", "O modo silencioso não corta o áudio de chamadas ativas."));
+
+    const foot =
+      '<div class="set-card__foot">' +
+      '<span class="set-hint" style="margin-right:auto">' +
+      esc(NX.i18n.get("set.sndGeneratedHint", "Os sons são gerados no próprio navegador, sem arquivos externos.")) +
+      "</span>" +
+      '<button type="button" class="set-btn set-btn--soft set-btn--sm" data-set="sound">' +
+      ico("headset", 16) +
+      " " +
+      esc(NX.i18n.get("set.testarsom", "Testar som")) +
+      "</button></div>";
+
+    return (
+      '<section class="set-card" data-sound-card data-master="' + (off ? "off" : "on") + '">' +
+      headBlock(
+        NX.i18n.get("set.item.notifSounds", "Sons"),
+        NX.i18n.get("set.sndCardDesc", "Escolha quais sons o Nexo toca e em que volume.")
+      ) +
+      masterRow +
+      volumeRow +
+      catsBlock +
+      silentRow +
+      foot +
+      "</section>"
+    );
+  }
+
   PANELS.notifications = function (focusKey) {
     const p = prefs();
 
     const html =
       '<section class="set-card">' +
-      headBlock("Notificações", "Escolha o que merece sua atenção enquanto você está por aqui.") +
-      switchRow("messages", p.messages, "Mensagens", "Avisos de mensagens diretas e de canais em que você participa.") +
-      switchRow("mentions", p.mentions, "Menções", "Avisos quando alguém escreve @você.") +
-      switchRow("sounds", p.sounds, "Sons", "Toca um alerta curto junto com a notificação.") +
+      headBlock((NX.i18n.get("nav.notifications", "Notificações")), NX.i18n.get("set.escolhaMereceSuaAtencao", "Escolha o que merece sua atenção enquanto você está por aqui.")) +
+      switchRow("messages", p.messages, (NX.i18n.get("nav.messages", "Mensagens")), NX.i18n.get("set.avisosMensagensDiretasCanais", "Avisos de mensagens diretas e de canais em que você participa.")) +
+      switchRow("mentions", p.mentions, (NX.i18n.get("set.item.notifMentions", "Menções")), NX.i18n.get("set.avisosQuandoAlguemEscreve", "Avisos quando alguém escreve @você.")) +
       '<div class="set-card__foot">' +
-      '<span class="set-hint" style="margin-right:auto">As preferências são salvas automaticamente neste dispositivo.</span>' +
-      '<button type="button" class="set-btn set-btn--soft set-btn--sm" data-set="sound">' +
-      ico("headset", 16) + " Testar som</button>" +
+      ("<span class=\"set-hint\" style=\"margin-right:auto\">" + NX.i18n.get("set.aspreferenciassaosalvasautomaticamentenest", "As preferências são salvas automaticamente neste dispositivo.") + "</span>") +
       "</div></section>" +
+      soundCardHTML() +
       '<section class="set-card">' +
-      headBlock("Silenciar rapidamente", "Precisa focar? Desligue tudo e reative quando voltar.") +
+      headBlock(NX.i18n.get("set.silenciarRapidamente", "Silenciar rapidamente"), NX.i18n.get("set.precisaFocarDesligueTudo", "Precisa focar? Desligue tudo e reative quando voltar.")) +
       '<div class="set-card__foot" style="border-top:0;padding-top:0;margin-top:4px">' +
-      '<button type="button" class="set-btn set-btn--ghost set-btn--sm" data-set="mute-all">Desativar todas</button>' +
-      '<button type="button" class="set-btn set-btn--primary set-btn--sm" data-set="unmute-all">Ativar todas</button>' +
+      ("<button type=\"button\" class=\"set-btn set-btn--ghost set-btn--sm\" data-set=\"mute-all\">" + NX.i18n.get("set.desativartodas", "Desativar todas") + "</button>") +
+      ("<button type=\"button\" class=\"set-btn set-btn--primary set-btn--sm\" data-set=\"unmute-all\">" + NX.i18n.get("set.ativartodas", "Ativar todas") + "</button>") +
       "</div></section>";
 
     const ROW_OF = {
@@ -829,10 +1050,17 @@ window.NX = window.NX || {};
         host.addEventListener("change", (e) => {
           const input = e.target;
           if (!input || !input.getAttribute) return;
+          if (handleSoundInput(host, input)) return;
           const key = input.getAttribute("data-pref");
           if (!key) return;
           savePref(key, input.checked);
         });
+        host.addEventListener("input", (e) => {
+          const input = e.target;
+          if (!input || !input.getAttribute) return;
+          if (input.getAttribute("data-sfx") === "volume") updateVolumeLabel(host, input.value);
+        });
+        syncSoundCard(host);
         if (target) {
           const row = host.querySelector('[data-row="' + target + '"]');
           if (row) row.classList.add("is-focus");
@@ -847,9 +1075,9 @@ window.NX = window.NX || {};
     const list = blocks();
 
     const dmsOptions = [
-      ["all", "Todos"],
-      ["friends", "Só amigos"],
-      ["none", "Ninguém"],
+      ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+      ["friends", NX.i18n.get("set.soAmigos", "Só amigos")],
+      ["none", (NX.i18n.get("reg.privacyNone", "Ninguém"))],
     ]
       .map(
         (o) =>
@@ -858,8 +1086,8 @@ window.NX = window.NX || {};
       .join("");
 
     const inviteOptions = [
-      ["everyone", "De qualquer um"],
-      ["friends", "Só de amigos"],
+      ["everyone", NX.i18n.get("set.qualquer", "De qualquer um")],
+      ["friends", NX.i18n.get("set.soAmigos2", "Só de amigos")],
     ]
       .map(
         (o) =>
@@ -874,33 +1102,33 @@ window.NX = window.NX || {};
             (b) =>
               '<div class="set-item"><span class="set-item__ico">' + ico("user", 18) + "</span>" +
               '<span class="set-item__txt"><strong>@' + esc(b.name) + "</strong>" +
-              "<small>Bloqueado " + esc(timeAgo(b.at) || "recentemente") + "</small></span>" +
+              ("<small>" + NX.i18n.get("set.bloqueado", "Bloqueado") + " ") + esc(timeAgo(b.at) || "recentemente") + "</small></span>" +
               '<button type="button" class="set-btn set-btn--danger-soft set-btn--sm" data-set="unblock" data-id="' +
-              esc(b.id) + '">Desbloquear</button></div>'
+              esc(b.id) + ("\">" + NX.i18n.get("page.desbloquear", "Desbloquear") + "</button></div>")
           )
           .join("") +
         "</div>"
       : '<div style="margin-top:12px">' +
-        emptyBlock("shield", "Ninguém bloqueado", "Quem você bloquear não poderá te escrever nem te ver nas listas de membros.") +
+        emptyBlock("shield", NX.i18n.get("set.ninguemBloqueado", "Ninguém bloqueado"), NX.i18n.get("set.quemVoceBloquearNao", "Quem você bloquear não poderá te escrever nem te ver nas listas de membros.")) +
         "</div>";
 
     const html =
       '<section class="set-card" data-focus-card="privacy-dms">' +
-      headBlock("Quem pode falar com você", "Controle quem inicia conversas e quem te chama para comunidades.") +
-      '<div class="set-row"><span class="set-row__txt"><strong>Mensagens privadas</strong>' +
-      "<small>Quem pode abrir uma conversa direta com você.</small></span>" +
+      headBlock(NX.i18n.get("set.quemPodeFalarVoce", "Quem pode falar com você"), NX.i18n.get("set.controleQuemIniciaConversas", "Controle quem inicia conversas e quem te chama para comunidades.")) +
+      ("<div class=\"set-row\"><span class=\"set-row__txt\"><strong>" + NX.i18n.get("set.item.privacyDms", "Mensagens privadas") + "</strong>") +
+      ("<small>" + NX.i18n.get("set.quempodeabrirumaconversadireta", "Quem pode abrir uma conversa direta com você.") + "</small></span>") +
       '<select class="set-select" data-privacy="dms" style="width:auto;min-width:150px">' + dmsOptions + "</select></div>" +
-      '<div class="set-row" data-focus-card="privacy-invites"><span class="set-row__txt"><strong>Convites</strong>' +
-      "<small>Quem pode te convidar para servidores.</small></span>" +
+      ("<div class=\"set-row\" data-focus-card=\"privacy-invites\"><span class=\"set-row__txt\"><strong>" + NX.i18n.get("set.item.privacyInvites", "Convites") + "</strong>") +
+      ("<small>" + NX.i18n.get("set.quempodeteconvidarparaservidores", "Quem pode te convidar para servidores.") + "</small></span>") +
       '<select class="set-select" data-privacy="invites" style="width:auto;min-width:170px">' + inviteOptions + "</select></div>" +
-      '<div class="set-card__foot"><span class="set-hint" style="margin-right:auto">Salvo automaticamente.</span></div>' +
+      ("<div class=\"set-card__foot\"><span class=\"set-hint\" style=\"margin-right:auto\">" + NX.i18n.get("set.salvoautomaticamente", "Salvo automaticamente.") + "</span></div>") +
       "</section>" +
       '<section class="set-card" data-focus-card="privacy-blocks">' +
-      headBlock("Bloqueios", "Pessoas bloqueadas não conseguem te escrever nem aparecer nas suas listas.") +
+      headBlock((NX.i18n.get("set.item.privacyBlocks", "Bloqueios")), NX.i18n.get("set.pessoasBloqueadasNaoConseguem", "Pessoas bloqueadas não conseguem te escrever nem aparecer nas suas listas.")) +
       blockList +
       '<form data-form="block" novalidate><div class="set-inline">' +
-      '<input class="set-input" name="name" maxlength="24" placeholder="nome de usuário" autocomplete="off" />' +
-      '<button type="submit" class="set-btn set-btn--danger-soft">Bloquear</button></div>' +
+      '<input class="set-input" name="name" maxlength="24" placeholder="' + NX.i18n.get("ui.nomedeusuario", "nome de usuário") + '" autocomplete="off" />' +
+      ("<button type=\"submit\" class=\"set-btn set-btn--danger-soft\">" + NX.i18n.get("page.bloquear", "Bloquear") + "</button></div>") +
       errorBlock() +
       "</form></section>";
 
@@ -923,18 +1151,18 @@ window.NX = window.NX || {};
             showErr(err, "");
             const raw = String(formData(form).name || "").trim().replace(/^@/, "");
             if (raw.length < 2) {
-              showErr(err, "Digite um nome de usuário com pelo menos 2 caracteres.");
+              showErr(err, NX.i18n.get("set.digiteNomeUsuarioPelo", "Digite um nome de usuário com pelo menos 2 caracteres."));
               return;
             }
             const current = blocks();
             const exists = current.some((b) => b.name.toLowerCase() === raw.toLowerCase());
             if (exists) {
-              showErr(err, "Esse usuário já está bloqueado.");
+              showErr(err, NX.i18n.get("set.esseUsuarioJaEsta", "Esse usuário já está bloqueado."));
               return;
             }
             current.push({ id: uid("bl"), name: raw.slice(0, 24), at: Date.now() });
             saveBlocks(current);
-            toast("@" + raw + " foi bloqueado.", "success");
+            toast("@" + raw + (" " + NX.i18n.get("people.foibloqueado", "foi bloqueado.")), "success");
             refresh();
           });
         }
@@ -966,86 +1194,86 @@ window.NX = window.NX || {};
   const SP_GROUPS = [
     {
       key: "follow",
-      label: "Quem pode me seguir?",
+      label: NX.i18n.get("set.quemPodeMeSeguir", "Quem pode me seguir?"),
       options: [
-        ["all", "Todos"],
-        ["approved", "Apenas aprovados"],
+        ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+        ["approved", NX.i18n.get("set.apenasAprovados", "Apenas aprovados")],
       ],
       hints: {
-        all: "Todos: qualquer pessoa pode começar a te seguir sem pedir sua permissão.",
-        approved: "Apenas aprovados: quem quiser te seguir recebe uma solicitação que você aceita ou recusa.",
+        all: NX.i18n.get("set.todosQualquerPessoaPode", "Todos: qualquer pessoa pode começar a te seguir sem pedir sua permissão."),
+        approved: (NX.i18n.get("set.apenasaprovadosquemquiserteseguir", "Apenas aprovados: quem quiser te seguir recebe uma solicitação que você aceita ou recusa.")),
       },
     },
     {
       key: "dm",
-      label: "Quem pode enviar DM?",
+      label: NX.i18n.get("set.quemPodeEnviarDm", "Quem pode enviar DM?"),
       options: [
-        ["all", "Todos"],
-        ["friends", "Amigos"],
-        ["followers", "Seguidores"],
-        ["none", "Ninguém"],
+        ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+        ["friends", (NX.i18n.get("nav.friends", "Amigos"))],
+        ["followers", (NX.i18n.get("people.seguidores", "Seguidores"))],
+        ["none", (NX.i18n.get("reg.privacyNone", "Ninguém"))],
       ],
       hints: {
-        all: "Todos: qualquer pessoa pode iniciar uma conversa direta com você.",
-        friends: "Amigos: só quem é seu amigo no Nexo consegue começar uma conversa direta.",
-        followers: "Seguidores: só quem já te segue pode começar uma conversa direta.",
-        none: "Ninguém: ninguém consegue iniciar uma conversa direta com você.",
+        all: NX.i18n.get("set.todosQualquerPessoaPode2", "Todos: qualquer pessoa pode iniciar uma conversa direta com você."),
+        friends: NX.i18n.get("set.amigosSoQuemSeu", "Amigos: só quem é seu amigo no Nexo consegue começar uma conversa direta."),
+        followers: NX.i18n.get("set.seguidoresSoQuemJa", "Seguidores: só quem já te segue pode começar uma conversa direta."),
+        none: NX.i18n.get("set.ninguemNinguemConsegueIniciar", "Ninguém: ninguém consegue iniciar uma conversa direta com você."),
       },
     },
     {
       key: "followers",
-      label: "Quem pode ver meus seguidores?",
+      label: NX.i18n.get("set.quemPodeVerMeus", "Quem pode ver meus seguidores?"),
       options: [
-        ["all", "Todos"],
-        ["followers", "Seguidores"],
-        ["self", "Apenas eu"],
+        ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+        ["followers", (NX.i18n.get("people.seguidores", "Seguidores"))],
+        ["self", NX.i18n.get("set.apenasEu3", "Apenas eu")],
       ],
       hints: {
-        all: "Todos: qualquer pessoa pode abrir a sua lista de seguidores.",
-        followers: "Seguidores: só quem já te segue consegue ver quem te segue.",
-        self: "Apenas eu: ninguém além de você vê a sua lista de seguidores.",
+        all: NX.i18n.get("set.todosQualquerPessoaPode3", "Todos: qualquer pessoa pode abrir a sua lista de seguidores."),
+        followers: NX.i18n.get("set.seguidoresSoQuemJa2", "Seguidores: só quem já te segue consegue ver quem te segue."),
+        self: NX.i18n.get("set.apenasEuNinguemAlem", "Apenas eu: ninguém além de você vê a sua lista de seguidores."),
       },
     },
     {
       key: "likes",
-      label: "Quem pode ver minhas curtidas?",
+      label: NX.i18n.get("set.quemPodeVerMinhas", "Quem pode ver minhas curtidas?"),
       options: [
-        ["all", "Todos"],
-        ["followers", "Seguidores"],
-        ["self", "Apenas eu"],
+        ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+        ["followers", (NX.i18n.get("people.seguidores", "Seguidores"))],
+        ["self", NX.i18n.get("set.apenasEu3", "Apenas eu")],
       ],
       hints: {
-        all: "Todos: qualquer pessoa que abrir seu perfil vê o ❤️ de curtidas recebidas.",
-        followers: "Seguidores: só quem já te segue vê quantas curtidas você recebeu.",
-        self: "Apenas eu: o ❤️ do seu perfil aparece como privado para os outros.",
+        all: NX.i18n.get("set.todosQualquerPessoaAbrir", "Todos: qualquer pessoa que abrir seu perfil vê o ❤️ de curtidas recebidas."),
+        followers: NX.i18n.get("set.seguidoresSoQuemJa3", "Seguidores: só quem já te segue vê quantas curtidas você recebeu."),
+        self: NX.i18n.get("set.apenasEuSeuPerfil", "Apenas eu: o ❤️ do seu perfil aparece como privado para os outros."),
       },
     },
     {
       key: "posts",
-      label: "Quem pode ver minhas publicações?",
+      label: NX.i18n.get("set.quemPodeVerMinhas2", "Quem pode ver minhas publicações?"),
       options: [
-        ["public", "Público"],
-        ["followers", "Seguidores"],
-        ["self", "Apenas eu"],
+        ["public", (NX.i18n.get("ex.publico", "Público"))],
+        ["followers", (NX.i18n.get("people.seguidores", "Seguidores"))],
+        ["self", NX.i18n.get("set.apenasEu3", "Apenas eu")],
       ],
       hints: {
-        public: "Público: suas publicações aparecem para qualquer pessoa no Nexo, mesmo para quem não te segue.",
-        followers: "Seguidores: só quem já te segue vê as suas publicações no feed.",
-        self: "Apenas eu: só você vê as suas publicações.",
+        public: (NX.i18n.get("set.publicosuaspublicacoesaparecemparaqualquer", "Público: suas publicações aparecem para qualquer pessoa no Nexo, mesmo para quem não te segue.")),
+        followers: NX.i18n.get("set.seguidoresSoQuemJa4", "Seguidores: só quem já te segue vê as suas publicações no feed."),
+        self: NX.i18n.get("set.apenasEuSoVoce", "Apenas eu: só você vê as suas publicações."),
       },
     },
     {
       key: "friendRequests",
-      label: "Solicitações de amizade",
+      label: NX.i18n.get("set.solicitacoesAmizade", "Solicitações de amizade"),
       options: [
-        ["all", "Todos"],
-        ["common", "Amigos em comum"],
-        ["none", "Ninguém"],
+        ["all", (NX.i18n.get("reg.privacyAll", "Todos"))],
+        ["common", NX.i18n.get("set.amigosComum", "Amigos em comum")],
+        ["none", (NX.i18n.get("reg.privacyNone", "Ninguém"))],
       ],
       hints: {
-        all: "Todos: qualquer pessoa pode te enviar uma solicitação de amizade.",
-        common: "Amigos em comum: só quem tem pelo menos um amigo em comum pode te chamar de amizade.",
-        none: "Ninguém: ninguém envia solicitação de amizade para você.",
+        all: NX.i18n.get("set.todosQualquerPessoaPode4", "Todos: qualquer pessoa pode te enviar uma solicitação de amizade."),
+        common: (NX.i18n.get("set.amigosemcomumsoquemtem", "Amigos em comum: só quem tem pelo menos um amigo em comum pode te chamar de amizade.")),
+        none: NX.i18n.get("set.ninguemNinguemEnviaSolicitacao", "Ninguém: ninguém envia solicitação de amizade para você."),
       },
     },
   ];
@@ -1123,7 +1351,7 @@ window.NX = window.NX || {};
 
     if (!NX.api || typeof NX.api.updateSocialPrivacy !== "function") {
       spMark(host, key, prev, false);
-      toast("Não foi possível salvar agora. Tente de novo.", "error");
+      toast(NX.i18n.get("reg.invalid", "Não foi possível salvar agora. Tente de novo."), "error");
       return;
     }
 
@@ -1139,12 +1367,12 @@ window.NX = window.NX || {};
       .then(() => {
         /* só o que a API devolveu vira estado */
         next = spValues()[key];
-        toast("Preferência de privacidade atualizada.", "success");
+        toast(NX.i18n.get("set.preferenciaPrivacidadeAtualizada", "Preferência de privacidade atualizada."), "success");
       })
       .catch((er) => {
         /* deu erro: recarrega o valor anterior, nada de estado falso */
         next = spValues()[key];
-        toast((er && er.message) || "Não foi possível salvar agora. Tente de novo.", "error");
+        toast((er && er.message) || NX.i18n.get("reg.invalid", "Não foi possível salvar agora. Tente de novo."), "error");
       })
       .then(() => {
         done();
@@ -1171,22 +1399,22 @@ window.NX = window.NX || {};
     const html =
       '<section class="set-card" data-focus-card="privacy-social">' +
       headBlock(
-        "Privacidade",
-        "Escolha quem pode te seguir, te escrever e ver o que você publica. Cada escolha vale para a sua conta no Nexo inteira."
+        (NX.i18n.get("landing.privacidade", "Privacidade")),
+        (NX.i18n.get("set.escolhaquempodeteseguirte", "Escolha quem pode te seguir, te escrever e ver o que você publica. Cada escolha vale para a sua conta no Nexo inteira."))
       ) +
       groups +
       '<div class="set-card__foot">' +
-      '<span class="set-hint" style="margin-right:auto">Cada opção é salva sozinha assim que você escolhe.</span>' +
+      ("<span class=\"set-hint\" style=\"margin-right:auto\">" + NX.i18n.get("set.cadaopcaoesalvasozinhaassim", "Cada opção é salva sozinha assim que você escolhe.") + "</span>") +
       "</div></section>" +
       '<section class="set-card">' +
-      headBlock("Como funciona na prática", "Nada muda no seu perfil: só quem consegue chegar até você.") +
+      headBlock(NX.i18n.get("set.comoFuncionaPratica", "Como funciona na prática"), NX.i18n.get("set.nadaMudaSeuPerfil", "Nada muda no seu perfil: só quem consegue chegar até você.")) +
       noteBlock(
-        'Com "Apenas aprovados", os pedidos de seguimento aparecem em Solicitações e você aceita ou recusa um a um.',
+        (NX.i18n.get("set.comapenasaprovadosospedidosde", "Com \"Apenas aprovados\", os pedidos de seguimento aparecem em Solicitações e você aceita ou recusa um a um.")),
         null
       ) +
       '<div style="margin-top:10px">' +
       noteBlock(
-        'Com "Apenas eu" nas publicações, só você enxerga as suas postagens — nem quem te segue.',
+        (NX.i18n.get("set.comapenaseunaspublicacoesso", "Com \"Apenas eu\" nas publicações, só você enxerga as suas postagens — nem quem te segue.")),
         "accent"
       ) +
       "</div></section>";
@@ -1218,15 +1446,15 @@ window.NX = window.NX || {};
               '<div class="set-item"><span class="set-item__ico' + (s.current ? " is-live" : "") + '">' +
               ico(s.current ? "enter" : "clock", 18) + "</span>" +
               '<span class="set-item__txt"><strong>' + esc(s.name) + "</strong>" +
-              "<small>" + esc(s.os || "") + (s.current ? " · ativo agora" : " · última atividade " + esc(timeAgo(s.last))) +
+              "<small>" + esc(s.os || "") + (s.current ? (" " + NX.i18n.get("set.ativoagora", "· ativo agora")) : (" " + NX.i18n.get("set.ultimaatividade", "· última atividade") + " ") + esc(timeAgo(s.last))) +
               "</small></span>" +
-              (s.current ? '<span class="set-badge">Agora</span>' : "") +
+              (s.current ? ("<span class=\"set-badge\">" + NX.i18n.get("set.agora", "Agora") + "</span>") : "") +
               '<button type="button" class="set-btn set-btn--danger-soft set-btn--sm" data-set="end-session" data-id="' +
-              esc(s.id) + '">Encerrar sessão</button></div>'
+              esc(s.id) + (NX.i18n.get("set.encerrarsessao", "\">Encerrar sessão") + "</button></div>")
           )
           .join("") +
         "</div>"
-      : emptyBlock("lock", "Nenhuma outra sessão", "Quando você entrar em outro dispositivo, ele aparece aqui.");
+      : emptyBlock("lock", NX.i18n.get("set.nenhumaOutraSessao", "Nenhuma outra sessão"), NX.i18n.get("set.quandoVoceEntrarOutro", "Quando você entrar em outro dispositivo, ele aparece aqui."));
 
     const deviceRows = list.length
       ? '<div class="set-list">' +
@@ -1237,31 +1465,31 @@ window.NX = window.NX || {};
               ico("grid", 18) + "</span>" +
               '<span class="set-item__txt"><strong>' + esc(s.name) + "</strong><small>" + esc(s.os || "—") + "</small></span>" +
               (s.current
-                ? '<span class="set-badge">Este aparelho</span>'
+                ? ("<span class=\"set-badge\">" + NX.i18n.get("set.esteaparelho", "Este aparelho") + "</span>")
                 : '<span class="set-badge set-badge--muted">' + esc(timeAgo(s.last) || "inativo") + "</span>") +
               "</div>"
           )
           .join("") +
         "</div>"
-      : emptyBlock("grid", "Só este dispositivo", "Nenhum outro aparelho conectado à sua conta.");
+      : emptyBlock("grid", NX.i18n.get("set.soEsteDispositivo", "Só este dispositivo"), NX.i18n.get("set.nenhumOutroAparelhoConectado", "Nenhum outro aparelho conectado à sua conta."));
 
     const html =
       '<section class="set-card" data-focus-card="security-sessions">' +
-      headBlock("Sessões", "Cada entrada na conta vira uma sessão. Encerre a que você não reconhecer.") +
+      headBlock((NX.i18n.get("set.item.securitySessions", "Sessões")), NX.i18n.get("set.cadaEntradaContaVira", "Cada entrada na conta vira uma sessão. Encerre a que você não reconhecer.")) +
       sessionRows +
       "</section>" +
       '<section class="set-card" data-focus-card="security-devices">' +
-      headBlock("Dispositivos", "Resumo dos aparelhos com acesso à sua conta.") +
+      headBlock((NX.i18n.get("set.item.securityDevices", "Dispositivos")), NX.i18n.get("set.resumoAparelhosAcessoSua", "Resumo dos aparelhos com acesso à sua conta.")) +
       '<div class="set-stats">' +
-      '<div class="set-stat"><span>Dispositivos</span><strong>' + list.length + "</strong>" +
-      "<small>com acesso agora</small></div>" +
-      '<div class="set-stat"><span>Este aparelho</span><strong>' + esc(p) + "</strong><small>navegador atual</small></div>" +
-      '<div class="set-stat"><span>Sessão atual</span><strong>' +
-      esc((list.find((s) => s.current) || {}).name || "Este navegador") + "</strong><small>ativa agora</small></div>" +
+      ("<div class=\"set-stat\"><span>" + NX.i18n.get("set.item.securityDevices", "Dispositivos") + "</span><strong>") + list.length + "</strong>" +
+      ("<small>" + NX.i18n.get("set.comacessoagora", "com acesso agora") + "</small></div>") +
+      ("<div class=\"set-stat\"><span>" + NX.i18n.get("set.esteaparelho", "Este aparelho") + "</span><strong>") + esc(p) + ("</strong><small>" + NX.i18n.get("set.navegadoratual", "navegador atual") + "</small></div>") +
+      ("<div class=\"set-stat\"><span>" + NX.i18n.get("set.sessaoatual", "Sessão atual") + "</span><strong>") +
+      esc((list.find((s) => s.current) || {}).name || NX.i18n.get("set.esteNavegador2", "Este navegador")) + ("</strong><small>" + NX.i18n.get("set.ativaagora", "ativa agora") + "</small></div>") +
       "</div>" +
       deviceRows +
       '<div style="margin-top:14px">' +
-      noteBlock("Desconfiou de algo? Encerre a sessão suspeita e troque sua senha em Segurança → Sessões.", null) +
+      noteBlock((NX.i18n.get("set.desconfioudealgoencerreasessao", "Desconfiou de algo? Encerre a sessão suspeita e troque sua senha em Segurança → Sessões.")), null) +
       "</div></section>";
 
     const target =
@@ -1287,7 +1515,7 @@ window.NX = window.NX || {};
     const m = me();
     const html =
       '<section class="set-card set-card--danger" data-focus-card="logout">' +
-      headBlock("Sair da conta", "Você precisará entrar de novo para voltar a conversar nos seus servidores.") +
+      headBlock(NX.i18n.get("app.sairConta", "Sair da conta"), NX.i18n.get("set.vocePrecisaraEntrarNovo", "Você precisará entrar de novo para voltar a conversar nos seus servidores.")) +
       (m
         ? '<div class="set-avatar" style="margin-bottom:0">' +
           '<span class="set-avatar__img" style="--av:' + esc((m.avatar && m.avatar.color) || "#35e0a8") + '">' +
@@ -1296,9 +1524,9 @@ window.NX = window.NX || {};
           "<span>@" + esc(m.username) + "</span></div></div>"
         : "") +
       '<div class="set-card__foot">' +
-      '<button type="button" class="set-btn set-btn--ghost" data-set="close">Cancelar</button>' +
+      ("<button type=\"button\" class=\"set-btn set-btn--ghost\" data-set=\"close\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
       '<button type="button" class="set-btn set-btn--danger set-btn--lg" data-set="logout">' +
-      ico("logout", 18) + " Sair da conta</button>" +
+      ico("logout", 18) + (" " + NX.i18n.get("app.sairConta", "Sair da conta") + "</button>") +
       "</div></section>";
     return { html: html };
   };
@@ -1307,18 +1535,20 @@ window.NX = window.NX || {};
      ESTRUTURA DA TELA
      ========================================================= */
   function navItemHTML(item) {
+    const label = item.tk && NX.t ? NX.t(item.tk) : item.label;
     return (
       '<button type="button" class="set-nav__item' + (item.danger ? " is-danger" : "") +
       '" data-set="section" data-id="' + item.id + '" data-nav-id="' + item.id + '">' +
-      ico(item.icon, 17) + "<span>" + esc(item.label) + "</span></button>"
+      ico(item.icon, 17) + "<span>" + esc(label) + "</span></button>"
     );
   }
 
   function navHTML() {
     let html = "";
     GROUPS.forEach((g) => {
+      const title = g.tk && NX.t ? NX.t(g.tk) : g.title;
       html +=
-        '<div class="set-nav__group"><div class="set-nav__title">' + esc(g.title) + "</div>" +
+        '<div class="set-nav__group"><div class="set-nav__title">' + esc(title) + "</div>" +
         '<div class="set-nav__list">' + g.items.map(navItemHTML).join("") + "</div></div>";
     });
     html +=
@@ -1328,19 +1558,26 @@ window.NX = window.NX || {};
     return html;
   }
 
-  const SHELL_HTML =
-    '<div class="set-shell">' +
-    '<header class="set-head"><div class="set-head__inner">' +
-    '<div class="set-head__txt"><span class="set-eyebrow">Preferências</span>' +
-    '<h1 class="set-title">Configurações</h1></div>' +
-    '<span class="set-head__who" data-who hidden></span>' +
-    '<button type="button" class="set-close" data-set="close" title="Fechar (Esc)" aria-label="Fechar configurações">' +
-    ico("x", 20) +
-    "</button></div></header>" +
-    '<div class="set-body">' +
-    '<nav class="set-nav" aria-label="Seções de configuração" data-nav>' + navHTML() + "</nav>" +
-    '<main class="set-content" data-content tabindex="-1"></main>' +
-    "</div></div>";
+  /* shell reconstruído a cada render */
+  function shellHTML() {
+    return (
+      '<div class="set-shell">' +
+      '<header class="set-head"><div class="set-head__inner">' +
+      '<div class="set-head__txt"><span class="set-eyebrow">' +
+      esc(NX.t ? NX.t("set.eyebrow") : (NX.i18n.get("set.eyebrow", "Preferências"))) + "</span>" +
+      '<h1 class="set-title">' + esc(NX.t ? NX.t("set.title") : (NX.i18n.get("nav.settings", "Configurações"))) + "</h1></div>" +
+      '<span class="set-head__who" data-who hidden></span>' +
+      '<button type="button" class="set-close" data-set="close" title="' + NX.i18n.get("ui.fecharesc", "Fechar (Esc)") + '" aria-label="' +
+      esc(NX.t ? NX.t("set.close") : NX.i18n.get("set.close", "Fechar configurações")) + '">' +
+      ico("x", 20) +
+      "</button></div></header>" +
+      '<div class="set-body">' +
+      '<nav class="set-nav" aria-label="' + esc(NX.t ? NX.t("set.navAria") : NX.i18n.get("set.navAria", "Seções de configuração")) +
+      '" data-nav>' + navHTML() + "</nav>" +
+      '<main class="set-content" data-content tabindex="-1"></main>' +
+      "</div></div>"
+    );
+  }
 
   /* =========================================================
      ESTADO / RENDER
@@ -1401,7 +1638,7 @@ window.NX = window.NX || {};
       built = (PANELS[panelKey] || PANELS.account)(key);
     } catch (e) {
       console.error("[settings:painel]", panelKey, e);
-      built = { html: '<section class="set-card">' + headBlock("Ops", "Não foi possível carregar esta seção.") + "</section>" };
+      built = { html: '<section class="set-card">' + headBlock((NX.i18n.get("set.ops", "Ops")), NX.i18n.get("set.naoFoiPossivelCarregar", "Não foi possível carregar esta seção.")) + "</section>" };
     }
 
     const inner = document.createElement("div");
@@ -1498,11 +1735,11 @@ window.NX = window.NX || {};
       NX.api
         .logout()
         .then(() => {
-          toast("Você saiu da conta.", "success");
+          toast(NX.i18n.get("set.voceSaiuConta", "Você saiu da conta."), "success");
           closeScreen();
         })
         .catch((e) => {
-          toast((e && e.message) || "Não foi possível sair agora.", "error");
+          toast((e && e.message) || NX.i18n.get("set.naoFoiPossivelSair", "Não foi possível sair agora."), "error");
         });
     };
 
@@ -1512,9 +1749,9 @@ window.NX = window.NX || {};
     }
     ui
       .confirm({
-        title: "Sair da conta",
-        message: "Você precisará entrar de novo para voltar a conversar.",
-        confirmLabel: "Sair",
+        title: NX.i18n.get("app.sairConta", "Sair da conta"),
+        message: NX.i18n.get("set.vocePrecisaraEntrarNovo2", "Você precisará entrar de novo para voltar a conversar."),
+        confirmLabel: (NX.i18n.get("set.item.logout", "Sair")),
         danger: true,
         icon: "logout",
       })
@@ -1546,16 +1783,29 @@ window.NX = window.NX || {};
         if (content) markScales(content, value);
       }
     },
-    "set-sound": () => beep(),
+    "set-sound": () => {
+      if (!playTestSound()) {
+        toast(NX.i18n.get("set.seuNavegadorNaoPermitiu", "Seu navegador não permitiu tocar o som de teste."), "info");
+        return;
+      }
+      try {
+        const s = soundPrefs();
+        if (!s.on || s.muted || s.categories.notifications === false) {
+          toast(NX.i18n.get("set.sndTesteSilenciado", "Os sons estão desligados — ative acima para ouvir o teste."), "info");
+        }
+      } catch (e) {
+        /* sem preferências: segue sem aviso */
+      }
+    },
     "set-mute-all": () => {
       setPrefsAll(false);
       refresh();
-      toast("Notificações desativadas neste dispositivo.", "info");
+      toast(NX.i18n.get("set.notificacoesDesativadasNesteDispositivo", "Notificações desativadas neste dispositivo."), "info");
     },
     "set-unmute-all": () => {
       setPrefsAll(true);
       refresh();
-      toast("Notificações ativadas.", "success");
+      toast(NX.i18n.get("people.notificacoesAtivadas", "Notificações ativadas."), "success");
     },
     "set-reset-profile": () => refresh(),
     "set-toggle-pass": (el) => {
@@ -1566,20 +1816,20 @@ window.NX = window.NX || {};
       const show = input.type === "password";
       input.type = show ? "text" : "password";
       el.innerHTML = ico(show ? "eyeOff" : "eye", 18);
-      el.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
+      el.setAttribute("aria-label", show ? NX.i18n.get("set.ocultarSenha", "Ocultar senha") : NX.i18n.get("set.mostrarSenha", "Mostrar senha"));
     },
     "set-unblock": (el) => {
       const id = el.getAttribute("data-id");
       const list = blocks().filter((b) => b.id !== id);
       saveBlocks(list);
-      toast("Usuário desbloqueado.", "info");
+      toast(NX.i18n.get("set.usuarioDesbloqueado", "Usuário desbloqueado."), "info");
       refresh();
     },
     "set-end-session": (el) => {
       const id = el.getAttribute("data-id");
       const list = sessions().filter((s) => s.id !== id);
       saveSessions(list);
-      toast("Sessão encerrada.", "success");
+      toast(NX.i18n.get("set.sessaoEncerrada", "Sessão encerrada."), "success");
       refresh();
     },
     "set-save-profile": () => submitForm("profile"),
@@ -1587,7 +1837,11 @@ window.NX = window.NX || {};
   };
 
   function setPrefsAll(value) {
-    set(K.prefs, { messages: !!value, mentions: !!value, sounds: !!value });
+    const p = prefs();
+    /* preserva o objeto de sons (booleano antigo já não é mais gravado) */
+    set(K.prefs, { messages: !!value, mentions: !!value, sounds: normalizeSounds(p.sounds) });
+    /* o som master continua sendo gravado pelo escritor único: NX.sfx */
+    sfxEnabled(value);
   }
 
   function submitForm(name) {
@@ -1635,7 +1889,7 @@ window.NX = window.NX || {};
     if (NX.__setKeysBound) return;
     NX.__setKeysBound = true;
     document.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== (NX.i18n.get("app.escape", "Escape"))) return;
       const root = settings.root;
       if (!root || root.hidden || !root.isConnected) return;
       if (NX.ui && NX.ui.isOpen && NX.ui.isOpen()) return;
@@ -1648,7 +1902,7 @@ window.NX = window.NX || {};
     settings.root = root;
     let shell = root.querySelector(".set-shell");
     if (!shell) {
-      root.innerHTML = SHELL_HTML;
+      root.innerHTML = shellHTML();
       shell = root.querySelector(".set-shell");
       if (shell) bindShell(root);
     }
@@ -1656,6 +1910,7 @@ window.NX = window.NX || {};
     settings.go(section || settings.section || "account");
     return settings;
   };
+
 
   NX.settings = settings;
 
