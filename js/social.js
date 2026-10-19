@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    NEXO · social
    Feed, publicações, seguidores/seguidos, curtidas e comentários.
 
@@ -101,7 +101,7 @@ window.NX = window.NX || {};
   function statusLabel(user) {
     if (!user) return "";
     const map = NX.STATUS_LABEL || {};
-    return map[user.status] || "Offline";
+    return map[user.status] || NX.i18n.get("core.statusOffline", "Offline");
   }
 
   /* texto do usuário: escapa, linkifica e preserva quebras de linha */
@@ -195,11 +195,11 @@ window.NX = window.NX || {};
       '" aria-pressed="' +
       (liked ? "true" : "false") +
       '" title="' +
-      (liked ? "Curtido" : "Curtir") +
+      (liked ? (NX.i18n.get("soc.curtido", "Curtido")) : (NX.i18n.get("soc.curtir", "Curtir"))) +
       '">' +
       NX.icon(liked ? "heartFill" : "heart", "sx-like__ico", opts.small ? 15 : 17) +
       '<span class="sx-like__label">' +
-      (liked ? "Curtido" : "Curtir") +
+      (liked ? (NX.i18n.get("soc.curtido", "Curtido")) : (NX.i18n.get("soc.curtir", "Curtir"))) +
       "</span>" +
       (opts.withCount ? '<b class="sx-like__n">' + count + "</b>" : "") +
       "</button>"
@@ -212,7 +212,7 @@ window.NX = window.NX || {};
   function mediaHTML(post, author) {
     const list = Array.isArray(post.media) ? post.media : [];
     if (!list.length) return "";
-    const alt = "Imagem publicada por " + (author ? author.displayName || author.username : "alguém");
+    const alt = (NX.i18n.get("soc.imagempublicadapor", "Imagem publicada por") + " ") + (author ? author.displayName || author.username : (NX.i18n.get("api.alguem", "alguém")));
     const cells = list
       .slice(0, MAX_FILES)
       .map((m) => {
@@ -223,7 +223,7 @@ window.NX = window.NX || {};
             '<div class="sx-media__cell sx-media__cell--video">' +
             '<video class="sx-media__video" src="' +
             url +
-            '" controls preload="metadata" playsinline aria-label="Vídeo da publicação"></video>' +
+            '" controls preload="metadata" playsinline aria-label="' + NX.i18n.get("ui.videodapublicacao", "Vídeo da publicação") + '"></video>' +
             "</div>"
           );
         }
@@ -283,7 +283,7 @@ window.NX = window.NX || {};
       h(author.username) +
       "</span>" +
       '<span class="sx-comment__time" title="' +
-      h(new Date(c.createdAt).toLocaleString("pt-BR")) +
+      h(NX.time.dateTime(c.createdAt)) +
       '">' +
       h(u().timeAgo(c.createdAt)) +
       "</span>" +
@@ -297,11 +297,11 @@ window.NX = window.NX || {};
       h(post.id) +
       '" data-id="' +
       h(c.id) +
-      '">Responder</button>' +
+      ("\">" + NX.i18n.get("chat.responder", "Responder") + "</button>") +
       (mine
         ? '<button type="button" class="sx-linkbtn is-danger" data-action="sx-comment-delete" data-id="' +
           h(c.id) +
-          '">Excluir</button>'
+          ("\">" + NX.i18n.get("common.delete", "Excluir") + "</button>")
         : "") +
       "</div>" +
       "</div>" +
@@ -331,7 +331,7 @@ window.NX = window.NX || {};
         "</div>"
       : '<p class="sx-comments__empty">' +
         NX.icon("comment", "", 16) +
-        "<span>Ninguém comentou ainda. Seja a primeira pessoa a responder.</span></p>";
+        ("<span>" + NX.i18n.get("soc.ninguemcomentouaindasejaaprimeira", "Ninguém comentou ainda. Seja a primeira pessoa a responder.") + "</span></p>");
 
     const form =
       '<form class="sx-cform" data-sx-form="comment" data-sx-key="' +
@@ -342,12 +342,12 @@ window.NX = window.NX || {};
       (parent
         ? '<div class="sx-replychip">' +
           NX.icon("reply", "", 14) +
-          "<span>Respondendo a <b>@" +
+          ("<span>" + NX.i18n.get("soc.respondendoa", "Respondendo a") + " " + "<b>@") +
           h(parentAuthor ? parentAuthor.username : "") +
           "</b></span>" +
           '<button type="button" class="sx-replychip__x" data-action="sx-reply-cancel" data-sx-key="' +
           h(key) +
-          '" aria-label="Cancelar resposta" title="Cancelar resposta">' +
+          '" aria-label="' + NX.i18n.get("ui.social.cancelarresposta", "Cancelar resposta") + '" title="' + NX.i18n.get("ui.social.cancelarresposta2", "Cancelar resposta") + '">' +
           NX.icon("x", "", 14) +
           "</button></div>"
         : "") +
@@ -359,8 +359,8 @@ window.NX = window.NX || {};
       '" rows="1" maxlength="' +
       MAX_COMMENT +
       '" placeholder="' +
-      (parent && parentAuthor ? "Responder @" + h(parentAuthor.username) : "Escreva um comentário...") +
-      '" aria-label="Texto do comentário">' +
+      (parent && parentAuthor ? (NX.i18n.get("soc.responder", "Responder @")) + h(parentAuthor.username) : NX.i18n.get("soc.escrevaComentario", "Escreva um comentário...")) +
+      '" aria-label="' + NX.i18n.get("ui.textodocomentario", "Texto do comentário") + '">' +
       h(d.text) +
       "</textarea>" +
       '<div class="sx-cform__foot">' +
@@ -373,7 +373,7 @@ window.NX = window.NX || {};
       "</span>" +
       '<button type="submit" class="btn btn--primary btn--sm">' +
       NX.icon("send", "", 15) +
-      "<span>Comentar</span></button>" +
+      ("<span>" + NX.i18n.get("soc.comentar", "Comentar") + "</span></button>") +
       "</div></div></div></form>";
 
     return (
@@ -409,7 +409,7 @@ window.NX = window.NX || {};
       '<div class="sx-post__head">' +
       '<button type="button" class="sx-post__who" data-action="sx-profile" data-user="' +
       h(author.username) +
-      '" title="Ver perfil de ' +
+      '" title="' + NX.i18n.get("ui.a11yverperfil", "Ver perfil de ") +
       h(author.displayName || author.username) +
       '">' +
       u().avatarHTML(author, "md", true) +
@@ -426,7 +426,7 @@ window.NX = window.NX || {};
       (mine && !opts.hideDelete
         ? '<button type="button" class="icon-btn sx-post__del" data-action="sx-delete-post" data-id="' +
           h(post.id) +
-          '" title="Excluir publicação" aria-label="Excluir publicação">' +
+          '" title="' + NX.i18n.get("soc.excluirPublicacao", "Excluir publicação") + '" aria-label="' + NX.i18n.get("soc.excluirPublicacao", "Excluir publicação") + '">' +
           NX.icon("trash", "", 17) +
           "</button>"
         : "") +
@@ -434,12 +434,12 @@ window.NX = window.NX || {};
       (post.content ? '<div class="sx-post__text">' + contentHTML(post.content) + "</div>" : "") +
       mediaHTML(post, author) +
       '<div class="sx-post__counts">' +
-      '<span class="sx-chip" title="Curtidas">' +
+      '<span class="sx-chip" title="' + NX.i18n.get("people.curtidas", "Curtidas") + '">' +
       NX.icon("heart", "sx-chip__ico", 14) +
       "<b>" +
       likes +
       "</b></span>" +
-      '<span class="sx-chip" title="Comentários">' +
+      '<span class="sx-chip" title="' + NX.i18n.get("soc.comentarios", "Comentários") + '">' +
       NX.icon("comment", "sx-chip__ico", 14) +
       "<b>" +
       comments +
@@ -453,12 +453,12 @@ window.NX = window.NX || {};
           h(post.id) +
           '">' +
           NX.icon("comment", "", 17) +
-          "<span>Comentar</span></button>" +
+          ("<span>" + NX.i18n.get("soc.comentar", "Comentar") + "</span></button>") +
           '<button type="button" class="sx-act" data-action="sx-share" data-id="' +
           h(post.id) +
           '">' +
           NX.icon("share", "", 17) +
-          "<span>Compartilhar</span></button>" +
+          ("<span>" + NX.i18n.get("soc.compartilhar", "Compartilhar") + "</span></button>") +
           "</div>") +
       (threadOpen ? commentsHTML(post, prefix) : "") +
       "</article>"
@@ -480,13 +480,13 @@ window.NX = window.NX || {};
             h(m.kind) +
             '">' +
             (m.kind === "video"
-              ? '<video class="sx-att__vid" src="' + url + '" muted playsinline preload="metadata" aria-label="Pré-visualização do vídeo"></video>'
-              : '<img class="sx-att__img" src="' + url + '" alt="Pré-visualização da imagem anexada">') +
+              ? '<video class="sx-att__vid" src="' + url + '" muted playsinline preload="metadata" aria-label="' + NX.i18n.get("ui.previsualizacaodovideo", "Pré-visualização do vídeo") + '"></video>'
+              : '<img class="sx-att__img" src="' + url + '" alt="' + NX.i18n.get("ui.previsualizacaodaimagemanexada", "Pré-visualização da imagem anexada") + '">') +
             '<button type="button" class="sx-att__x" data-action="sx-att-remove" data-sx-key="' +
             h(key) +
             '" data-idx="' +
             i +
-            '" title="Remover anexo" aria-label="Remover anexo">' +
+            '" title="' + NX.i18n.get("ui.removeranexo", "Remover anexo") + '" aria-label="' + NX.i18n.get("ui.social.removeranexo", "Remover anexo") + '">' +
             NX.icon("x", "", 14) +
             "</button>" +
             '<span class="sx-att__kind">' +
@@ -503,7 +503,7 @@ window.NX = window.NX || {};
   function emojiGridHTML(key) {
     const list = (u().EMOJIS || []).filter((e, i, a) => a.indexOf(e) === i);
     return (
-      '<div class="sx-emoji" role="group" aria-label="Escolher emoji">' +
+      '<div class="sx-emoji" role="group" aria-label="' + NX.i18n.get("ui.escolheremoji", "Escolher emoji") + '">' +
       list
         .map(
           (e) =>
@@ -511,7 +511,7 @@ window.NX = window.NX || {};
             h(key) +
             '" data-e="' +
             h(e) +
-            '" aria-label="Inserir emoji ' +
+            '" aria-label="' + NX.i18n.get("ui.a11yinseriremoji", "Inserir emoji ") +
             h(e) +
             '">' +
             h(e) +
@@ -534,7 +534,7 @@ window.NX = window.NX || {};
       h(key) +
       '" data-sx-composer="' +
       h(key) +
-      '" aria-label="Criar publicação">' +
+      '" aria-label="' + NX.i18n.get("soc.criarPublicacao", "Criar publicação") + '">' +
       '<div class="sx-composer__row">' +
       (me ? u().avatarHTML(me, "md", true) : "") +
       '<div class="sx-composer__box">' +
@@ -542,7 +542,7 @@ window.NX = window.NX || {};
       h(key) +
       '" rows="2" maxlength="' +
       MAX_POST +
-      '" placeholder="O que você está pensando?" aria-label="Texto da publicação">' +
+      '" placeholder="' + NX.i18n.get("ui.oquevoceestapensando", "O que você está pensando?") + '" aria-label="' + NX.i18n.get("ui.textodapublicacao", "Texto da publicação") + '">' +
       h(d.text) +
       "</textarea>" +
       previewsHTML(key, d) +
@@ -553,14 +553,14 @@ window.NX = window.NX || {};
       (d.emoji ? " is-on" : "") +
       '" data-action="sx-emoji" data-sx-key="' +
       h(key) +
-      '" title="Emoji" aria-label="Escolher emoji" aria-expanded="' +
+      '" title="' + NX.i18n.get("chat.emoji", "Emoji") + '" aria-label="' + NX.i18n.get("ui.social.escolheremoji", "Escolher emoji") + '" aria-expanded="' +
       (d.emoji ? "true" : "false") +
       '">' +
       NX.icon("smile", "", 19) +
       "</button>" +
       '<button type="button" class="sx-tool" data-action="sx-pick" data-kind="image" data-sx-key="' +
       h(key) +
-      '" title="Anexar imagem" aria-label="Anexar imagem"' +
+      '" title="' + NX.i18n.get("ui.anexarimagem", "Anexar imagem") + '" aria-label="' + NX.i18n.get("ui.social.anexarimagem", "Anexar imagem") + '"' +
       (full ? " disabled" : "") +
       ">" +
       NX.icon("image", "", 19) +
@@ -568,7 +568,7 @@ window.NX = window.NX || {};
       (VIDEO_OK
         ? '<button type="button" class="sx-tool" data-action="sx-pick" data-kind="video" data-sx-key="' +
           h(key) +
-          '" title="Anexar vídeo" aria-label="Anexar vídeo"' +
+          '" title="' + NX.i18n.get("ui.anexarvideo", "Anexar vídeo") + '" aria-label="' + NX.i18n.get("ui.social.anexarvideo", "Anexar vídeo") + '"' +
           (full ? " disabled" : "") +
           ">" +
           NX.icon("video", "", 19) +
@@ -583,7 +583,7 @@ window.NX = window.NX || {};
           '" data-kind="video" accept="video/*" tabindex="-1" aria-hidden="true">'
         : "") +
       (full
-        ? '<span class="sx-tool__hint">Máximo de ' + MAX_FILES + " anexos</span>"
+        ? ("<span class=\"sx-tool__hint\">" + NX.i18n.get("soc.maximode", "Máximo de") + " ") + MAX_FILES + " anexos</span>"
         : "") +
       "</div>" +
       '<div class="sx-composer__end">' +
@@ -596,8 +596,8 @@ window.NX = window.NX || {};
       "</span>" +
       '<button type="button" class="btn btn--ghost btn--sm" data-action="sx-cancel" data-sx-key="' +
       h(key) +
-      '">Cancelar</button>' +
-      '<button type="submit" class="btn btn--primary btn--sm">Publicar</button>' +
+      ("\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
+      ("<button type=\"submit\" class=\"btn btn--primary btn--sm\">" + NX.i18n.get("soc.publicar", "Publicar") + "</button>") +
       "</div></div></div></div></form>"
     );
   }
@@ -660,10 +660,10 @@ window.NX = window.NX || {};
       '<span class="sx-empty__ico">' +
       NX.icon("heart", "", 26) +
       "</span>" +
-      "<h2>Nada novo por aqui</h2>" +
-      "<p>Seu feed ainda está vazio. Publique alguma coisa ou siga mais pessoas para ver conteúdo chegar.</p>" +
+      ("<h2>" + NX.i18n.get("soc.nadanovoporaqui", "Nada novo por aqui") + "</h2>") +
+      ("<p>" + NX.i18n.get("soc.seufeedaindaestavaziopublique", "Seu feed ainda está vazio. Publique alguma coisa ou siga mais pessoas para ver conteúdo chegar.") + "</p>") +
       '<div class="sx-empty__acts">' +
-      '<button type="button" class="btn btn--primary" data-action="sx-new-post">Criar publicação</button>' +
+      ("<button type=\"button\" class=\"btn btn--primary\" data-action=\"sx-new-post\">" + NX.i18n.get("soc.criarPublicacao", "Criar publicação") + "</button>") +
       "</div></div>"
     );
   }
@@ -676,9 +676,9 @@ window.NX = window.NX || {};
         '<span class="sx-empty__ico">' +
         NX.icon("users", "", 26) +
         "</span>" +
-        "<h2>Entre para ver o feed</h2>" +
-        "<p>Faça login para publicar, curtir e comentar nas conversas das suas comunidades.</p>" +
-        '<div class="sx-empty__acts"><button type="button" class="btn btn--primary" data-action="goto-login">Entrar</button></div>' +
+        ("<h2>" + NX.i18n.get("soc.entreparaverofeed", "Entre para ver o feed") + "</h2>") +
+        ("<p>" + NX.i18n.get("soc.facaloginparapublicarcurtire", "Faça login para publicar, curtir e comentar nas conversas das suas comunidades.") + "</p>") +
+        ("<div class=\"sx-empty__acts\"><button type=\"button\" class=\"btn btn--primary\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button></div>") +
         "</div></div>"
       );
     }
@@ -688,13 +688,13 @@ window.NX = window.NX || {};
       '<div class="sx-page">' +
       '<header class="sx-head">' +
       '<div class="sx-head__txt">' +
-      '<span class="sx-head__eyebrow">Nexo · rede social</span>' +
-      '<h1 class="sx-head__title">Feed</h1>' +
-      '<p class="sx-head__sub">Suas publicações, das pessoas que você segue e as públicas das comunidades.</p>' +
+      ("<span class=\"sx-head__eyebrow\">" + NX.i18n.get("soc.nexoredesocial", "Nexo · rede social") + "</span>") +
+      ("<h1 class=\"sx-head__title\">" + NX.i18n.get("nav.feed", "Feed") + "</h1>") +
+      ("<p class=\"sx-head__sub\">" + NX.i18n.get("soc.suaspublicacoesdaspessoasquevoce", "Suas publicações, das pessoas que você segue e as públicas das comunidades.") + "</p>") +
       "</div>" +
       '<button type="button" class="btn btn--primary sx-head__btn" data-action="sx-new-post">' +
       NX.icon("plus", "", 17) +
-      "<span>Criar publicação</span></button>" +
+      ("<span>" + NX.i18n.get("soc.criarPublicacao", "Criar publicação") + "</span></button>") +
       "</header>" +
       composerHTML("feed") +
       (posts.length
@@ -722,7 +722,7 @@ window.NX = window.NX || {};
     const user = S().user(userId);
     if (!user) {
       return '<div class="sx-empty"><span class="sx-empty__ico">' + NX.icon("alert", "", 24) +
-        "</span><h2>Usuário não encontrado</h2><p>Esta conta pode ter sido removida.</p></div>";
+        ("</span><h2>" + NX.i18n.get("soc.usuarionaoencontrado", "Usuário não encontrado") + "</h2><p>" + NX.i18n.get("soc.estacontapodetersidoremovida", "Esta conta pode ter sido removida.") + "</p></div>");
     }
     if (!me || !S().canViewPostsOf(me.id, user.id)) {
       return (
@@ -730,8 +730,8 @@ window.NX = window.NX || {};
         '<span class="sx-empty__ico">' +
         NX.icon("eye", "", 24) +
         "</span>" +
-        "<h2>Publicações privadas</h2>" +
-        "<p>Esta pessoa deixa as publicações dela visíveis só para quem ela autorizar.</p>" +
+        ("<h2>" + NX.i18n.get("soc.publicacoesprivadas", "Publicações privadas") + "</h2>") +
+        ("<p>" + NX.i18n.get("soc.estapessoadeixaaspublicacoesdela", "Esta pessoa deixa as publicações dela visíveis só para quem ela autorizar.") + "</p>") +
         "</div>"
       );
     }
@@ -744,15 +744,15 @@ window.NX = window.NX || {};
         NX.icon("pencil", "", 24) +
         "</span>" +
         "<h2>" +
-        (mine ? "Você ainda não publicou" : "Nenhuma publicação ainda") +
+        (mine ? NX.i18n.get("soc.voceAindaNaoPublicou", "Você ainda não publicou") : NX.i18n.get("soc.nenhumaPublicacaoAinda", "Nenhuma publicação ainda")) +
         "</h2>" +
         "<p>" +
         (mine
-          ? "Compartilhe novidades com quem segue você."
-          : h(user.displayName || user.username) + " ainda não publicou nada por aqui.") +
+          ? NX.i18n.get("soc.compartilheNovidadesQuemSegue", "Compartilhe novidades com quem segue você.")
+          : h(user.displayName || user.username) + (" " + NX.i18n.get("soc.aindanaopublicounadaporaqui", "ainda não publicou nada por aqui."))) +
         "</p>" +
         (mine
-          ? '<div class="sx-empty__acts"><button type="button" class="btn btn--primary" data-action="sx-new-post">Criar publicação</button></div>'
+          ? ("<div class=\"sx-empty__acts\"><button type=\"button\" class=\"btn btn--primary\" data-action=\"sx-new-post\">" + NX.i18n.get("soc.criarPublicacao", "Criar publicação") + "</button></div>")
           : "") +
         "</div>"
       );
@@ -771,16 +771,16 @@ window.NX = window.NX || {};
     opts = opts || {};
     const me = S().me();
     if (!user || !me) return "";
-    if (user.id === me.id) return '<span class="sx-row__you">Você</span>';
+    if (user.id === me.id) return ("<span class=\"sx-row__you\">" + NX.i18n.get("soc.voce", "Você") + "</span>");
 
     if (opts.mode === "requests") {
       return (
         '<button type="button" class="btn btn--primary btn--sm" data-action="sx-follow-approve" data-id="' +
         h(user.id) +
-        '">Aprovar</button>' +
+        ("\">" + NX.i18n.get("soc.aprovar", "Aprovar") + "</button>") +
         '<button type="button" class="btn btn--ghost btn--sm" data-action="sx-follow-reject" data-id="' +
         h(user.id) +
-        '">Recusar</button>'
+        ("\">" + NX.i18n.get("soc.recusar", "Recusar") + "</button>")
       );
     }
 
@@ -790,32 +790,32 @@ window.NX = window.NX || {};
     } catch (e) {
       st = { can: true, state: null };
     }
-    if (st.state === "self") return '<span class="sx-row__you">Você</span>';
+    if (st.state === "self") return ("<span class=\"sx-row__you\">" + NX.i18n.get("soc.voce", "Você") + "</span>");
     if (st.state === "following") {
       return (
         '<button type="button" class="sx-follow is-on" data-action="sx-unfollow" data-id="' +
         h(user.id) +
-        '" title="Deixar de seguir" aria-pressed="true">' +
+        '" title="' + NX.i18n.get("soc.deixarSeguir", "Deixar de seguir") + '" aria-pressed="true">' +
         NX.icon("check", "", 15) +
-        "<span>Seguindo</span></button>"
+        ("<span>" + NX.i18n.get("people.seguindo", "Seguindo") + "</span></button>")
       );
     }
     if (st.state === "pending") {
       return (
         '<button type="button" class="sx-follow is-pending" data-action="sx-unfollow" data-id="' +
         h(user.id) +
-        '" title="Cancelar solicitação de seguimento" aria-pressed="false">' +
+        '" title="' + NX.i18n.get("ui.social.cancelarsolicitacaodeseguimento", "Cancelar solicitação de seguimento") + '" aria-pressed="false">' +
         NX.icon("clock", "", 15) +
-        "<span>Solicitado</span></button>"
+        ("<span>" + NX.i18n.get("people.solicitado", "Solicitado") + "</span></button>")
       );
     }
     return (
       '<button type="button" class="sx-follow" data-action="sx-follow" data-id="' +
       h(user.id) +
-      '" title="Seguir" aria-pressed="false">' +
+      '" title="' + NX.i18n.get("people.seguir", "Seguir") + '" aria-pressed="false">' +
       NX.icon("userPlus", "", 15) +
       "<span>" +
-      (st.state === "request" ? "Solicitar" : "Seguir") +
+      (st.state === "request" ? (NX.i18n.get("people.solicitar", "Solicitar")) : (NX.i18n.get("people.seguir", "Seguir"))) +
       "</span></button>"
     );
   }
@@ -831,7 +831,7 @@ window.NX = window.NX || {};
       '">' +
       '<button type="button" class="sx-row__who" data-action="sx-profile" data-user="' +
       h(user.username) +
-      '" title="Ver perfil de ' +
+      '" title="' + NX.i18n.get("ui.a11yverperfil", "Ver perfil de ") +
       h(user.displayName || user.username) +
       '">' +
       u().avatarHTML(user, "md", true) +
@@ -845,7 +845,7 @@ window.NX = window.NX || {};
       "</span>" +
       "</span></button>" +
       '<div class="sx-row__act">' +
-      (opts.action || (mine ? '<span class="sx-row__you">Você</span>' : followBtnHTML(user, opts))) +
+      (opts.action || (mine ? ("<span class=\"sx-row__you\">" + NX.i18n.get("soc.voce", "Você") + "</span>") : followBtnHTML(user, opts))) +
       "</div>" +
       "</div>"
     );
@@ -854,11 +854,11 @@ window.NX = window.NX || {};
   /* =========================================================
      9 · modal de seguidores / seguidos / solicitações
      ========================================================= */
-  const FLOW_TITLES = { followers: "Seguidores", following: "Seguindo", requests: "Solicitações" };
+  const FLOW_TITLES = { followers: (NX.i18n.get("people.seguidores", "Seguidores")), following: (NX.i18n.get("people.seguindo", "Seguindo")), requests: (NX.i18n.get("soc.solicitacoes", "Solicitações")) };
   const FLOW_PLACEHOLDER = {
-    followers: "Pesquisar seguidores",
-    following: "Pesquisar quem você segue",
-    requests: "Pesquisar solicitações",
+    followers: NX.i18n.get("soc.pesquisarSeguidores", "Pesquisar seguidores"),
+    following: NX.i18n.get("soc.pesquisarQuemVoceSegue", "Pesquisar quem você segue"),
+    requests: NX.i18n.get("soc.pesquisarSolicitacoes", "Pesquisar solicitações"),
   };
 
   function renderFollowBody() {
@@ -872,7 +872,7 @@ window.NX = window.NX || {};
       following: S().followingCount(v.userId),
       requests: v.list.length,
     };
-    const nouns = { followers: "seguidores", following: "seguindo", requests: "solicitações" };
+    const nouns = { followers: "seguidores", following: "seguindo", requests: (NX.i18n.get("soc.solicitacoes2", "solicitações")) };
     const head =
       '<div class="sx-fl__count"><b>' +
       counts[v.mode] +
@@ -892,7 +892,7 @@ window.NX = window.NX || {};
     }
     if (v.loading) {
       box.innerHTML =
-        head + '<div class="sx-note">' + NX.icon("clock", "", 16) + "<span>Carregando…</span></div>";
+        head + '<div class="sx-note">' + NX.icon("clock", "", 16) + ("<span>" + NX.i18n.get("common.loading", "Carregando…") + "</span></div>");
       return;
     }
 
@@ -911,10 +911,10 @@ window.NX = window.NX || {};
           NX.icon("search", "", 16) +
           "<span>" +
           (v.query
-            ? "Ninguém encontrado para “" + h(v.query) + "”."
+            ? (NX.i18n.get("soc.ninguemencontradopara", "Ninguém encontrado para “")) + h(v.query) + "”."
             : v.mode === "requests"
-            ? "Nenhuma solicitação pendente."
-            : "Nenhuma pessoa por aqui ainda.") +
+            ? NX.i18n.get("soc.nenhumaSolicitacaoPendente", "Nenhuma solicitação pendente.")
+            : NX.i18n.get("soc.nenhumaPessoaAquiAinda", "Nenhuma pessoa por aqui ainda.")) +
           "</span></div>");
   }
 
@@ -935,7 +935,7 @@ window.NX = window.NX || {};
       .catch((e) => {
         if (followView !== v) return;
         v.loading = false;
-        v.error = (e && e.message) || "Não foi possível carregar esta lista.";
+        v.error = (e && e.message) || NX.i18n.get("soc.naoFoiPossivelCarregar", "Não foi possível carregar esta lista.");
         renderFollowBody();
       });
   }
@@ -944,13 +944,13 @@ window.NX = window.NX || {};
     mode = ["followers", "following", "requests"].indexOf(mode) > -1 ? mode : "followers";
     const owner = S().user(userId);
     if (!owner) {
-      ui().error("Este usuário não existe mais.");
+      ui().error(NX.i18n.get("api.esteUsuarioNaoExiste", "Este usuário não existe mais."));
       return null;
     }
     if (mode === "requests") {
       const me = S().me();
       if (!me || me.id !== owner.id) {
-        ui().error("Só você pode ver quem pediu para seguir você.");
+        ui().error(NX.i18n.get("api.soVocePodeVer", "Só você pode ver quem pediu para seguir você."));
         return null;
       }
     }
@@ -1003,19 +1003,19 @@ window.NX = window.NX || {};
   social.openLikes = function (userId) {
     const owner = S().user(userId);
     if (!owner) {
-      ui().error("Este usuário não existe mais.");
+      ui().error(NX.i18n.get("api.esteUsuarioNaoExiste", "Este usuário não existe mais."));
       return null;
     }
 
     const m = ui().modal({
-      title: "Curtidas",
+      title: (NX.i18n.get("people.curtidas", "Curtidas")),
       eyebrow: "@" + owner.username,
       size: "md",
     });
 
     m.body.innerHTML =
       '<div class="sx-fl"><div class="sx-fl__body" data-sx-likes>' +
-      '<div class="sx-note">' + NX.icon("clock", "", 16) + "<span>Carregando…</span></div>" +
+      '<div class="sx-note">' + NX.icon("clock", "", 16) + ("<span>" + NX.i18n.get("common.loading", "Carregando…") + "</span></div>") +
       "</div></div>";
 
     const box = m.body.querySelector("[data-sx-likes]");
@@ -1024,13 +1024,13 @@ window.NX = window.NX || {};
       const p = x.post;
       const text = String((p && p.content) || "").replace(/\s+/g, " ").trim();
       return (
-        '<button type="button" class="sx-likerow" data-action="sx-open-post" data-id="' + h(p.id) + '" title="Abrir publicação">' +
+        '<button type="button" class="sx-likerow" data-action="sx-open-post" data-id="' + h(p.id) + '" title="' + NX.i18n.get("ui.abrirpublicacao", "Abrir publicação") + '">' +
         '<span class="sx-like__ico">' + NX.icon("heartFill", "", 16) + "</span>" +
         '<span class="sx-like__txt"><strong>' +
         u().num(x.likes) +
         (x.likes === 1 ? " curtida" : " curtidas") +
         "</strong><span>" +
-        h(text.slice(0, 140) || "Publicação sem texto") +
+        h(text.slice(0, 140) || NX.i18n.get("soc.publicacaoTexto", "Publicação sem texto")) +
         "</span></span>" +
         '<span class="sx-like__when">' +
         h(u().timeAgo(p.createdAt)) +
@@ -1045,14 +1045,14 @@ window.NX = window.NX || {};
         const total = res && typeof res.total === "number" ? res.total : 0;
         const posts = (res && res.posts) || [];
         const head =
-          '<div class="sx-fl__count"><b>' + u().num(total) + "</b> <span>curtidas recebidas</span></div>";
+          '<div class="sx-fl__count"><b>' + u().num(total) + ("</b> <span>" + NX.i18n.get("soc.curtidasrecebidas", "curtidas recebidas") + "</span></div>");
 
         box.innerHTML =
           head +
           (posts.length
             ? '<div class="sx-likes">' + posts.map(row).join("") + "</div>"
             : '<div class="sx-note">' + NX.icon("heart", "", 16) +
-              "<span>Nenhuma publicação recebeu curtidas ainda.</span></div>");
+              ("<span>" + NX.i18n.get("soc.nenhumapublicacaorecebeucurtidasainda", "Nenhuma publicação recebeu curtidas ainda.") + "</span></div>"));
       })
       .catch((e) => {
         if (!box.isConnected) return;
@@ -1060,7 +1060,7 @@ window.NX = window.NX || {};
           '<div class="sx-note sx-note--error">' +
           NX.icon("lock", "", 17) +
           "<span>" +
-          h((e && e.message) || "Não foi possível carregar as curtidas.") +
+          h((e && e.message) || NX.i18n.get("soc.naoFoiPossivelCarregar2", "Não foi possível carregar as curtidas.")) +
           "</span></div>";
       });
 
@@ -1091,14 +1091,14 @@ window.NX = window.NX || {};
   social.openComments = function (postId) {
     const post = S().post(postId);
     if (!post) {
-      ui().error("Esta publicação não existe mais.");
+      ui().error(NX.i18n.get("api.estaPublicacaoNaoExiste2", "Esta publicação não existe mais."));
       return null;
     }
     const author = S().user(post.authorId);
     let m = null;
     m = ui().modal({
-      title: "Comentários",
-      eyebrow: author ? "@" + author.username : "Feed",
+      title: (NX.i18n.get("soc.comentarios", "Comentários")),
+      eyebrow: author ? "@" + author.username : (NX.i18n.get("nav.feed", "Feed")),
       size: "md",
       onClose: () => {
         if (commentsView && commentsView.m === m) commentsView = null;
@@ -1115,8 +1115,8 @@ window.NX = window.NX || {};
   function openCreateModal() {
     let m = null;
     m = ui().modal({
-      title: "Criar publicação",
-      eyebrow: "Feed",
+      title: NX.i18n.get("soc.criarPublicacao", "Criar publicação"),
+      eyebrow: (NX.i18n.get("nav.feed", "Feed")),
       size: "md",
       onClose: () => {
         if (createModal === m) createModal = null;
@@ -1149,12 +1149,12 @@ window.NX = window.NX || {};
     const text = String(d.text || "").trim();
 
     if (!text && !d.media.length) {
-      ui().error("Escreva alguma coisa ou anexe uma imagem/vídeo.");
+      ui().error(NX.i18n.get("api.escrevaAlgumaCoisaAnexe", "Escreva alguma coisa ou anexe uma imagem/vídeo."));
       focusEl(ta);
       return;
     }
     if (text.length > MAX_POST) {
-      ui().error("A publicação pode ter no máximo 2.000 caracteres.");
+      ui().error(NX.i18n.get("api.publicacaoPodeTerMaximo", "A publicação pode ter no máximo 2.000 caracteres."));
       focusEl(ta);
       return;
     }
@@ -1168,7 +1168,7 @@ window.NX = window.NX || {};
         createModal = null;
         m.close();
       }
-      ui().toast("Publicação criada!", "success");
+      ui().toast(NX.i18n.get("soc.publicacaoCriada", "Publicação criada!"), "success");
       const id = post && post.id;
       if (id) {
         requestAnimationFrame(() => {
@@ -1178,7 +1178,7 @@ window.NX = window.NX || {};
         });
       }
     } catch (e) {
-      ui().error((e && e.message) || "Não foi possível publicar.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelPublicar", "Não foi possível publicar."));
     } finally {
       end();
     }
@@ -1188,11 +1188,11 @@ window.NX = window.NX || {};
   function readImage(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
-      r.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+      r.onerror = () => reject(new Error(NX.i18n.get("chat.naoFoiPossivelLer", "Não foi possível ler a imagem.")));
       r.onload = () => {
         const raw = String(r.result || "");
         const img = new Image();
-        img.onerror = () => reject(new Error("Formato de imagem não suportado."));
+        img.onerror = () => reject(new Error(NX.i18n.get("chat.formatoImagemNaoSuportado", "Formato de imagem não suportado.")));
         img.onload = () => {
           try {
             const max = 1024;
@@ -1226,13 +1226,13 @@ window.NX = window.NX || {};
               }
             }
             if (out.length > MAX_BYTES) {
-              reject(new Error("Esta imagem continua grande demais mesmo após a redução. Tente outro arquivo."));
+              reject(new Error(NX.i18n.get("soc.estaImagemContinuaGrande", "Esta imagem continua grande demais mesmo após a redução. Tente outro arquivo.")));
               return;
             }
             resolve({ kind: "image", url: out });
           } catch (e) {
             if (raw && raw.length <= MAX_BYTES) resolve({ kind: "image", url: raw });
-            else reject(new Error("Não foi possível processar esta imagem."));
+            else reject(new Error(NX.i18n.get("adm.naoFoiPossivelProcessar", "Não foi possível processar esta imagem.")));
           }
         };
         img.src = raw;
@@ -1245,7 +1245,7 @@ window.NX = window.NX || {};
     return new Promise((resolve) => {
       const r = new FileReader();
       r.onerror = () => {
-        ui().error("Não foi possível ler o vídeo.");
+        ui().error(NX.i18n.get("soc.naoFoiPossivelLer2", "Não foi possível ler o vídeo."));
         resolve(null);
       };
       r.onload = () => {
@@ -1264,20 +1264,20 @@ window.NX = window.NX || {};
   /* vídeo não comprime como imagem: oferecemos anexar por URL, com a razão */
   function askVideoUrl(file, key) {
     const actions = u().el('<div class="modal__actions"></div>');
-    const cancel = u().el('<button class="btn btn--ghost" type="button">Cancelar</button>');
-    const ok = u().el('<button class="btn btn--primary" type="button">Anexar por link</button>');
+    const cancel = u().el(("<button class=\"btn btn--ghost\" type=\"button\">" + NX.i18n.get("common.cancel", "Cancelar") + "</button>"));
+    const ok = u().el(("<button class=\"btn btn--primary\" type=\"button\">" + NX.i18n.get("soc.anexarporlink", "Anexar por link") + "</button>"));
     actions.appendChild(cancel);
     actions.appendChild(ok);
 
-    const m = ui().modal({ title: "Vídeo grande demais", eyebrow: "Anexo", size: "sm", footer: actions });
+    const m = ui().modal({ title: NX.i18n.get("soc.videoGrandeDemais", "Vídeo grande demais"), eyebrow: (NX.i18n.get("chat.anexo", "Anexo")), size: "sm", footer: actions });
     m.body.innerHTML =
       '<div class="sx-note sx-note--warn">' +
       NX.icon("alert", "", 17) +
-      "<span>O arquivo <b>" +
-      h(file && file.name ? file.name : "vídeo") +
-      "</b> passa dos 900 KB que o Nexo guarda por anexo — e vídeo não dá para reduzir como imagem. " +
-      "Cole o endereço de um vídeo já hospedado (http/https) para anexar por link, ou escolha um arquivo menor.</span></div>" +
-      '<div class="field"><label class="field__label" for="sx-videourl">Endereço do vídeo</label>' +
+      ("<span>" + NX.i18n.get("soc.oarquivo", "O arquivo") + " " + "<b>") +
+      h(file && file.name ? file.name : (NX.i18n.get("soc.video", "vídeo"))) +
+      ("</b>" + " " + NX.i18n.get("soc.passados900kbqueo", "passa dos 900 KB que o Nexo guarda por anexo — e vídeo não dá para reduzir como imagem.") + " ") +
+      (NX.i18n.get("soc.coleoenderecodeumvideo", "Cole o endereço de um vídeo já hospedado (http/https) para anexar por link, ou escolha um arquivo menor.") + "</span></div>") +
+      ("<div class=\"field\"><label class=\"field__label\" for=\"sx-videourl\">" + NX.i18n.get("soc.enderecodovideo", "Endereço do vídeo") + "</label>") +
       '<input class="input" id="sx-videourl" data-autofocus placeholder="https://…/video.mp4" autocomplete="off"></div>';
 
     cancel.addEventListener("click", () => m.close());
@@ -1291,14 +1291,14 @@ window.NX = window.NX || {};
       }
       const d = draft(key);
       if (d.media.length >= MAX_FILES) {
-        ui().error("Máximo de " + MAX_FILES + " anexos por publicação.");
+        ui().error((NX.i18n.get("soc.maximode", "Máximo de") + " ") + MAX_FILES + (" " + NX.i18n.get("soc.anexosporpublicacao", "anexos por publicação.")));
         m.close();
         return;
       }
       d.media.push({ kind: "video", url: url });
       m.close();
       refreshComposer(key);
-      ui().toast("Vídeo anexado por link.", "success");
+      ui().toast(NX.i18n.get("soc.videoAnexadoLink", "Vídeo anexado por link."), "success");
     });
   }
 
@@ -1308,21 +1308,21 @@ window.NX = window.NX || {};
     const d = draft(key);
     try {
       if (d.media.length >= MAX_FILES) {
-        ui().error("Máximo de " + MAX_FILES + " anexos por publicação.");
+        ui().error((NX.i18n.get("soc.maximode", "Máximo de") + " ") + MAX_FILES + (" " + NX.i18n.get("soc.anexosporpublicacao", "anexos por publicação.")));
         return;
       }
-      if (file && file.size > 240000) ui().toast("Preparando anexo…", "info", 2000);
+      if (file && file.size > 240000) ui().toast(NX.i18n.get("soc.preparandoAnexo", "Preparando anexo…"), "info", 2000);
       const item = kind === "video" ? await readVideo(file, key) : await readImage(file);
       if (!item) return; /* vídeo pediu URL e foi cancelado */
       if (d.media.length >= MAX_FILES) {
-        ui().error("Máximo de " + MAX_FILES + " anexos por publicação.");
+        ui().error((NX.i18n.get("soc.maximode", "Máximo de") + " ") + MAX_FILES + (" " + NX.i18n.get("soc.anexosporpublicacao", "anexos por publicação.")));
         return;
       }
       d.media.push(item);
       refreshComposer(key);
-      ui().toast(kind === "video" ? "Vídeo anexado." : "Imagem anexada.", "success", 2200);
+      ui().toast(kind === "video" ? NX.i18n.get("soc.videoAnexado", "Vídeo anexado.") : NX.i18n.get("soc.imagemAnexada", "Imagem anexada."), "success", 2200);
     } catch (e) {
-      ui().error((e && e.message) || "Não foi possível anexar este arquivo.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelAnexar", "Não foi possível anexar este arquivo."));
     } finally {
       try {
         inp.value = "";
@@ -1372,12 +1372,12 @@ window.NX = window.NX || {};
     const parent = replyTo[key] || null;
 
     if (!text.trim()) {
-      ui().error("Escreva um comentário.");
+      ui().error(NX.i18n.get("api.escrevaComentario", "Escreva um comentário."));
       focusEl(ta);
       return;
     }
     if (text.length > MAX_COMMENT) {
-      ui().error("O comentário pode ter no máximo 500 caracteres.");
+      ui().error(NX.i18n.get("api.comentarioPodeTerMaximo", "O comentário pode ter no máximo 500 caracteres."));
       focusEl(ta);
       return;
     }
@@ -1388,12 +1388,12 @@ window.NX = window.NX || {};
     try {
       await api().addComment(postId, text, parent);
       delete replyTo[key];
-      ui().toast("Comentário publicado.", "success", 2400);
+      ui().toast(NX.i18n.get("soc.comentarioPublicado", "Comentário publicado."), "success", 2400);
       repaintAfterMutation(btn || form);
       focusComment(postId);
     } catch (e) {
       draft(key).text = before;
-      ui().error((e && e.message) || "Não foi possível publicar o comentário.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelPublicar2", "Não foi possível publicar o comentário."));
     } finally {
       end();
     }
@@ -1452,19 +1452,19 @@ window.NX = window.NX || {};
     const id = el.getAttribute("data-id");
     if (!id) return;
     const ok = await ui().confirm({
-      title: "Excluir comentário",
-      message: "Este comentário será apagado para todo mundo. Não dá para desfazer.",
-      confirmLabel: "Excluir",
+      title: NX.i18n.get("soc.excluirComentario", "Excluir comentário"),
+      message: NX.i18n.get("soc.esteComentarioSeraApagado", "Este comentário será apagado para todo mundo. Não dá para desfazer."),
+      confirmLabel: (NX.i18n.get("common.delete", "Excluir")),
       danger: true,
       icon: "trash",
     });
     if (!ok) return;
     try {
       await api().deleteComment(id);
-      ui().toast("Comentário excluído.", "success", 2400);
+      ui().toast(NX.i18n.get("soc.comentarioExcluido", "Comentário excluído."), "success", 2400);
       repaintAfterMutation(el);
     } catch (e) {
-      ui().error((e && e.message) || "Não foi possível excluir o comentário.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelExcluir", "Não foi possível excluir o comentário."));
     }
   };
 
@@ -1472,6 +1472,22 @@ window.NX = window.NX || {};
      13 · ações principais
      ========================================================= */
   SX["sx-new-post"] = () => social.openCreatePost();
+
+  /* abrir uma publicação a partir de qualquer lugar (lista de curtidas,
+     notificações, perfil): no feed rola até ela, fora do feed vai pro feed */
+  SX["sx-open-post"] = (el) => {
+    const id = el.getAttribute("data-id");
+    if (!id) return;
+    const onFeed = NX.app && NX.app.route && NX.app.route.name === "feed";
+    if (onFeed) {
+      const node = document.querySelector('[data-post="' + selId(id) + '"]');
+      if (node) {
+        scrollTo(node, true);
+        return;
+      }
+    }
+    go("#/feed/" + id);
+  };
 
   SX["sx-profile"] = (el) => {
     const name = el.getAttribute("data-user");
@@ -1484,7 +1500,7 @@ window.NX = window.NX || {};
     if (!id) return;
     const me = S().me();
     if (!me) {
-      ui().error("Entre para curtir conteúdos.");
+      ui().error(NX.i18n.get("soc.entreCurtirConteudos", "Entre para curtir conteúdos."));
       return;
     }
     const k = type + ":" + id;
@@ -1496,7 +1512,7 @@ window.NX = window.NX || {};
       else await api().likeContent(type, id);
       repaintAfterMutation(el);
     } catch (e) {
-      ui().error((e && e.message) || "Não foi possível curtir este conteúdo.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelCurtir", "Não foi possível curtir este conteúdo."));
     } finally {
       delete busyLikes[k];
     }
@@ -1510,20 +1526,20 @@ window.NX = window.NX || {};
       .copy(url)
       .then((ok) => {
         ui().toast(
-          ok ? "Link da publicação copiado." : "Não foi possível copiar o link.",
+          ok ? NX.i18n.get("soc.linkPublicacaoCopiado", "Link da publicação copiado.") : NX.i18n.get("soc.naoFoiPossivelCopiar2", "Não foi possível copiar o link."),
           ok ? "success" : "error"
         );
       })
-      .catch(() => ui().toast("Não foi possível copiar o link.", "error"));
+      .catch(() => ui().toast(NX.i18n.get("soc.naoFoiPossivelCopiar2", "Não foi possível copiar o link."), "error"));
   };
 
   SX["sx-delete-post"] = async (el) => {
     const id = el.getAttribute("data-id");
     if (!id) return;
     const ok = await ui().confirm({
-      title: "Excluir publicação",
-      message: "A publicação, os comentários e as curtidas dela serão apagados. Não dá para desfazer.",
-      confirmLabel: "Excluir",
+      title: NX.i18n.get("soc.excluirPublicacao", "Excluir publicação"),
+      message: (NX.i18n.get("soc.apublicacaooscomentarioseas", "A publicação, os comentários e as curtidas dela serão apagados. Não dá para desfazer.")),
+      confirmLabel: (NX.i18n.get("common.delete", "Excluir")),
       danger: true,
       icon: "trash",
     });
@@ -1531,9 +1547,9 @@ window.NX = window.NX || {};
     const end = ui().busy(el);
     try {
       await api().deletePost(id);
-      ui().toast("Publicação excluída.", "success");
+      ui().toast(NX.i18n.get("soc.publicacaoExcluida", "Publicação excluída."), "success");
     } catch (e) {
-      ui().error((e && e.message) || "Não foi possível excluir a publicação.");
+      ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelExcluir2", "Não foi possível excluir a publicação."));
     } finally {
       end();
     }
@@ -1568,14 +1584,14 @@ window.NX = window.NX || {};
       '"]';
     const input = document.querySelector(sel);
     if (!input) {
-      ui().error(kind === "video" ? "Este navegador não abre arquivos de vídeo." : "Seletor de arquivos indisponível.");
+      ui().error(kind === "video" ? NX.i18n.get("soc.esteNavegadorNaoAbre", "Este navegador não abre arquivos de vídeo.") : NX.i18n.get("soc.seletorArquivosIndisponivel", "Seletor de arquivos indisponível."));
       return;
     }
     try {
       input.value = "";
       input.click();
     } catch (e) {
-      ui().error("Não foi possível abrir o seletor de arquivos.");
+      ui().error(NX.i18n.get("chat.naoFoiPossivelAbrir", "Não foi possível abrir o seletor de arquivos."));
     }
   };
 
@@ -1610,7 +1626,7 @@ window.NX = window.NX || {};
       .then((res) => {
         end();
         ui().toast(
-          res && res.state === "pending" ? "Solicitação de seguimento enviada." : "Você começou a seguir esta pessoa.",
+          res && res.state === "pending" ? NX.i18n.get("soc.solicitacaoSeguimentoEnviada", "Solicitação de seguimento enviada.") : NX.i18n.get("soc.voceComecouSeguirEsta", "Você começou a seguir esta pessoa."),
           "success"
         );
         if (followView) loadFollow();
@@ -1618,7 +1634,7 @@ window.NX = window.NX || {};
       })
       .catch((e) => {
         end();
-        ui().error((e && e.message) || "Não foi possível seguir esta pessoa.");
+        ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelSeguir", "Não foi possível seguir esta pessoa."));
       });
   };
 
@@ -1638,16 +1654,16 @@ window.NX = window.NX || {};
     const ok = await ui().confirm(
       pending
         ? {
-            title: "Cancelar solicitação",
-            message: "Cancelar o pedido de seguimento para @" + name + "?",
-            confirmLabel: "Cancelar solicitação",
+            title: NX.i18n.get("soc.cancelarSolicitacao2", "Cancelar solicitação"),
+            message: (NX.i18n.get("soc.cancelaropedidodeseguimentopara", "Cancelar o pedido de seguimento para @")) + name + "?",
+            confirmLabel: NX.i18n.get("soc.cancelarSolicitacao2", "Cancelar solicitação"),
             danger: true,
             icon: "x",
           }
         : {
-            title: "Deixar de seguir",
-            message: "Você deixará de seguir @" + name + ". Os contadores são atualizados na hora.",
-            confirmLabel: "Deixar de seguir",
+            title: NX.i18n.get("soc.deixarSeguir2", "Deixar de seguir"),
+            message: (NX.i18n.get("soc.vocedeixaradeseguir", "Você deixará de seguir @")) + name + ". Os contadores são atualizados na hora.",
+            confirmLabel: NX.i18n.get("soc.deixarSeguir2", "Deixar de seguir"),
             danger: true,
             icon: "user",
           }
@@ -1659,13 +1675,13 @@ window.NX = window.NX || {};
       .unfollowUser(id)
       .then(() => {
         end();
-        ui().toast("Você deixou de seguir @" + name + ".", "success");
+        ui().toast((NX.i18n.get("soc.vocedeixoudeseguir", "Você deixou de seguir @")) + name + ".", "success");
         if (followView) loadFollow();
         else repaintAfterMutation(el);
       })
       .catch((e) => {
         end();
-        ui().error((e && e.message) || "Não foi possível deixar de seguir.");
+        ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelDeixar", "Não foi possível deixar de seguir."));
       });
   };
 
@@ -1677,12 +1693,12 @@ window.NX = window.NX || {};
       .approveFollow(id)
       .then(() => {
         end();
-        ui().toast("Solicitação de seguimento aprovada.", "success");
+        ui().toast(NX.i18n.get("soc.solicitacaoSeguimentoAprovada", "Solicitação de seguimento aprovada."), "success");
         if (followView) loadFollow();
       })
       .catch((e) => {
         end();
-        ui().error((e && e.message) || "Não foi possível aprovar a solicitação.");
+        ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelAprovar", "Não foi possível aprovar a solicitação."));
       });
   };
 
@@ -1694,12 +1710,12 @@ window.NX = window.NX || {};
       .rejectFollow(id)
       .then(() => {
         end();
-        ui().toast("Solicitação recusada.", "success");
+        ui().toast(NX.i18n.get("people.solicitacaoRecusada", "Solicitação recusada."), "success");
         if (followView) loadFollow();
       })
       .catch((e) => {
         end();
-        ui().error((e && e.message) || "Não foi possível recusar a solicitação.");
+        ui().error((e && e.message) || NX.i18n.get("soc.naoFoiPossivelRecusar", "Não foi possível recusar a solicitação."));
       });
   };
 
@@ -1722,7 +1738,7 @@ window.NX = window.NX || {};
         else if (kind === "comment") submitComment(form, btn);
       } catch (err) {
         console.error("[sx:submit]", err);
-        ui().error("Algo deu errado ao enviar.");
+        ui().error(NX.i18n.get("soc.algoDeuErradoEnviar", "Algo deu errado ao enviar."));
       }
     },
     false
@@ -1767,7 +1783,7 @@ window.NX = window.NX || {};
   document.addEventListener(
     "keydown",
     (e) => {
-      if (!e || e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+      if (!e || e.key !== (NX.i18n.get("app.enter", "Enter")) || !(e.ctrlKey || e.metaKey)) return;
       const el = e.target;
       if (!el || !el.closest) return;
       const ta = el.closest('[data-sx-input="text"]');

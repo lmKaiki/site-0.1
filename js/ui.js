@@ -103,13 +103,13 @@ window.NX = window.NX || {};
     const backdrop = u().el(
       '<div class="modal-backdrop" data-modal>' +
         '<div class="modal modal--' + size + '" role="dialog" aria-modal="true" aria-label="' +
-        u().h(opts.title || "Diálogo") + '">' +
+        u().h(opts.title || (NX.i18n.get("ui.dialogo", "Diálogo"))) + '">' +
         '<header class="modal__head">' +
         '<div class="modal__title-wrap">' +
         (opts.eyebrow ? '<span class="modal__eyebrow">' + u().h(opts.eyebrow) + "</span>" : "") +
         '<h2 class="modal__title">' + u().h(opts.title || "") + "</h2>" +
         "</div>" +
-        '<button class="icon-btn" data-modal-close aria-label="Fechar">' + NX.icon("x", "", 18) + "</button>" +
+        '<button class="icon-btn" data-modal-close aria-label="' + NX.i18n.get("common.close", "Fechar") + '">' + NX.icon("x", "", 18) + "</button>" +
         "</header>" +
         "</div>" +
         "</div>"
@@ -138,7 +138,7 @@ window.NX = window.NX || {};
 
     function onKey(e) {
       if (modalStack[modalStack.length - 1] !== api) return;
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         e.stopPropagation();
         close();
       }
@@ -176,18 +176,18 @@ window.NX = window.NX || {};
       let done = false;
       const footer = u().el('<div class="modal__actions"></div>');
       const cancelBtn = u().el(
-        '<button class="btn btn--ghost" type="button">' + u().h(opts.cancelLabel || "Cancelar") + "</button>"
+        '<button class="btn btn--ghost" type="button">' + u().h(opts.cancelLabel || (NX.i18n.get("common.cancel", "Cancelar"))) + "</button>"
       );
       const okBtn = u().el(
         '<button class="btn ' + (opts.danger ? "btn--danger" : "btn--primary") + '" type="button">' +
-          u().h(opts.confirmLabel || "Confirmar") +
+          u().h(opts.confirmLabel || (NX.i18n.get("common.confirm", "Confirmar"))) +
           "</button>"
       );
       footer.appendChild(cancelBtn);
       footer.appendChild(okBtn);
 
       const m = ui.modal({
-        title: opts.title || "Tem certeza?",
+        title: opts.title || NX.i18n.get("people.temCerteza", "Tem certeza?"),
         size: "sm",
         footer: footer,
         onClose: () => {
@@ -269,7 +269,7 @@ window.NX = window.NX || {};
 
     const off = onOutside({ target: list }, () => ui.closeMenu());
     const onKey = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         ui.closeMenu();
         document.removeEventListener("keydown", onKey, true);
       }
@@ -299,7 +299,7 @@ window.NX = window.NX || {};
     requestAnimationFrame(() => el.classList.add("is-in"));
     onOutside({ target: el }, () => ui.closePopout());
     const onKey = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         ui.closePopout();
         document.removeEventListener("keydown", onKey, true);
       }
@@ -309,9 +309,14 @@ window.NX = window.NX || {};
   };
 
   ui.isOpen = () => modalStack.length > 0 || !!menuEl || !!popoutEl;
+  ui.closeModals = function () {
+    /* fecha de cima para baixo para não corromper a pilha */
+    while (modalStack.length) modalStack[modalStack.length - 1].close();
+  };
   ui.closeEverything = function () {
     ui.closeMenu();
     ui.closePopout();
+    ui.closeModals();
   };
 
   NX.ui = ui;

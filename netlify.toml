@@ -36,6 +36,13 @@
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# arquivos de ambiente nunca sao servidos publicamente
+[[redirects]]
+  from = "/.env*"
+  to = "/404"
+  status = 404
+  force = true
+
 # SPA: qualquer rota sem extensao cai no index.html
 [[redirects]]
   from = "/*"

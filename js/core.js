@@ -71,15 +71,88 @@ window.NX = window.NX || {};
     }
   };
 
-  /* ---------------- tempo ---------------- */
+  /* ---------------- tempo ----------------
+     As datas gravadas nunca são alteradas: só a EXIBIÇÃO
+     é convertida para o fuso escolhido pelo usuário. */
   const pad = (n) => String(n).padStart(2, "0");
 
+  function userZone() {
+    try {
+      const me = NX.selectors && NX.selectors.me ? NX.selectors.me() : null;
+      const tz = me && me.region ? me.region.timezone : null;
+      if (tz && NX.region && NX.region.isValidZone(tz)) return tz;
+    } catch (e) {
+      /* sem conta/região: usa o fuso do aparelho */
+    }
+    return null;
+  }
+  util.userZone = userZone;
+
+  /* ---------------- formato de tempo (FIXO 24h) ----------------
+      Preferência única: HH:mm em 24h. */
+  util.timeFormat = function () {
+    return "24h";
+  };
+  util.is12h = function () {
+    return false;
+  };
+
+  /* opções de hora: sempre 24h */
+  util.hourOpts = function () {
+    return { hour: "2-digit", minute: "2-digit", hour12: false };
+  };
+
+  /* só o horário, em HH:mm (24h) */
+  util.formatTime = function (value, opts) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const loc = NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR";
+    const o = Object.assign({}, opts || {}, util.hourOpts());
+    try {
+      return new Intl.DateTimeFormat(loc, o).format(d);
+    } catch (e) {
+      return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+  };
+
+  /* data (sem hora) — padrão FIXO DD/MM/AAAA, sem depender do
+     estilo padrão do locale do navegador */
+  const DATE_OPTS = { day: "2-digit", month: "2-digit", year: "numeric" };
+  util.DATE_OPTS = DATE_OPTS;
+  util.formatDate = function (value, opts) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const loc = NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR";
+    const o = opts || DATE_OPTS;
+    try {
+      return new Intl.DateTimeFormat(loc, o).format(d);
+    } catch (e) {
+      return d.toLocaleDateString(loc, o);
+    }
+  };
+
+  util.formatDateTime = function (value, dateOpts, timeOpts) {
+    const d = value instanceof Date ? value : new Date(value);
+    const date = util.formatDate(d, dateOpts);
+    const time = util.formatTime(d, timeOpts);
+    return date && time ? date + " " + time : date || time;
+  };
+
   util.fmtTime = (ts) => {
-    const d = new Date(ts);
-    return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    const tz = userZone();
+    if (tz && NX.region) {
+      return NX.region.fmtHM(ts, tz, NX.i18n ? NX.i18n.locale() : "pt-BR");
+    }
+    return util.formatTime(ts);
   };
 
   util.sameDay = (a, b) => {
+    const tz = userZone();
+    if (tz && NX.region) {
+      const x = NX.region.dayParts(a, tz);
+      const y = NX.region.dayParts(b, tz);
+      return x.y === y.y && x.m === y.m && x.d === y.d;
+    }
     const x = new Date(a),
       y = new Date(b);
     return (
@@ -90,36 +163,57 @@ window.NX = window.NX || {};
   };
 
   util.fmtDayLabel = (ts) => {
-    const d = new Date(ts),
-      now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    if (util.sameDay(d, now)) return "Hoje";
-    if (util.sameDay(d, yesterday)) return "Ontem";
-    return d.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
-    });
+    const tz = userZone();
+    const locale = NX.i18n ? NX.i18n.locale() : "pt-BR";
+    const t = (k, fb) => (NX.t ? NX.t(k) : fb);
+    const now = Date.now();
+    if (util.sameDay(ts, now)) return t("time.today", (NX.i18n.get("time.today", "Hoje")));
+    const yesterday = now - 24 * 60 * 60 * 1000;
+    if (util.sameDay(ts, yesterday)) return t("time.yesterday", (NX.i18n.get("time.yesterday", "Ontem")));
+    /* dia anterior: sempre DD/MM/AAAA */
+    return NX.region
+      ? NX.region.fmt(ts, tz, { day: "2-digit", month: "2-digit", year: "numeric" }, locale)
+      : new Date(ts).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
   };
 
+  /* tempo relativo: Intl.RelativeTimeFormat localiza sozinho
+      (pt "há 5 min") — sem texto manual */
   util.timeAgo = (ts) => {
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return "agora há pouco";
-    const m = Math.floor(s / 60);
-    if (m < 60) return "há " + m + " min";
-    const h = Math.floor(m / 60);
-    if (h < 24) return "há " + h + " h";
-    const d = Math.floor(h / 24);
-    if (d === 1) return "ontem";
-    if (d < 30) return "há " + d + " dias";
-    return "em " + new Date(ts).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+    const locale = NX.i18n ? NX.i18n.locale() : "pt-BR";
+    const t = (k, fb) => (NX.t ? NX.t(k) : fb);
+    const diff = Number(ts);
+    if (!isFinite(diff)) return "";
+    const past = diff < Date.now();
+    const sec = Math.round(Math.abs(Date.now() - diff) / 1000);
+    try {
+      const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+      const p = past ? -1 : 1;
+      if (sec < 60) return t("time.now", NX.i18n.get("time.now", "agora há pouco"));
+      if (sec < 3600) return rtf.format(p * Math.round(sec / 60), "minute");
+      if (sec < 86400) return rtf.format(p * Math.round(sec / 3600), "hour");
+      if (sec < 2592000) return rtf.format(p * Math.round(sec / 86400), "day");
+      if (sec < 31536000) return rtf.format(p * Math.round(sec / 2592000), "month");
+      return rtf.format(p * Math.round(sec / 31536000), "year");
+    } catch (e) {
+      /* navegador sem RelativeTimeFormat: mantém o texto em pt-BR */
+      const m = Math.floor(sec / 60);
+      if (m < 60) return NX.i18n.get("core.ha", "há") + " " + m + " min";
+      const h = Math.floor(m / 60);
+      if (h < 24) return NX.i18n.get("core.ha", "há") + " " + h + " h";
+      const d = Math.floor(h / 24);
+      if (d === 1) return t("time.yesterday", "ontem");
+      if (d < 30) return NX.i18n.get("core.ha", "há") + " " + d + " " + NX.i18n.get("core.dias", "dias");
+      return (
+        (past ? NX.i18n.get("core.ha", "há") : NX.i18n.get("time.in", "em")) +
+        " " +
+        util.formatDate(ts)
+      );
+    }
   };
 
   util.ageFrom = (birth) => {
     if (!birth) return null;
-    const b = new Date(birth + "T00:00:00");
+    const b = new Date(birth + (NX.i18n.get("core.t000000", "T00:00:00")));
     if (isNaN(b.getTime())) return null;
     const now = new Date();
     let age = now.getFullYear() - b.getFullYear();
@@ -131,7 +225,7 @@ window.NX = window.NX || {};
   /* ---------------- texto ---------------- */
   util.slug = (s) =>
     String(s || "")
-      .normalize("NFD")
+      .normalize((NX.i18n.get("core.nfd", "NFD")))
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim()
@@ -151,7 +245,7 @@ window.NX = window.NX || {};
 
   util.normalize = (s) =>
     String(s || "")
-      .normalize("NFD")
+      .normalize((NX.i18n.get("core.nfd", "NFD")))
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
@@ -380,16 +474,16 @@ window.NX = window.NX || {};
   util.num = function (n) {
     const v = Math.max(0, Number(n) || 0);
     try {
-      return v.toLocaleString("pt-BR");
+      return v.toLocaleString(NX.i18n && NX.i18n.locale ? NX.i18n.locale() : "pt-BR");
     } catch (e) {
       return String(v);
     }
   };
 
   util.PASSWORD_RULES = [
-    { key: "len", label: "8 caracteres ou mais", test: (v) => v.length >= 8 },
-    { key: "letter", label: "1 letra", test: (v) => /[a-zA-ZÀ-ÿ]/.test(v) },
-    { key: "digit", label: "1 número", test: (v) => /[0-9]/.test(v) },
+    { key: "len", label: NX.i18n.get("core.8CaracteresMais", "8 caracteres ou mais"), test: (v) => v.length >= 8 },
+    { key: "letter", label: NX.i18n.get("core.1Letra", "1 letra"), test: (v) => /[a-zA-ZÀ-ÿ]/.test(v) },
+    { key: "digit", label: NX.i18n.get("core.1Numero", "1 número"), test: (v) => /[0-9]/.test(v) },
   ];
 
   util.passwordPolicy = function (v) {
@@ -400,7 +494,7 @@ window.NX = window.NX || {};
       ok: ok,
       checks: checks,
       message:
-        "A senha precisa de no mínimo 8 caracteres, com pelo menos uma letra e um número.",
+        (NX.i18n.get("core.asenhaprecisadenominimo", "A senha precisa de no mínimo 8 caracteres, com pelo menos uma letra e um número.")),
     };
   };
 
@@ -543,7 +637,7 @@ window.NX = window.NX || {};
        perder a conta do usuário). */
     set(key, value) {
       if (!hasLocal) {
-        NX.storage.lastError = "armazenamento indisponível";
+        NX.storage.lastError = NX.i18n.get("core.armazenamentoIndisponivel", "armazenamento indisponível");
         return false;
       }
       try {
@@ -551,7 +645,7 @@ window.NX = window.NX || {};
         NX.storage.lastError = null;
         return true;
       } catch (e) {
-        NX.storage.lastError = (e && (e.name || e.code)) || "erro de gravação";
+        NX.storage.lastError = (e && (e.name || e.code)) || NX.i18n.get("core.erroGravacao", "erro de gravação");
         console.warn("[storage] falha ao gravar", key, e);
         return false;
       }
@@ -609,41 +703,47 @@ window.NX = window.NX || {};
      falsa para todo mundo (fail-safe). */
   NX.PERMS = [
     /* Geral */
-    { key: "administrator", label: "Administrador", desc: "Controle total sobre o servidor.", group: "Geral", super: true },
-    { key: "manageServer", label: "Gerenciar servidor", desc: "Editar nome, ícone, banner e descrição.", group: "Geral" },
-    { key: "manageRoles", label: "Gerenciar cargos", desc: "Criar, editar e apagar cargos e permissões.", group: "Geral" },
-    { key: "manageChannels", label: "Gerenciar canais", desc: "Criar, editar e apagar categorias e canais.", group: "Geral" },
-    { key: "manageMembers", label: "Gerenciar membros", desc: "Ver detalhes e alterar cargos de membros.", group: "Geral" },
-    { key: "createInvite", label: "Criar convites", desc: "Gerar links de convite para o servidor.", group: "Geral" },
-    { key: "viewLogs", label: "Ver logs", desc: "Consultar o histórico de moderação.", group: "Geral" },
+    { key: "administrator", label: (NX.i18n.get("adm.administrador", "Administrador")), desc: NX.i18n.get("core.controleTotalSobreServidor", "Controle total sobre o servidor."), group: (NX.i18n.get("core.geral", "Geral")), super: true },
+    { key: "manageServer", label: NX.i18n.get("core.gerenciarServidor", "Gerenciar servidor"), desc: NX.i18n.get("core.editarNomeIconeBanner", "Editar nome, ícone, banner e descrição."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageRoles", label: NX.i18n.get("core.gerenciarCargos", "Gerenciar cargos"), desc: NX.i18n.get("core.criarEditarApagarCargos", "Criar, editar e apagar cargos e permissões."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageChannels", label: NX.i18n.get("core.gerenciarCanais", "Gerenciar canais"), desc: NX.i18n.get("core.criarEditarApagarCategorias", "Criar, editar e apagar categorias e canais."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageMembers", label: NX.i18n.get("core.gerenciarMembros", "Gerenciar membros"), desc: NX.i18n.get("core.verDetalhesAlterarCargos", "Ver detalhes e alterar cargos de membros."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "createInvite", label: NX.i18n.get("core.criarConvites", "Criar convites"), desc: NX.i18n.get("core.gerarLinksConviteServidor", "Gerar links de convite para o servidor."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "viewLogs", label: NX.i18n.get("core.verLogs", "Ver logs"), desc: NX.i18n.get("core.consultarHistoricoModeracao", "Consultar o histórico de moderação."), group: (NX.i18n.get("core.geral", "Geral")) },
 
     /* Chat */
-    { key: "viewChannels", label: "Ver canais", desc: "Visualizar canais de texto e voz.", group: "Chat" },
-    { key: "sendMessages", label: "Enviar mensagens", desc: "Escrever nos canais de texto.", group: "Chat" },
-    { key: "editMessages", label: "Editar mensagens", desc: "Editar mensagens de outras pessoas.", group: "Chat" },
-    { key: "deleteMessages", label: "Excluir mensagens", desc: "Apagar mensagens de outras pessoas.", group: "Chat" },
-    { key: "pinMessages", label: "Fixar mensagens", desc: "Fixar mensagens no canal.", group: "Chat" },
-    { key: "attachFiles", label: "Anexar arquivos", desc: "Enviar imagens, vídeos e arquivos.", group: "Chat" },
-    { key: "useEmojis", label: "Usar emojis", desc: "Reagir e usar emojis nas mensagens.", group: "Chat" },
-    { key: "useCustomEmojis", label: "Usar emojis personalizados", desc: "Usar os emojis do servidor.", group: "Chat" },
-    { key: "useGifs", label: "Usar GIFs", desc: "Enviar GIFs nas conversas.", group: "Chat" },
-    { key: "mentionEveryone", label: "Mencionar membros", desc: "Usar @everyone e menções em massa.", group: "Chat" },
+    { key: "viewChannels", label: NX.i18n.get("core.verCanais", "Ver canais"), desc: NX.i18n.get("core.visualizarCanaisTextoVoz", "Visualizar canais de texto e voz."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "sendMessages", label: NX.i18n.get("core.enviarMensagens", "Enviar mensagens"), desc: NX.i18n.get("core.escreverCanaisTexto", "Escrever nos canais de texto."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "editMessages", label: NX.i18n.get("core.editarMensagens", "Editar mensagens"), desc: NX.i18n.get("core.editarMensagensOutrasPessoas", "Editar mensagens de outras pessoas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "deleteMessages", label: NX.i18n.get("core.excluirMensagens", "Excluir mensagens"), desc: NX.i18n.get("core.apagarMensagensOutrasPessoas", "Apagar mensagens de outras pessoas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "pinMessages", label: NX.i18n.get("core.fixarMensagens", "Fixar mensagens"), desc: NX.i18n.get("core.fixarMensagensCanal", "Fixar mensagens no canal."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "attachFiles", label: NX.i18n.get("core.anexarArquivos", "Anexar arquivos"), desc: NX.i18n.get("core.enviarImagensVideosArquivos", "Enviar imagens, vídeos e arquivos."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useEmojis", label: NX.i18n.get("core.usarEmojis", "Usar emojis"), desc: NX.i18n.get("core.reagirUsarEmojisMensagens", "Reagir e usar emojis nas mensagens."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useCustomEmojis", label: NX.i18n.get("core.usarEmojisPersonalizados", "Usar emojis personalizados"), desc: NX.i18n.get("core.usarEmojisServidor", "Usar os emojis do servidor."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useGifs", label: NX.i18n.get("core.usarGifs", "Usar GIFs"), desc: NX.i18n.get("core.enviarGifsConversas", "Enviar GIFs nas conversas."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "mentionEveryone", label: NX.i18n.get("core.mencionarMembros", "Mencionar membros"), desc: NX.i18n.get("core.usarEveryoneMencoesMassa", "Usar @everyone e menções em massa."), group: (NX.i18n.get("core.chat", "Chat")) },
 
     /* Moderação */
-    { key: "kickMembers", label: "Expulsar membros", desc: "Remover alguém do servidor (pode voltar).", group: "Moderação" },
-    { key: "banMembers", label: "Banir membros", desc: "Bloquear a entrada de alguém no servidor.", group: "Moderação" },
-    { key: "unbanMembers", label: "Desbanir membros", desc: "Remover alguém da lista de banidos.", group: "Moderação" },
-    { key: "timeoutMembers", label: "Silenciar membros", desc: "Impedir alguém de enviar mensagens.", group: "Moderação" },
+    { key: "kickMembers", label: NX.i18n.get("core.expulsarMembros", "Expulsar membros"), desc: NX.i18n.get("core.removerAlguemServidorPode", "Remover alguém do servidor (pode voltar)."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "banMembers", label: NX.i18n.get("core.banirMembros", "Banir membros"), desc: NX.i18n.get("core.bloquearEntradaAlguemServidor", "Bloquear a entrada de alguém no servidor."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "unbanMembers", label: NX.i18n.get("core.desbanirMembros", "Desbanir membros"), desc: NX.i18n.get("core.removerAlguemListaBanidos", "Remover alguém da lista de banidos."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
+    { key: "timeoutMembers", label: NX.i18n.get("core.silenciarMembros2", "Silenciar membros"), desc: NX.i18n.get("core.impedirAlguemEnviarMensagens", "Impedir alguém de enviar mensagens."), group: (NX.i18n.get("adm.moderacao", "Moderação")) },
 
     /* Voz */
-    { key: "joinVoice", label: "Conectar", desc: "Entrar em canais de voz.", group: "Voz" },
-    { key: "speak", label: "Falar", desc: "Falar nos canais de voz.", group: "Voz" },
-    { key: "muteMembers", label: "Silenciar membros", desc: "Silenciar alguém na voz.", group: "Voz" },
-    { key: "deafenMembers", label: "Ensurdecer membros", desc: "Ensurdecer alguém na voz.", group: "Voz" },
-    { key: "moveMembers", label: "Mover membros", desc: "Mover alguém entre canais de voz.", group: "Voz" },
+    { key: "joinVoice", label: (NX.i18n.get("core.conectar", "Conectar")), desc: NX.i18n.get("core.entrarCanaisVoz", "Entrar em canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "inviteToVoice", label: NX.i18n.get("core.convidarPessoasChamadas", "Convidar pessoas para chamadas"), desc: NX.i18n.get("core.enviarConvitesEntrarSala", "Enviar convites para entrar na sala de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "speak", label: (NX.i18n.get("core.falar", "Falar")), desc: NX.i18n.get("core.falarCanaisVoz", "Falar nos canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "muteMembers", label: NX.i18n.get("core.silenciarMembros2", "Silenciar membros"), desc: NX.i18n.get("core.silenciarAlguemVoz", "Silenciar alguém na voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "deafenMembers", label: NX.i18n.get("core.ensurdecerMembros", "Ensurdecer membros"), desc: NX.i18n.get("core.ensurdecerAlguemVoz", "Ensurdecer alguém na voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
+    { key: "moveMembers", label: NX.i18n.get("core.moverMembros", "Mover membros"), desc: NX.i18n.get("core.moverAlguemEntreCanais", "Mover alguém entre canais de voz."), group: (NX.i18n.get("adm.voz", "Voz")) },
   ];
 
   NX.PERM_KEYS = NX.PERMS.map((p) => p.key);
+
+  /* permissões LIGADAS por padrão: valem mesmo em cargos antigos que
+     foram criados antes da chave existir (o dono e quem tem admin
+     continuam podendo desligar na tela de cargos) */
+  NX.DEFAULT_ON_PERMS = ["inviteToVoice"];
 
   /* permissões concedidas ao cargo padrão de um servidor novo */
   NX.BASE_PERMS = [
@@ -655,12 +755,14 @@ window.NX = window.NX || {};
     "useCustomEmojis",
     "useGifs",
     "joinVoice",
+    "inviteToVoice",
     "speak",
   ];
 
   NX.defaultPerms = (preset) => {
     const out = {};
     NX.PERM_KEYS.forEach((k) => (out[k] = false));
+    NX.DEFAULT_ON_PERMS.forEach((k) => (out[k] = true));
     (preset || NX.BASE_PERMS).forEach((k) => {
       if (out[k] !== undefined) out[k] = true;
     });
@@ -669,89 +771,104 @@ window.NX = window.NX || {};
 
   /* rótulos amigáveis para ações de log */
   NX.LOG_ACTIONS = {
-    "member.join": "Membro entrou",
-    "member.leave": "Membro saiu",
-    "member.kick": "Membro foi expulso",
-    "member.ban": "Membro foi banido",
-    "member.unban": "Membro foi desbanido",
-    "member.role": "Cargo alterado",
-    "member.nick": "Apelido alterado",
-    "role.create": "Cargo criado",
-    "role.update": "Cargo alterado",
-    "role.delete": "Cargo excluído",
-    "channel.create": "Canal criado",
-    "channel.update": "Canal alterado",
-    "channel.delete": "Canal excluído",
-    "category.create": "Categoria criada",
-    "category.update": "Categoria alterada",
-    "category.delete": "Categoria excluída",
-    "message.delete": "Mensagem excluída",
-    "message.pin": "Mensagem fixada",
-    "server.update": "Configuração alterada",
-    "invite.create": "Convite criado",
-    "invite.revoke": "Convite revogado",
-    "emoji.create": "Emoji adicionado",
-    "emoji.delete": "Emoji removido",
-    "ownership.transfer": "Propriedade transferida",
+    "member.join": NX.i18n.get("core.membroEntrou", "Membro entrou"),
+    "member.leave": NX.i18n.get("core.membroSaiu", "Membro saiu"),
+    "member.kick": NX.i18n.get("core.membroFoiExpulso", "Membro foi expulso"),
+    "member.ban": NX.i18n.get("core.membroFoiBanido", "Membro foi banido"),
+    "member.unban": NX.i18n.get("core.membroFoiDesbanido", "Membro foi desbanido"),
+    "member.role": NX.i18n.get("core.cargoAlterado2", "Cargo alterado"),
+    "member.nick": NX.i18n.get("core.apelidoAlterado", "Apelido alterado"),
+    "role.create": NX.i18n.get("core.cargoCriado", "Cargo criado"),
+    "role.update": NX.i18n.get("core.cargoAlterado2", "Cargo alterado"),
+    "role.delete": NX.i18n.get("core.cargoExcluido", "Cargo excluído"),
+    "channel.create": NX.i18n.get("core.canalCriado", "Canal criado"),
+    "channel.update": NX.i18n.get("core.canalAlterado", "Canal alterado"),
+    "channel.delete": NX.i18n.get("core.canalExcluido", "Canal excluído"),
+    "category.create": NX.i18n.get("core.categoriaCriada", "Categoria criada"),
+    "category.update": NX.i18n.get("core.categoriaAlterada", "Categoria alterada"),
+    "category.delete": NX.i18n.get("core.categoriaExcluida", "Categoria excluída"),
+    "message.delete": NX.i18n.get("core.mensagemExcluida", "Mensagem excluída"),
+    "message.pin": NX.i18n.get("core.mensagemFixada", "Mensagem fixada"),
+    "server.update": NX.i18n.get("core.configuracaoAlterada", "Configuração alterada"),
+    "invite.create": NX.i18n.get("core.conviteCriado", "Convite criado"),
+    "invite.revoke": NX.i18n.get("core.conviteRevogado", "Convite revogado"),
+    "emoji.create": NX.i18n.get("core.emojiAdicionado", "Emoji adicionado"),
+    "emoji.delete": NX.i18n.get("core.emojiRemovido", "Emoji removido"),
+    "ownership.transfer": NX.i18n.get("core.propriedadeTransferida", "Propriedade transferida"),
   };
 
-  NX.STATUS_LABEL = {
-    online: "Online",
-    idle: "Ausente",
-    dnd: "Não perturbe",
-    offline: "Offline",
-  };
+  /* rótulos de status resolvidos A CADA leitura → trocam de idioma na hora */
+  NX.STATUS_LABEL = {};
+  (function () {
+    var defs = [
+      ["online", "core.statusOnline", "Online"],
+      ["idle", "core.ausente", "Ausente"],
+      ["dnd", "core.naoPerturbe", "Não perturbe"],
+      ["offline", "core.statusOffline", "Offline"],
+    ];
+    defs.forEach(function (d) {
+      Object.defineProperty(NX.STATUS_LABEL, d[0], {
+        enumerable: true,
+        configurable: true,
+        get: function () {
+          return NX.i18n.get(d[1], d[2]);
+        },
+      });
+    });
+  })();
 
   /* Estruturas iniciais oferecidas na criação de servidor */
+  /* name/desc/cats[].name são GETTERS: resolvidos a cada leitura,
+     então trocar o idioma atualiza o modal de criação na hora */
   NX.TEMPLATES = [
     {
       id: "comunidade",
-      name: "Comunidade",
+      get name() { return NX.i18n.get("core.comunidade", "Comunidade"); },
       emoji: "🌐",
-      desc: "Informações, conversa, suporte e voz.",
+      get desc() { return NX.i18n.get("core.informacoesConversaSuporteVoz", "Informações, conversa, suporte e voz."); },
       cats: [
-        { name: "INFORMAÇÕES", channels: [["boas-vindas", "text"], ["regras", "text"]] },
-        { name: "COMUNIDADE", channels: [["geral", "text"], ["memes", "text"], ["novidades", "text"]] },
-        { name: "SUPORTE", channels: [["ajuda", "text"], ["chamados", "text"]] },
-        { name: "VOZ", channels: [["Sala Geral", "voice"], ["Jogatina", "voice"]] },
+        { get name() { return NX.i18n.get("core.informacoes", "INFORMAÇÕES"); }, channels: [["boas-vindas", "text"], ["regras", "text"]] },
+        { get name() { return NX.i18n.get("core.comunidade2", "COMUNIDADE"); }, channels: [["geral", "text"], ["memes", "text"], ["novidades", "text"]] },
+        { get name() { return NX.i18n.get("core.suporte", "SUPORTE"); }, channels: [["ajuda", "text"], ["chamados", "text"]] },
+        { get name() { return NX.i18n.get("core.voz", "VOZ"); }, channels: [[NX.i18n.get("core.salaGeral", "Sala Geral"), "voice"], [(NX.i18n.get("core.jogatina", "Jogatina")), "voice"]] },
       ],
     },
     {
       id: "estudo",
-      name: "Grupo de estudo",
+      get name() { return NX.i18n.get("core.grupoEstudo", "Grupo de estudo"); },
       emoji: "📚",
-      desc: "Material, dúvidas e sessões ao vivo.",
+      get desc() { return NX.i18n.get("core.materialDuvidasSessoesVivo", "Material, dúvidas e sessões ao vivo."); },
       cats: [
-        { name: "ESTUDO", channels: [["geral", "text"], ["materiais", "text"], ["dúvidas", "text"]] },
-        { name: "ENCONTROS", channels: [["Sala de Estudo", "voice"]] },
+        { get name() { return NX.i18n.get("core.estudo", "ESTUDO"); }, channels: [["geral", "text"], ["materiais", "text"], [(NX.i18n.get("core.duvidas", "dúvidas")), "text"]] },
+        { get name() { return NX.i18n.get("core.encontros", "ENCONTROS"); }, channels: [[NX.i18n.get("core.salaEstudo", "Sala de Estudo"), "voice"]] },
       ],
     },
     {
       id: "jogos",
-      name: "Squad de jogos",
+      get name() { return NX.i18n.get("core.squadJogos", "Squad de jogos"); },
       emoji: "🎮",
-      desc: "Lobby, avisos e salas de voz.",
+      get desc() { return NX.i18n.get("core.lobbyAvisosSalasVoz", "Lobby, avisos e salas de voz."); },
       cats: [
-        { name: "LOBBY", channels: [["geral", "text"], ["combos", "text"]] },
-        { name: "PARTIDAS", channels: [["Sala 1", "voice"], ["Sala 2", "voice"]] },
+        { get name() { return NX.i18n.get("core.lobby", "LOBBY"); }, channels: [["geral", "text"], ["combos", "text"]] },
+        { get name() { return NX.i18n.get("core.partidas", "PARTIDAS"); }, channels: [[NX.i18n.get("core.sala1", "Sala 1"), "voice"], [NX.i18n.get("core.sala2", "Sala 2"), "voice"]] },
       ],
     },
     {
       id: "dev",
-      name: "Time de dev",
+      get name() { return NX.i18n.get("core.timeDev", "Time de dev"); },
       emoji: "🛠️",
-      desc: "Sprints, bugs e deploy.",
+      get desc() { return NX.i18n.get("core.sprintsBugsDeploy", "Sprints, bugs e deploy."); },
       cats: [
-        { name: "PROJETO", channels: [["geral", "text"], ["bugs", "text"], ["releases", "text"]] },
-        { name: "REUNIÕES", channels: [["Call", "voice"]] },
+        { get name() { return NX.i18n.get("core.projeto", "PROJETO"); }, channels: [["geral", "text"], ["bugs", "text"], ["releases", "text"]] },
+        { get name() { return NX.i18n.get("core.reunioes", "REUNIÕES"); }, channels: [[(NX.i18n.get("core.call", "Call")), "voice"]] },
       ],
     },
     {
       id: "vazio",
-      name: "Começar do zero",
+      get name() { return NX.i18n.get("core.comecarZero", "Começar do zero"); },
       emoji: "✨",
-      desc: "Uma categoria, um canal. O resto é seu.",
-      cats: [{ name: "GERAL", channels: [["geral", "text"]] }],
+      get desc() { return NX.i18n.get("core.categoriaCanalRestoSeu", "Uma categoria, um canal. O resto é seu."); },
+      cats: [{ get name() { return NX.i18n.get("core.geral2", "GERAL"); }, channels: [["geral", "text"]] }],
     },
   ];
 
@@ -807,4 +924,36 @@ window.NX = window.NX || {};
   };
 
   NX.util = util;
+
+  /* API pública de tempo — a ÚNICA porta de formatação de horário.
+      O formato é fixo: DD/MM/AAAA + HH:mm (24h). */
+  NX.time = {
+    get: function () {
+      return util.timeFormat();
+    },
+    is12h: function () {
+      return util.is12h();
+    },
+    format: function (value, opts) {
+      return util.formatTime(value, opts);
+    },
+    date: function (value, opts) {
+      return util.formatDate(value, opts);
+    },
+    dateTime: function (value, dateOpts, timeOpts) {
+      return util.formatDateTime(value, dateOpts, timeOpts);
+    },
+    hourOpts: function () {
+      return util.hourOpts();
+    },
+  };
+
+  if (NX.i18n) {
+    NX.i18n.formatTime = function (value, opts) {
+      return util.formatTime(value, opts);
+    };
+    NX.i18n.formatDate = function (value, opts) {
+      return util.formatDate(value, opts);
+    };
+  }
 })(window.NX);

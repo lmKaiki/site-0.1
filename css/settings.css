@@ -1304,3 +1304,20 @@
     white-space: nowrap;
   }
 }
+
+/* linha de switch dentro do painel */
+.set-row--switch {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+.set-btn--sm svg {
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .set-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

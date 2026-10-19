@@ -48,9 +48,9 @@ window.NX = window.NX || {};
 
   app.logout = async function () {
     const ok = await NX.ui.confirm({
-      title: "Sair da conta",
-      message: "Você precisará entrar novamente para acessar seus servidores.",
-      confirmLabel: "Sair",
+      title: NX.i18n.get("app.sairConta", "Sair da conta"),
+      message: NX.i18n.get("app.vocePrecisaraEntrarNovamente", "Você precisará entrar novamente para acessar seus servidores."),
+      confirmLabel: (NX.i18n.get("set.item.logout", "Sair")),
       icon: "logout",
     });
     if (!ok) return;
@@ -82,11 +82,11 @@ window.NX = window.NX || {};
       } else {
         el.innerHTML =
           '<div class="landing-fallback">' +
-          "<h1>Seu espaço. Sua comunidade. Sua conversa.</h1>" +
-          "<p>Crie comunidades, converse com seus amigos e construa seu próprio espaço online.</p>" +
+          ("<h1>" + NX.i18n.get("app.seuespacosuacomunidadesuaconversa", "Seu espaço. Sua comunidade. Sua conversa.") + "</h1>") +
+          ("<p>" + NX.i18n.get("app.criecomunidadesconversecomseusamigos", "Crie comunidades, converse com seus amigos e construa seu próprio espaço online.") + "</p>") +
           '<div class="landing-fallback__actions">' +
-          '<button class="btn btn--primary" data-action="goto-login">Entrar</button>' +
-          '<button class="btn btn--soft" data-action="goto-signup">Criar conta</button>' +
+          ("<button class=\"btn btn--primary\" data-action=\"goto-login\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>") +
+          ("<button class=\"btn btn--soft\" data-action=\"goto-signup\">" + NX.i18n.get("app.criarconta", "Criar conta") + "</button>") +
           "</div></div>";
       }
     }
@@ -110,9 +110,9 @@ window.NX = window.NX || {};
       NX.settings.render(el, section || "account");
     } else {
       el.innerHTML =
-        '<div class="settings-fallback"><h2>Configurações</h2>' +
-        '<p>Os módulos de configuração ainda estão carregando.</p>' +
-        '<button class="btn btn--soft" data-action="settings-close">Voltar</button></div>';
+        ("<div class=\"settings-fallback\"><h2>" + NX.i18n.get("nav.settings", "Configurações") + "</h2>") +
+        ("<p>" + NX.i18n.get("app.osmodulosdeconfiguracaoaindaestao", "Os módulos de configuração ainda estão carregando.") + "</p>") +
+        ("<button class=\"btn btn--soft\" data-action=\"settings-close\">" + NX.i18n.get("common.back", "Voltar") + "</button></div>");
     }
   };
 
@@ -208,7 +208,7 @@ window.NX = window.NX || {};
     if (head === "s") {
       const server = S().server(seg[1]);
       if (!server || !S().membership(server.id, me.id)) {
-        if (server) NX.ui.toast("Você não faz parte deste servidor.", "warn");
+        if (server) NX.ui.toast(NX.i18n.get("adm.voceNaoFazParte", "Você não faz parte deste servidor."), "warn");
         app.go("#/");
         return;
       }
@@ -240,10 +240,28 @@ window.NX = window.NX || {};
           return;
         }
         other = S().user(dm.participants.find((p) => p !== me.id) || dm.participants[0]);
+        /* marca como lida DEPOIS do render (fora da pilha do route)
+           para não causar reentrada quando houver não lidas */
+        if (app.__reading !== dmId) {
+          app.__reading = dmId;
+          window.setTimeout(() => {
+            app.__reading = null;
+            try {
+              NX.api.markDMRead(dmId);
+            } catch (e) {
+              /* sem sessão: mantém como não lida */
+            }
+          }, 0);
+        }
       }
       next = { name: dmId ? "dm" : "messages", dmId: dmId, dmOtherId: other ? other.id : null };
     } else if (head === "explorar") {
       next = { name: "explore" };
+    } else if (head === "amigos") {
+      /* #/amigos · /todos · /online · /idle · /offline · /recebidas · /enviadas */
+      const TABS = ["todos", "online", "idle", "offline", "recebidas", "enviadas"];
+      const tab = TABS.indexOf(seg[1] || "") > -1 ? seg[1] : "todos";
+      next = { name: "friends", tab: tab };
     } else if (head === "feed") {
       next = { name: "feed", postId: seg[1] || null };
     } else if (head === "perfil") {
@@ -257,7 +275,7 @@ window.NX = window.NX || {};
 
     const key =
       next.name + "|" + (next.serverId || "") + "|" + (next.channelId || "") + "|" +
-      (next.dmId || "") + "|" + (next.userId || "") + "|" + (next.postId || "");
+      (next.dmId || "") + "|" + (next.userId || "") + "|" + (next.postId || "") + "|" + (next.tab || "");
     app.route = next;
 
     if (lastScreen === "app" && key !== lastRouteKey) closeDrawers();
@@ -275,6 +293,7 @@ window.NX = window.NX || {};
   A["nav-messages"] = () => app.go("#/mensagens");
   A["nav-feed"] = () => app.go("#/feed");
   A["nav-explore"] = () => app.go("#/explorar");
+  A["nav-friends"] = () => app.go("#/amigos");
 
   /* ---- landing / autenticação ---- */
   A["goto-login"] = () => app.go("#/login");
@@ -286,27 +305,27 @@ window.NX = window.NX || {};
     const which = el.getAttribute("data-doc") || "termos";
     const docs = {
       termos: {
-        title: "Termos de Uso",
+        title: NX.i18n.get("app.termosUso", "Termos de Uso"),
         body: [
-          "1. Conta — você é responsável pelas atividades realizadas na sua conta. Use um nome de usuário único e mantenha sua senha em segurança.",
-          "2. Conduta — respeite as pessoas. Não publique conteúdo ilegal, de ódio, assédio ou que viole direitos de terceiros.",
-          "3. Comunidades — os administradores de cada servidor definem as regras e podem moderar conteúdo, cargos e membros.",
-          "4. Serviço — este ambiente é um protótipo de demonstração: os dados podem ser reiniciados a qualquer momento.",
+          (NX.i18n.get("app.1contavoceeresponsavelpelas", "1. Conta — você é responsável pelas atividades realizadas na sua conta. Use um nome de usuário único e mantenha sua senha em segurança.")),
+          (NX.i18n.get("app.2condutarespeiteaspessoasnao", "2. Conduta — respeite as pessoas. Não publique conteúdo ilegal, de ódio, assédio ou que viole direitos de terceiros.")),
+          (NX.i18n.get("app.3comunidadesosadministradoresdecada", "3. Comunidades — os administradores de cada servidor definem as regras e podem moderar conteúdo, cargos e membros.")),
+          (NX.i18n.get("app.4servicoesteambienteeum", "4. Serviço — este ambiente é um protótipo de demonstração: os dados podem ser reiniciados a qualquer momento.")),
         ],
       },
       privacidade: {
-        title: "Política de Privacidade",
+        title: NX.i18n.get("app.politicaPrivacidade", "Política de Privacidade"),
         body: [
-          "1. Dados — nome de usuário, avatar, mensagens e preferências ficam armazenados para que a plataforma funcione.",
-          "2. Uso — as informações servem para exibir seu perfil, organizar servidores e enviar notificações.",
-          "3. Controle — você pode editar seu perfil, bloquear pessoas e excluir conteúdos que publicou.",
-          "4. Nada é compartilhado com terceiros fora do escopo de operar a plataforma.",
+          (NX.i18n.get("app.1dadosnomedeusuarioavatar", "1. Dados — nome de usuário, avatar, mensagens e preferências ficam armazenados para que a plataforma funcione.")),
+          (NX.i18n.get("app.2usoasinformacoesservempara", "2. Uso — as informações servem para exibir seu perfil, organizar servidores e enviar notificações.")),
+          (NX.i18n.get("app.3controlevocepodeeditarseu", "3. Controle — você pode editar seu perfil, bloquear pessoas e excluir conteúdos que publicou.")),
+          NX.i18n.get("app.4NadaCompartilhadoTerceiros", "4. Nada é compartilhado com terceiros fora do escopo de operar a plataforma."),
         ],
       },
     };
     const d = docs[which] || docs.termos;
     const footer = u().el(
-      '<div class="modal__actions"><button class="btn btn--primary" data-modal-close>Entendi</button></div>'
+      ("<div class=\"modal__actions\"><button class=\"btn btn--primary\" data-modal-close>" + NX.i18n.get("app.entendi", "Entendi") + "</button></div>")
     );
     const m = NX.ui.modal({ title: d.title, eyebrow: "Nexo", size: "md", footer: footer });
     m.body.innerHTML =
@@ -352,7 +371,7 @@ window.NX = window.NX || {};
     const id = el.getAttribute("data-id");
     try {
       const server = await NX.api.joinServer(id);
-      NX.ui.toast("Você entrou em " + server.name + "!", "success");
+      NX.ui.toast((NX.i18n.get("app.voceentrouem", "Você entrou em") + " ") + server.name + "!", "success");
       app.go("#/s/" + server.id);
     } catch (e) {
       NX.ui.error(e.message);
@@ -362,7 +381,7 @@ window.NX = window.NX || {};
   A["accept-invite"] = async (el) => {
     try {
       const server = await NX.api.joinByInvite(el.getAttribute("data-code"));
-      NX.ui.toast("Você entrou em " + server.name + "!", "success");
+      NX.ui.toast((NX.i18n.get("app.voceentrouem", "Você entrou em") + " ") + server.name + "!", "success");
       app.go("#/s/" + server.id);
     } catch (e) {
       NX.ui.error(e.message);
@@ -426,7 +445,7 @@ window.NX = window.NX || {};
   A["join-voice"] = async (el) => {
     try {
       await NX.api.joinVoice(el.getAttribute("data-id"));
-      NX.ui.toast("Você entrou na sala de voz.", "success");
+      NX.ui.toast(NX.i18n.get("app.voceEntrouSalaVoz", "Você entrou na sala de voz."), "success");
     } catch (e) {
       NX.ui.error(e.message);
     }
@@ -435,7 +454,7 @@ window.NX = window.NX || {};
   A["leave-voice"] = async () => {
     try {
       await NX.api.leaveVoice();
-      NX.ui.toast("Desconectado da sala.", "success");
+      NX.ui.toast(NX.i18n.get("app.desconectadoSala", "Desconectado da sala."), "success");
     } catch (e) {
       NX.ui.error(e.message);
     }
@@ -459,21 +478,21 @@ window.NX = window.NX || {};
       NX.views.editingMessageId = null;
       NX.views.render(["messages"]);
     } catch (e) {
-      NX.ui.error(e.message || "Não foi possível editar.");
+      NX.ui.error(e.message || NX.i18n.get("app.naoFoiPossivelEditar", "Não foi possível editar."));
     }
   };
   A["msg-delete"] = async (el) => {
     const ok = await NX.ui.confirm({
-      title: "Apagar mensagem",
-      message: "Esta mensagem será apagada para todos. Não dá para desfazer.",
-      confirmLabel: "Apagar",
+      title: NX.i18n.get("app.apagarMensagem", "Apagar mensagem"),
+      message: NX.i18n.get("app.estaMensagemSeraApagada", "Esta mensagem será apagada para todos. Não dá para desfazer."),
+      confirmLabel: (NX.i18n.get("app.apagar", "Apagar")),
       danger: true,
       icon: "trash",
     });
     if (!ok) return;
     try {
       await NX.api.deleteMessage(el.getAttribute("data-id"));
-      NX.ui.toast("Mensagem apagada.", "success");
+      NX.ui.toast(NX.i18n.get("app.mensagemApagada", "Mensagem apagada."), "success");
     } catch (e) {
       NX.ui.error(e.message);
     }
@@ -483,14 +502,6 @@ window.NX = window.NX || {};
   A["auth-mode"] = (el) => {
     const mode = el.getAttribute("data-mode");
     app.go(AUTH_MODES[AUTH_ALIAS[mode] || mode] || "#/login");
-  };
-
-  A["fill-demo"] = () => {
-    const form = document.querySelector('form[data-form="login"]');
-    if (!form) return;
-    form.elements.identifier.value = "demo";
-    form.elements.password.value = "nexo123";
-    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true }));
   };
 
   A["toggle-password"] = (el) => {
@@ -518,7 +529,7 @@ window.NX = window.NX || {};
     NX.chat && typeof NX.chat.openAttachMenu === "function";
 
   A["composer-attach"] = (el) => {
-    if (!chatReady()) return NX.ui.error("O módulo de mídia ainda está carregando.");
+    if (!chatReady()) return NX.ui.error(NX.i18n.get("app.moduloMidiaAindaEsta", "O módulo de mídia ainda está carregando."));
     NX.chat.openAttachMenu(el, (item) => {
       NX.chat.addPending(item);
       NX.views.renderPending();
@@ -527,7 +538,7 @@ window.NX = window.NX || {};
 
   A["composer-gif"] = (el) => {
     if (!NX.chat || typeof NX.chat.openGifPicker !== "function")
-      return NX.ui.error("O módulo de GIFs ainda está carregando.");
+      return NX.ui.error(NX.i18n.get("app.moduloGifsAindaEsta", "O módulo de GIFs ainda está carregando."));
     NX.chat.openGifPicker(el, (item) => {
       NX.chat.addPending(item);
       NX.views.renderPending();
@@ -536,7 +547,7 @@ window.NX = window.NX || {};
 
   A["composer-emoji"] = (el) => {
     if (!NX.chat || typeof NX.chat.openEmojiPicker !== "function")
-      return NX.ui.error("O seletor de emojis ainda está carregando.");
+      return NX.ui.error(NX.i18n.get("app.seletorEmojisAindaEsta", "O seletor de emojis ainda está carregando."));
     const serverId = app.route && app.route.serverId;
     NX.chat.openEmojiPicker(el, insertAtCursor, { serverId: serverId });
   };
@@ -563,13 +574,13 @@ window.NX = window.NX || {};
           fn(el, e);
         } catch (err) {
           console.error("[action:" + name + "]", err);
-          NX.ui.error("Algo deu errado ao executar esta ação.");
+          NX.ui.error(NX.i18n.get("app.algoDeuErradoExecutar", "Algo deu errado ao executar esta ação."));
         }
       }
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
+      if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
         if (NX.ui.isOpen()) return;
         const shell = document.getElementById("screen-app");
         if (shell.classList.contains("sidebar-open") || shell.classList.contains("members-open")) {
@@ -583,7 +594,7 @@ window.NX = window.NX || {};
         return;
       }
       if (NX.views.editingMessageId && e.target.matches("[data-edit-input]")) {
-        if (e.key === "Enter" && !e.shiftKey) {
+        if (e.key === (NX.i18n.get("app.enter", "Enter")) && !e.shiftKey) {
           e.preventDefault();
           const btn = document.querySelector('[data-action="msg-save-edit"]');
           if (btn) btn.click();
@@ -599,6 +610,25 @@ window.NX = window.NX || {};
     });
 
     document.getElementById("scrim").addEventListener("click", closeDrawers);
+
+    /* NX.i18n.apply (login/logout) fecha overlays montados e
+       redesenha a tela atual inteira, sem recarregar a página. */
+    if (NX.bus && NX.bus.on) {
+      NX.bus.on("i18n:change", function () {
+        try {
+          NX.ui.closeEverything();
+        } catch (e) {}
+        if (app.screen === "settings") return; /* settings re-renderiza sozinho */
+        lastRouteKey = null;
+        if (lastScreen === "landing") lastScreen = null;
+        if (lastScreen === "auth") lastAuthMode = null;
+        try {
+          route();
+        } catch (e) {
+          console.error("[i18n:rerender]", e);
+        }
+      });
+    }
 
     window.addEventListener("hashchange", route);
 
@@ -644,22 +674,106 @@ window.NX = window.NX || {};
 
     bindGlobal();
 
+    /* o backend remoto precisa responder (ou falhar) antes do
+       primeiro desenho: quem está logado é o servidor que diz,
+       através do cookie HttpOnly validado em /auth/me. */
+    const started =
+      NX.remote && typeof NX.remote.start === "function"
+        ? NX.remote.start()
+        : Promise.resolve(null);
+    Promise.resolve(started)
+      .catch(function (err) {
+        console.warn("[nexo/remote] boot:", err && err.message);
+      })
+      .then(function () {
+        bootUI();
+      });
+  }
+
+  /* primeiro desenho — só depois de conhecer o estado do backend */
+  function bootUI() {
     if (!location.hash) location.hash = "#/";
     route();
 
-    /* presença simulada para a conta atual */
+    /* o HTML estático do index.html (#rail, #sidebar, #members)
+       nunca passa pelo route() — reaplica as chaves marcadas
+       data-i18n em pt-BR já no primeiro desenho. */
+    try {
+      NX.i18n.hydrate(document);
+    } catch (e) {
+      /* sem hidratação: segue o render normal */
+    }
+
+    /* presença real da conta atual: online ao entrar */
     const me = S().me();
-    if (me && me.status === "offline") {
-      me.status = "online";
-      NX.store.db.presence[me.id] = "online";
-      NX.store.persist();
+    if (me) {
+      if (me.status === "offline") {
+        me.status = "online";
+        NX.store.db.presence[me.id] = "online";
+        NX.store.persist();
+      }
+      me.autoIdle = false;
+      setupPresence();
     }
 
     console.log(
-      "%cNexo%c protótipo de comunidades — camada de dados isolada em js/api.js.",
+      (NX.i18n.get("app.cnexocprototipodecomunidadescamada", "%cNexo%c protótipo de comunidades — camada de dados isolada em js/api.js.")),
       "background:#35e0a8;color:#06231a;font-weight:bold;padding:2px 6px;border-radius:4px",
       "color:#93a8a4"
     );
+  }
+
+  /* ---------------- presença real ----------------
+     online ao entrar · Ausente por inatividade · Offline ao sair.
+     Quem escolher "Não perturbe"/"Offline" na mão não é sobrescrito. */
+  const IDLE_MS = 5 * 60 * 1000; /* 5 min sem interação */
+  let idleTimer = null;
+
+  function writeStatus(status) {
+    const u = S().me();
+    if (!u || u.status === status) return false;
+    u.status = status;
+    if (NX.store.db.presence) NX.store.db.presence[u.id] = status;
+    NX.store.persist();
+    NX.store.commit(["presence", "profile"]);
+    return true;
+  }
+
+  function pokePresence() {
+    const u = S().me();
+    if (!u) return;
+    if (u.status === "idle" && u.autoIdle) {
+      u.autoIdle = false;
+      writeStatus("online");
+    }
+    if (idleTimer) window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => {
+      const v = S().me();
+      if (v && v.status === "online") {
+        v.autoIdle = true;
+        writeStatus("idle");
+      }
+    }, IDLE_MS);
+  }
+
+  function setupPresence() {
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach((ev) => {
+      window.addEventListener(ev, pokePresence, { passive: true });
+    });
+    pokePresence();
+
+    /* ao fechar/recarregar a aba a conta sai como Offline de verdade;
+       no boot seguinte ela volta a ficar Online (nada de ficar "Online"
+       eterno para quem já saiu). */
+    window.addEventListener("pagehide", () => {
+      const u = S().me();
+      if (u && u.status !== "offline") {
+        u.autoIdle = false;
+        u.status = "offline";
+        if (NX.store.db.presence) NX.store.db.presence[u.id] = "offline";
+        NX.store.persist();
+      }
+    });
   }
 
   if (document.readyState === "loading") {

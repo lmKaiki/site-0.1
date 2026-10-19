@@ -22,15 +22,15 @@ window.NX = window.NX || {};
   /* ---------------- abas de alvo ---------------- */
   const TABS = [
     { id: "everyone", kind: "everyone", label: "@everyone", icon: "users" },
-    { id: "roles", kind: "role", label: "Cargos", icon: "shield" },
-    { id: "users", kind: "user", label: "Usuários", icon: "user" },
+    { id: "roles", kind: "role", label: (NX.i18n.get("adm.cargos", "Cargos")), icon: "shield" },
+    { id: "users", kind: "user", label: (NX.i18n.get("ex.usuarios", "Usuários")), icon: "user" },
   ];
 
   /* ---------------- os três estados ---------------- */
   const STATES = [
-    { id: "allow", value: true, ico: "\uD83D\uDFE2", label: "Permitir", hint: "Permite aqui, mesmo que outro cargo negue." },
-    { id: "deny", value: false, ico: "\uD83D\uDD34", label: "Negar", hint: "Nega aqui; negar sempre vence permitir." },
-    { id: "inherit", value: null, ico: "\u26AA", label: "Herdar", hint: "Sem regra própria: herda do nível anterior." },
+    { id: "allow", value: true, ico: "\uD83D\uDFE2", label: NX.i18n.get("perm.permitir", "Permitir"), hint: NX.i18n.get("perm.permiteAquiMesmoOutro", "Permite aqui, mesmo que outro cargo negue.") },
+    { id: "deny", value: false, ico: "\uD83D\uDD34", label: (NX.i18n.get("perm.negar", "Negar")), hint: "Nega aqui; negar sempre vence permitir." },
+    { id: "inherit", value: null, ico: "\u26AA", label: NX.i18n.get("perm.herdar", "Herdar"), hint: NX.i18n.get("perm.regraPropriaHerdaNivel", "Sem regra própria: herda do nível anterior.") },
   ];
 
   const GROUP_ICON = { "Geral": "settings", "Chat": "chat", "Modera\u00e7\u00e3o": "shield", "Voz": "mic" };
@@ -44,7 +44,7 @@ window.NX = window.NX || {};
     const order = [];
     const map = {};
     (NX.PERMS || []).forEach((p) => {
-      const g = p.group || "Geral";
+      const g = p.group || (NX.i18n.get("core.geral", "Geral"));
       if (!map[g]) {
         map[g] = [];
         order.push(g);
@@ -130,7 +130,7 @@ window.NX = window.NX || {};
       key: "everyone",
       kind: "everyone",
       label: "@everyone",
-      sub: "Todos os membros do servidor",
+      sub: NX.i18n.get("perm.todosMembrosServidor", "Todos os membros do servidor"),
       icon: "users",
     });
     rolesOf(serverId).forEach((r) => {
@@ -142,7 +142,7 @@ window.NX = window.NX || {};
         label: r.name,
         color: r.color || "#93a8a4",
         icon: r.icon || "",
-        sub: (r.isDefault ? "Cargo padr\u00e3o" : "Cargo") + " \u00b7 " + u().plural(n, "membro", "membros"),
+        sub: (r.isDefault ? NX.i18n.get("perm.cargoPadrao", "Cargo padrão") : (NX.i18n.get("adm.cargo", "Cargo"))) + " \u00b7 " + u().plural(n, "membro", "membros"),
       });
     });
     membersOf(serverId).forEach((m) => {
@@ -244,11 +244,11 @@ window.NX = window.NX || {};
         return (
           '<div class="pm-inherit is-off">' +
           '<div class="pm-inherit__row">' +
-          '<span class="pm-inherit__txt"><strong>Herdar permiss\u00f5es da categoria</strong>' +
-          "<small>Este canal n\u00e3o est\u00e1 dentro de uma categoria, ent\u00e3o usa permiss\u00f5es pr\u00f3prias.</small></span>" +
+          ("<span class=\"pm-inherit__txt\"><strong>" + NX.i18n.get("perm.herdarpermissoesdacategoria", "Herdar permissões da categoria") + "</strong>") +
+          ("<small>" + NX.i18n.get("perm.estecanalnaoestadentrode", "Este canal não está dentro de uma categoria, então usa permissões próprias.") + "</small></span>") +
           '<span class="switch"><input type="checkbox" data-pm-inherit disabled /><i></i></span>' +
           "</div>" +
-          '<div class="pm-chips"><span class="pm-chip pm-chip--own">\u2699 Permiss\u00f5es pr\u00f3prias</span></div>' +
+          ("<div class=\"pm-chips\"><span class=\"pm-chip pm-chip--own\">" + NX.i18n.get("perm.permissoesproprias", "⚙ Permissões próprias") + "</span></div>") +
           "</div>"
         );
       }
@@ -256,19 +256,19 @@ window.NX = window.NX || {};
       return (
         '<div class="pm-inherit' + (on ? "" : " is-own") + '">' +
         '<div class="pm-inherit__row">' +
-        '<span class="pm-inherit__txt"><strong>Herdar permiss\u00f5es da categoria</strong>' +
+        ("<span class=\"pm-inherit__txt\"><strong>" + NX.i18n.get("perm.herdarpermissoesdacategoria", "Herdar permissões da categoria") + "</strong>") +
         "<small>" +
         (on
-          ? "Os ajustes abaixo come\u00e7am nos de " + h(cat.name) + "."
-          : "Este canal ignora as permiss\u00f5es de " + h(cat.name) + " e usa as pr\u00f3prias.") +
+          ? (NX.i18n.get("perm.osajustesabaixocomecamnosde", "Os ajustes abaixo começam nos de") + " ") + h(cat.name) + "."
+          : (NX.i18n.get("perm.estecanalignoraaspermissoesde", "Este canal ignora as permissões de") + " ") + h(cat.name) + (" " + NX.i18n.get("perm.eusaasproprias", "e usa as próprias."))) +
         "</small></span>" +
         '<span class="switch"><input type="checkbox" data-pm-inherit' + (on ? " checked" : "") + " /><i></i></span>" +
         "</div>" +
         '<div class="pm-chips">' +
         (on
-          ? '<span class="pm-chip pm-chip--on">\u21bb Herdando de ' + h(cat.name) + "</span>"
-          : '<span class="pm-chip pm-chip--own">\u2699 Permiss\u00f5es pr\u00f3prias \u00b7 ignora ' + h(cat.name) + "</span>") +
-        (on ? '<span class="pm-chip">servidor \u2192 categoria \u2192 canal</span>' : "") +
+          ? ("<span class=\"pm-chip pm-chip--on\">" + NX.i18n.get("perm.herdandode", "↻ Herdando de") + " ") + h(cat.name) + "</span>"
+          : ("<span class=\"pm-chip pm-chip--own\">" + NX.i18n.get("perm.permissoespropriasignora", "⚙ Permissões próprias · ignora") + " ") + h(cat.name) + "</span>") +
+        (on ? ("<span class=\"pm-chip\">" + NX.i18n.get("perm.servidorcategoriacanal", "servidor → categoria → canal") + "</span>") : "") +
         "</div>" +
         "</div>"
       );
@@ -284,7 +284,7 @@ window.NX = window.NX || {};
           return (
             '<span class="pm-chip ' + (own ? "pm-chip--own" : "pm-chip--on") + '">' +
             NX.icon(c.type === "voice" ? "voice" : "hash", "", 13) +
-            h(c.name) + " \u00b7 " + (own ? "pr\u00f3prias" : "herda") +
+            h(c.name) + " \u00b7 " + (own ? (NX.i18n.get("perm.proprias", "próprias")) : "herda") +
             "</span>"
           );
         })
@@ -297,11 +297,11 @@ window.NX = window.NX || {};
         '<div class="pm-note">' +
         NX.icon("info", "", 17) +
         '<div class="pm-note__txt">' +
-        "<strong>Os canais desta categoria herdam estas permiss\u00f5es.</strong>" +
-        "<span>Quem criar um canal aqui come\u00e7a com esta matriz. Canais marcados como pr\u00f3prios ignoram a categoria.</span>" +
+        ("<strong>" + NX.i18n.get("perm.oscanaisdestacategoriaherdamestas", "Os canais desta categoria herdam estas permissões.") + "</strong>") +
+        ("<span>" + NX.i18n.get("perm.quemcriarumcanalaquicomeca", "Quem criar um canal aqui começa com esta matriz. Canais marcados como próprios ignoram a categoria.") + "</span>") +
         (chans.length
           ? '<div class="pm-chips">' + chips + more + "</div>"
-          : '<span class="pm-hint">Nenhum canal nesta categoria ainda.</span>') +
+          : ("<span class=\"pm-hint\">" + NX.i18n.get("perm.nenhumcanalnestacategoriaainda", "Nenhum canal nesta categoria ainda.") + "</span>")) +
         "</div>" +
         "</div>"
       );
@@ -317,7 +317,7 @@ window.NX = window.NX || {};
         icon = container.type === "voice" ? "voice" : "hash";
         title = (container.type === "voice" ? "" : "#") + container.name;
         const cat = container.categoryId ? S().category(container.categoryId) : null;
-        sub = (server ? server.name : "") + (cat ? " \u00b7 " + cat.name : " \u00b7 sem categoria");
+        sub = (server ? server.name : "") + (cat ? " \u00b7 " + cat.name : (" " + NX.i18n.get("perm.semcategoria", "· sem categoria")));
         return (
           '<div class="pm-head">' +
           '<span class="pm-head__ico">' + NX.icon(icon, "", 18) + "</span>" +
@@ -351,7 +351,7 @@ window.NX = window.NX || {};
     function controlsHTML() {
       const c = counts();
       return (
-        '<div class="pm-tabs" role="tablist" aria-label="Tipo de alvo">' +
+        '<div class="pm-tabs" role="tablist" aria-label="' + NX.i18n.get("ui.tipodealvo", "Tipo de alvo") + '">' +
         TABS.map((t) => {
           const on = st.tab === t.id;
           return (
@@ -367,8 +367,11 @@ window.NX = window.NX || {};
           ? ""
           : '<span class="input-affix pm-picker__search">' +
             '<span class="input-affix__ico">' + NX.icon("search", "", 16) + "</span>" +
-            '<input class="input" type="search" data-pm-search autocomplete="off" placeholder="Buscar ' +
-            (st.tab === "roles" ? "cargo" : "membro") + '\u2026" value="' + h(st.q) + '" /></span>') +
+            '<input class="input" type="search" data-pm-search autocomplete="off" placeholder="' +
+            (st.tab === "roles"
+              ? NX.i18n.get("ui.a11ybuscarcargo", "Buscar cargo…")
+              : NX.i18n.get("ui.a11ybuscarmembro", "Buscar membro…")) +
+            '" value="' + h(st.q) + '" /></span>') +
         '<div class="pm-picker__list" data-pm-list>' + listHTML() + "</div>" +
         "</div>"
       );
@@ -382,7 +385,7 @@ window.NX = window.NX || {};
         return (
           '<button type="button" class="pm-pick pm-pick--wide' + (on ? " is-on" : "") + '" data-pm-target="' + h(t.key) + '">' +
           '<span class="pm-pick__ico">' + NX.icon("users", "", 18) + "</span>" +
-          '<span class="pm-pick__txt"><strong>@everyone</strong><small>' + h(t.sub) + "</small></span>" +
+          ("<span class=\"pm-pick__txt\"><strong>" + NX.i18n.get("perm.everyone", "@everyone") + "</strong><small>") + h(t.sub) + "</small></span>" +
           badge +
           "</button>"
         );
@@ -409,7 +412,7 @@ window.NX = window.NX || {};
       const tab = TABS.find((t) => t.id === st.tab) || TABS[0];
       const items = targets.filter((x) => x.kind === tab.kind);
       if (!items.length) {
-        return '<div class="pm-empty">\u00c9 preciso ter membros e cargos neste servidor.</div>';
+        return ("<div class=\"pm-empty\">" + NX.i18n.get("perm.eprecisotermembrosecargos", "É preciso ter membros e cargos neste servidor.") + "</div>");
       }
       if (tab.kind === "everyone") return pickHTML(items[0]);
       const q = u().normalize(st.q.trim());
@@ -417,7 +420,7 @@ window.NX = window.NX || {};
         ? items.filter((x) => u().normalize(x.label + " " + (x.sub || "")).indexOf(q) !== -1)
         : items;
       if (!shown.length) {
-        return '<div class="pm-empty">Nenhum resultado para \u201c' + h(st.q.trim()) + "\u201d.</div>";
+        return ("<div class=\"pm-empty\">" + NX.i18n.get("perm.nenhumresultadopara", "Nenhum resultado para “")) + h(st.q.trim()) + "\u201d.</div>";
       }
       return shown.map(pickHTML).join("");
     }
@@ -432,15 +435,15 @@ window.NX = window.NX || {};
 
     function targetBarInner() {
       const t = currentTarget();
-      if (!t) return '<div class="pm-empty">Nenhum alvo dispon\u00edvel neste servidor.</div>';
+      if (!t) return ("<div class=\"pm-empty\">" + NX.i18n.get("perm.nenhumalvodisponivelnesteservidor", "Nenhum alvo disponível neste servidor.") + "</div>");
       const n = overrideKeys(container, t.key).length;
       return (
         targetVisual(t) +
         '<span class="pm-target__txt"><strong>' + h(t.label) + "</strong><small>" + h(t.sub || "") +
-        (n ? " \u00b7 " + u().plural(n, "ajuste", "ajustes") : " \u00b7 nada personalizado") +
+        (n ? " \u00b7 " + u().plural(n, "ajuste", "ajustes") : (" " + NX.i18n.get("perm.nadapersonalizado", "· nada personalizado"))) +
         "</small></span>" +
         '<button type="button" class="btn btn--soft btn--sm" data-pm-restore' + (n ? "" : " disabled") +
-        '>\u00c1tomar padr\u00e3o</button>'
+        (">" + NX.i18n.get("perm.atomarpadrao", "Átomar padrão") + "</button>")
       );
     }
 
@@ -453,7 +456,7 @@ window.NX = window.NX || {};
       if (!t) return "";
       const user = exampleUser(serverId, t);
       if (!user) {
-        return '<div class="pm-summary__empty">Sem membros para simular o efeito real.</div>';
+        return ("<div class=\"pm-summary__empty\">" + NX.i18n.get("perm.semmembrosparasimularoefeito", "Sem membros para simular o efeito real.") + "</div>");
       }
       let eff = null;
       let where = "";
@@ -464,7 +467,7 @@ window.NX = window.NX || {};
         const chans = S().channelsOfCategory(id) || [];
         const ch = chans.filter((c) => c.inheritPerms !== false)[0] || chans[0];
         if (!ch) {
-          return '<div class="pm-summary__empty">Crie um canal nesta categoria para ver o efeito real.</div>';
+          return ("<div class=\"pm-summary__empty\">" + NX.i18n.get("perm.crieumcanalnestacategoriapara", "Crie um canal nesta categoria para ver o efeito real.") + "</div>");
         }
         eff = S().effectiveChannelPerms(ch, user.id);
         where = "#" + ch.name;
@@ -499,13 +502,13 @@ window.NX = window.NX || {};
       return (
         '<div class="pm-summary__head">' +
         NX.icon("eye", "", 15) +
-        "<strong>Efeito real</strong><span>simulado em " + h(where) + "</span></div>" +
+        ("<strong>" + NX.i18n.get("perm.efeitoreal", "Efeito real") + ("</strong><span>" + NX.i18n.get("perm.simuladoem", "simulado em") + " ")) + h(where) + "</span></div>" +
         '<div class="pm-summary__who">' + u().avatarHTML(user, "xs") + "<span>" + h(who) + "</span></div>" +
         '<div class="pm-chips pm-chips--res">' + chips + more + "</div>" +
         '<p class="pm-summary__note">' +
         (owner
-          ? "Dono do servidor tem acesso total \u2014 overrides n\u00e3o o afetam."
-          : "Valores j\u00e1 resolvidos: servidor \u2192 " + (kind === "category" ? "categoria \u2192 " : "") + "canal.") +
+          ? NX.i18n.get("perm.donoServidorTemAcesso", "Dono do servidor tem acesso total — overrides não o afetam.")
+          : (NX.i18n.get("perm.valoresjaresolvidosservidor", "Valores já resolvidos: servidor →") + " ") + (kind === "category" ? (NX.i18n.get("perm.categoria2", "categoria →") + " ") : "") + "canal.") +
         "</p>"
       );
     }
@@ -581,9 +584,9 @@ window.NX = window.NX || {};
       return (
         '<div class="pm-locked">' +
         '<span class="pm-locked__ico">' + NX.icon("lock", "", 22) + "</span>" +
-        "<strong>Voc\u00ea n\u00e3o tem permiss\u00e3o para gerenciar permiss\u00f5es.</strong>" +
-        "<p>Precisa do cargo <b>Gerenciar canais</b> para alterar a matriz " +
-        (kind === "channel" ? "deste canal" : "desta categoria") +
+        ("<strong>" + NX.i18n.get("perm.vocenaotempermissaoparagerenciar", "Você não tem permissão para gerenciar permissões.") + "</strong>") +
+        ("<p>" + NX.i18n.get("perm.precisadocargo", "Precisa do cargo") + " " + "<b>" + NX.i18n.get("core.gerenciarCanais", "Gerenciar canais") + ("</b>" + " " + NX.i18n.get("perm.paraalteraramatriz", "para alterar a matriz") + " ")) +
+        (kind === "channel" ? NX.i18n.get("perm.desteCanal", "deste canal") : NX.i18n.get("perm.destaCategoria", "desta categoria")) +
         ".</p>" +
         "</div>"
       );
@@ -593,8 +596,8 @@ window.NX = window.NX || {};
       return (
         '<div class="pm-locked">' +
         '<span class="pm-locked__ico">' + NX.icon("alert", "", 22) + "</span>" +
-        "<strong>" + (kind === "channel" ? "Este canal n\u00e3o existe mais." : "Esta categoria n\u00e3o existe mais.") + "</strong>" +
-        "<p>Fecha e abre as configura\u00e7\u00f5es de novo para recarregar.</p>" +
+        "<strong>" + (kind === "channel" ? NX.i18n.get("perm.esteCanalNaoExisteMais", "Este canal não existe mais.") : NX.i18n.get("perm.estaCategoriaNaoExisteMais", "Esta categoria não existe mais.")) + "</strong>" +
+        ("<p>" + NX.i18n.get("perm.fechaeabreasconfiguracoesde", "Fecha e abre as configurações de novo para recarregar.") + "</p>") +
         "</div>"
       );
     }
@@ -680,7 +683,7 @@ window.NX = window.NX || {};
         sync();
         paintRow(permKey, getPerm(container, tk, permKey));
         refreshAfterChange(tk);
-        NX.ui.error((e && e.message) || "N\u00e3o foi poss\u00edvel alterar esta permiss\u00e3o.");
+        NX.ui.error((e && e.message) || NX.i18n.get("perm.naoFoiPossivelAlterarPermissao", "Não foi possível alterar esta permissão."));
       } finally {
         delete st.busy[permKey];
         btn.classList.remove("is-busy");
@@ -693,16 +696,16 @@ window.NX = window.NX || {};
       if (!t) return;
       const keys = overrideKeys(container, t.key);
       if (!keys.length) {
-        NX.ui.toast("Este alvo j\u00e1 est\u00e1 herdando tudo.", "info");
+        NX.ui.toast(NX.i18n.get("perm.esteAlvoJaEstaHerdandoTudo", "Este alvo já está herdando tudo."), "info");
         return;
       }
-      const what = kind === "channel" ? "do canal" : "da categoria";
+      const what = kind === "channel" ? NX.i18n.get("perm.canal", "do canal") : NX.i18n.get("perm.categoria", "da categoria");
       const ok = await NX.ui.confirm({
-        title: "Restaurar padr\u00e3o",
+        title: NX.i18n.get("perm.restaurarPadrao", "Restaurar padrão"),
         message:
-          "Os " + keys.length + " ajustes de " + t.label + " " + what +
-          " voltar\u00e3o a herdar do n\u00edvel anterior. D\u00e1 para mudar de ideia depois.",
-        confirmLabel: "Restaurar",
+          (NX.i18n.get("perm.os", "Os") + " ") + keys.length + (" " + NX.i18n.get("perm.ajustesde", "ajustes de") + " ") + t.label + " " + what +
+          (" " + NX.i18n.get("perm.voltaraoaherdardonivelanterior", "voltarão a herdar do nível anterior. Dá para mudar de ideia depois.")),
+        confirmLabel: (NX.i18n.get("perm.restaurar", "Restaurar")),
         icon: "refresh",
       });
       if (!ok) return;
@@ -714,11 +717,11 @@ window.NX = window.NX || {};
         }
         sync();
         render();
-        NX.ui.success("Permiss\u00f5es de " + t.label + " restauradas.");
+        NX.ui.success((NX.i18n.get("adm.permissoesde", "Permissões de") + " ") + t.label + " restauradas.");
       } catch (e) {
         sync();
         render();
-        NX.ui.error((e && e.message) || "N\u00e3o foi poss\u00edvel restaurar.");
+        NX.ui.error((e && e.message) || NX.i18n.get("perm.naoFoiPossivelRestaurar", "Não foi possível restaurar."));
       } finally {
         st.restoreBusy = false;
       }
@@ -739,12 +742,12 @@ window.NX = window.NX || {};
         }
         paintSummary();
         NX.ui.toast(
-          want ? "O canal volta a herdar da categoria." : "O canal agora usa permiss\u00f5es pr\u00f3prias.",
+          want ? NX.i18n.get("perm.canalVoltaHerdarCategoria", "O canal volta a herdar da categoria.") : NX.i18n.get("perm.canalAgoraUsaPermiss", "O canal agora usa permissões próprias."),
           "info"
         );
       } catch (e) {
         input.checked = !want;
-        NX.ui.error((e && e.message) || "N\u00e3o foi poss\u00edvel alterar a heran\u00e7a.");
+        NX.ui.error((e && e.message) || NX.i18n.get("perm.naoFoiPossivelAlterarHeranca", "Não foi possível alterar a herança."));
       } finally {
         input.disabled = false;
       }
@@ -853,11 +856,11 @@ window.NX = window.NX || {};
     const holder = { panel: null };
     const container = kind === "channel" ? S().channel(id) : S().category(id);
     if (!container) {
-      NX.ui.error(kind === "channel" ? "Canal n\u00e3o encontrado." : "Categoria n\u00e3o encontrada.");
+      NX.ui.error(kind === "channel" ? NX.i18n.get("perm.canalNaoEncontrado", "Canal não encontrado.") : NX.i18n.get("perm.categoriaNaoEncontrada", "Categoria não encontrada."));
       return null;
     }
     const server = S().server(container.serverId);
-    const title = kind === "channel" ? "Permiss\u00f5es do canal" : "Permiss\u00f5es da categoria";
+    const title = kind === "channel" ? NX.i18n.get("perm.permissoesDoCanal", "Permissões do canal") : NX.i18n.get("perm.permissoesDaCategoria", "Permissões da categoria");
     const label =
       kind === "channel"
         ? (container.type === "voice" ? "" : "#") + container.name
@@ -868,8 +871,8 @@ window.NX = window.NX || {};
       size: "lg",
       footer: u().el(
         '<div class="modal__actions">' +
-          '<button class="btn btn--ghost" type="button" data-modal-close>Fechar</button>' +
-          '<button class="btn btn--primary" type="button" data-modal-close>Concluir</button>' +
+          ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.close", "Fechar") + "</button>") +
+          ("<button class=\"btn btn--primary\" type=\"button\" data-modal-close>" + NX.i18n.get("perm.concluir", "Concluir") + "</button>") +
           "</div>"
       ),
       onClose: () => {
