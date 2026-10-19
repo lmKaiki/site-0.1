@@ -7,6 +7,11 @@
 .env
 .env.*
 !.env.example
+
+# base de dados local do preview/suíte de testes (tools/local-api.js)
+tools/.nexo-local.db
+tools/.nexo-local.db-shm
+tools/.nexo-local.db-wal
 *.pem
 *.key
 id_rsa
