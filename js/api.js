@@ -104,6 +104,19 @@ window.NX = window.NX || {};
     return me;
   }
 
+  /* imagem do ícone do servidor — MESMAS regras do servidor real
+     (server/handlers/servers.js): data URL PNG/JPG/WEBP até 900 KB.
+     null limpa a imagem e volta o fallback (emoji/iniciais). */
+  function iconImage(raw) {
+    if (raw === null || raw === undefined || raw === "") return null;
+    if (typeof raw !== "string") fail(NX.i18n.get("api.iconeServidorInvalido", "Ícone do servidor inválido."));
+    if (raw.length > 900000)
+      fail(NX.i18n.get("api.estaImagemGrandeDemais2", "Esta imagem é grande demais. Use uma com até 1 MB."));
+    if (!/^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/i.test(raw))
+      fail(NX.i18n.get("api.envieUmaImagemPngJpgOu", "Envie uma imagem PNG, JPG ou WEBP."));
+    return raw;
+  }
+
   /* =========================================================
      AUTENTICAÇÃO — camada "backend"
      -------------------------------------------------------
@@ -837,7 +850,11 @@ window.NX = window.NX || {};
       id: id,
       name: name,
       description: String(data.description || "").slice(0, 240),
-      icon: { emoji: data.emoji || "", color: data.color || u().colorFor(id), image: null },
+      icon: {
+        emoji: data.emoji || "",
+        color: data.color || u().colorFor(id),
+        image: iconImage(data.icon && data.icon.image),
+      },
       banner: null,
       appearance: {
         primary: "#35e0a8",
@@ -922,8 +939,7 @@ window.NX = window.NX || {};
     if (patch.description !== undefined) s.description = String(patch.description).slice(0, 240);
     if (patch.icon !== undefined) {
       const next = Object.assign({}, s.icon, patch.icon);
-      if (next.image && next.image.length > 900000)
-        fail(NX.i18n.get("api.estaImagemGrandeDemais2", "Esta imagem é grande demais. Use uma com até 1 MB."));
+      next.image = iconImage(next.image);
       s.icon = next;
       changed.push((NX.i18n.get("api.icone", "ícone")));
     }

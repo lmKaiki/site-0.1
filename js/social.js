@@ -1558,6 +1558,17 @@ window.NX = window.NX || {};
   /* ---------------- composer ---------------- */
   SX["sx-emoji"] = (el) => {
     const key = el.getAttribute("data-sx-key") || "feed";
+    /* seletor compartilhado com o chat (chatmedia.js): categorias,
+       busca, recentes e favoritos. Insere no cursor SEM repintar o
+       composer — o texto digitado, o contador e os anexos ficam. */
+    if (NX.chat && typeof NX.chat.openEmojiPicker === "function") {
+      const root = document.querySelector('[data-sx-composer="' + selId(key) + '"]');
+      const ta = root ? root.querySelector("textarea") : null;
+      NX.chat.openEmojiPicker(el, (val) => insertAtCaret(ta, val), {});
+      return;
+    }
+    /* reserva: enquanto o módulo de chat ainda carrega, a grade
+       antiga (u().EMOJIS) continua funcionando */
     const d = draft(key);
     d.emoji = !d.emoji;
     refreshComposer(key);

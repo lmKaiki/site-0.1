@@ -148,6 +148,22 @@
 .server-icon--xl { width: 92px; height: 92px; font-size: 38px; border-radius: 28px; }
 .server-icon--rail { width: 46px; height: 46px; font-size: 19px; }
 
+/* foto enviada no lugar do glyph — mesma caixa arredondada.
+   Se a imagem quebrar, o handler de erro troca por glyph again. */
+.server-icon__img {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.server-icon__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ================= BOTÕES ================= */
 .btn {
   display: inline-flex;
@@ -1220,6 +1236,70 @@
   padding: 12px;
 }
 
+/* ================= UPLOAD DE ÍCONE DE SERVIDOR =================
+   Substitui a antiga grade de emojis + paleta de cores: uma prévia
+   arredondada, botão “+” para escolher a imagem e “remover”.
+   O arquivo é redimensionado no navegador e validado também no
+   servidor (PNG/JPG/WEBP, teto de tamanho). */
+.icon-upload {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+}
+
+.icon-upload__prev {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #06110f;
+  background: linear-gradient(150deg, var(--sv), color-mix(in srgb, var(--sv) 45%, #0b1416 40%));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  flex: 0 0 auto;
+  user-select: none;
+}
+
+.icon-upload__prev img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-upload__acts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.icon-upload__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.icon-upload__hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.icon-upload__err {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger, #ff7b7b);
+}
+
 /* ================= CONVITE (tela cheia) ================= */
 .invite-wrap {
   min-height: 100%;
@@ -1921,14 +2001,22 @@
 }
 
 .server-preview__icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 58px;
   height: 58px;
   border-radius: 18px;
   font-size: 26px;
+  overflow: hidden;
   background: linear-gradient(150deg, var(--sv), color-mix(in srgb, var(--sv) 45%, #0b1416 40%));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.server-preview__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .server-preview__txt { display: flex; flex-direction: column; min-width: 0; }

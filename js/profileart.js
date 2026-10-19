@@ -338,6 +338,18 @@ window.NX = window.NX || {};
           img.style.display = "none";
           return;
         }
+        if (img.hasAttribute("data-sv-fb")) {
+          /* foto do ícone de servidor quebrada: volta ao glyph
+             (emoji escolhido ou iniciais) sem derrubar o card */
+          const svBox = img.parentNode;
+          if (svBox && svBox.className === "server-icon__img") {
+            const g = document.createElement("span");
+            g.className = "server-icon__glyph";
+            g.textContent = img.getAttribute("data-sv-fb") || "";
+            svBox.parentNode.replaceChild(g, svBox);
+          }
+          return;
+        }
         if (img.tagName !== "IMG" || !img.hasAttribute("data-avatar-fb")) return;
         const box = img.parentNode;
         if (!box || box.className !== "avatar__img") return;
@@ -345,6 +357,7 @@ window.NX = window.NX || {};
         span.className = "avatar__art";
         span.innerHTML = logoSVG();
         box.parentNode.replaceChild(span, box);
+        return;
       },
       true
     );

@@ -1044,6 +1044,7 @@ window.NX = window.NX || {};
         description: (data || {}).description,
         emoji: (data || {}).emoji,
         color: (data || {}).color,
+        icon: (data || {}).icon,
         templateId: (data || {}).templateId,
       });
       const server = json.data;

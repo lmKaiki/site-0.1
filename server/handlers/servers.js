@@ -49,6 +49,26 @@ async function getUser(id) {
   return rows && rows[0] ? rows[0] : null;
 }
 
+/* ------------------------------------------------------------
+   Imagem do ícone do servidor.
+   Segue o mesmo padrão do avatar/banner: data URL validado AQUI
+   (tipo, estrutura e tamanho real). Só PNG, JPG e WEBP — SVG é
+   recusado de propósito: ele nunca foi aceito como avatar e carrega
+   script em contexto de imagem. O cliente redimensiona antes de
+   enviar; 900 KB é o teto do arquivo pronto.
+   ------------------------------------------------------------ */
+const ICON_IMAGE_LIMIT = 900000;
+
+function sanitizeServerIconImage(raw) {
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw !== "string") throw bad("Ícone do servidor inválido.");
+  if (raw.length > ICON_IMAGE_LIMIT)
+    throw bad("Esta imagem é grande demais. Use uma com até 1 MB.");
+  if (!/^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/i.test(raw))
+    throw bad("Envie uma imagem PNG, JPG ou WEBP.");
+  return raw;
+}
+
 /* registro de auditoria: actorId, ação, alvo, serverId, timestamp.
    Nunca registra senha, token ou cookie. */
 async function log(serverId, action, meta, target, actorId) {
@@ -159,13 +179,15 @@ async function createServer(ctx) {
     description: String(body.description || "").slice(0, 240),
     icon: {
       /* padrão SEM emoji: o cliente mostra as iniciais do nome.
-         Emoji só entra quando a pessoa escolhe no seletor. */
+         Imagem só entra quando a pessoa envia no seletor; emoji
+         continua sendo aceito por compatibilidade com clientes
+         antigos. */
       emoji:
         typeof body.emoji === "string" && body.emoji.trim()
           ? body.emoji.trim().slice(0, 8)
           : null,
       color: body.color || u.colorFor(id),
-      image: null,
+      image: sanitizeServerIconImage(body.icon && body.icon.image),
     },
     banner: null,
     appearance: { primary: "#35e0a8", secondary: "#8f83ff", backgroundImage: null, theme: "dark" },
@@ -276,9 +298,11 @@ async function updateServer(ctx) {
   if (patchBody.description !== undefined)
     update.description = String(patchBody.description).slice(0, 240);
   if (patchBody.icon !== undefined) {
+    if (typeof patchBody.icon !== "object" || patchBody.icon === null)
+      throw bad("Ícone do servidor inválido.");
     const next = Object.assign({}, s.icon, patchBody.icon);
-    if (next.image && next.image.length > 900000)
-      throw bad("Esta imagem é grande demais. Use uma com até 1 MB.");
+    /* null limpa a imagem e volta o fallback (emoji/iniciais) */
+    next.image = sanitizeServerIconImage(next.image);
     update.icon = next;
   }
   if (patchBody.appearance !== undefined) {

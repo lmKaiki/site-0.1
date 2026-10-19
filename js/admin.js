@@ -388,8 +388,7 @@ window.NX = window.NX || {};
             : { max: 256, maxLen: 700000, preferPng: true };
         readImage(file, opts)
           .then((url) => {
-            if (kind === "icon" && state.d) state.d.image = url;
-            else if (kind === "banner" && state.d) state.d.banner = url;
+            if (kind === "banner" && state.d) state.d.banner = url;
             else if (kind === "bg" && state.a) state.a.backgroundImage = url;
             else if (kind === "emoji" && state.e) state.e.image = url;
             else return;
@@ -510,12 +509,7 @@ window.NX = window.NX || {};
     render();
   });
 
-  /* ---- ícone / banner / fundo ---- */
-  reg("adm-icon-clear", () => {
-    if (!state.d || !state.modal) return;
-    state.d.image = null;
-    syncPreviews(state.modal.body);
-  });
+  /* ---- banner / fundo ---- */
   reg("adm-banner-clear", () => {
     if (!state.d || !state.modal) return;
     state.d.banner = null;
@@ -600,7 +594,10 @@ window.NX = window.NX || {};
       emoji: (s.icon && s.icon.emoji) || "",
       color: (s.icon && s.icon.color) || u().colorFor(s.id),
       image: (s.icon && s.icon.image) || null,
+      imageDirty: false,
       banner: s.banner || null,
+      __disc: !!s.discoverable,
+      __discDirty: false,
       __name: s.name
     };
 
@@ -628,14 +625,9 @@ window.NX = window.NX || {};
       ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
       '<input class="input" name="name" maxlength="40" value="' + esc(s.name) + '" data-autofocus /></label>' +
 
-      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.iconeemojiecor", "Ícone · emoji e cor") + "</span>") +
-      emojiRow("icon.emoji", state.d.emoji) +
-      swatchRow("icon.color", state.d.color) +
-      '<div class="adm-inline">' +
-      ("<label class=\"btn btn--soft btn--sm\">" + NX.i18n.get("adm.enviarimagem", "Enviar imagem") + "<input type=\"file\" accept=\"image/*\" data-adm-file=\"icon\" hidden /></label>") +
-      ("<button type=\"button\" class=\"btn btn--ghost btn--sm\" data-action=\"adm-icon-clear\">" + NX.i18n.get("adm.removerimagem", "Remover imagem") + "</button>") +
-      ("<span class=\"adm-inline__hint\">" + NX.i18n.get("adm.pngoujpgredimensionadopara256", "PNG ou JPG · redimensionado para 256 px") + "</span>") +
-      "</div></div>" +
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.iconedoservidor", "Ícone do servidor") + "</span>") +
+      NX.modals.iconUploadHTML(state.d, u().initials(s.name)) +
+      "</div>" +
 
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.banner", "Banner") + "</span>") +
       '<div class="adm-inline">' +
@@ -666,11 +658,26 @@ window.NX = window.NX || {};
     const form = root.querySelector('[data-adm-form="visao"]');
     if (!form) return;
     const nameInput = form.elements.name;
+    /* widget de upload do ícone (compartilhado com os modais de
+       criação); st = state.d { image, imageDirty, color } */
+    if (NX.modals && typeof NX.modals.bindIconUpload === "function") {
+      state.d.onIconChange = () => syncPreviews(root);
+      NX.modals.bindIconUpload(form, state.d, () => u().initials(form.elements.name.value.trim() || srv().name));
+    }
     nameInput.addEventListener("input", () => {
       const el = root.querySelector('[data-pv="name"]');
       if (el) el.textContent = nameInput.value.trim() || srv().name;
       if (state.d) state.d.__name = nameInput.value.trim();
     });
+    /* "Mostrar no explorar" só vai quando o usuário mexe: o banco
+       pode não ter a coluna (sqlite / migração pendente) e o save
+       do ícone não deve falhar por isso */
+    const disc = form.elements.discoverable;
+    if (disc && state.d) {
+      disc.addEventListener("change", () => {
+        state.d.__discDirty = disc.checked !== state.d.__disc;
+      });
+    }
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       showErr(root, "");
@@ -678,13 +685,20 @@ window.NX = window.NX || {};
       run(
         form.querySelector('button[type="submit"]'),
         () =>
-          api().updateServer(state.serverId, {
-            name: form.elements.name.value,
-            description: form.elements.description.value,
-            icon: { emoji: d.emoji, color: d.color, image: d.image },
-            banner: d.banner,
-            discoverable: !!form.elements.discoverable.checked
-          }),
+          api().updateServer(
+            state.serverId,
+            Object.assign(
+              {
+                name: form.elements.name.value,
+                description: form.elements.description.value,
+                banner: d.banner
+              },
+              /* a imagem só vai quando o usuário trocou ou removeu —
+                 preserva o ícone atual (emoji/cor legados inclusive) */
+              d.imageDirty ? { icon: { image: d.image } } : {},
+              d.__discDirty ? { discoverable: !!form.elements.discoverable.checked } : {}
+            )
+          ),
         root,
         () => {
           ok(NX.i18n.get("adm.configuracoesSalvas", "Configurações salvas."));

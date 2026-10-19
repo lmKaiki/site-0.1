@@ -792,7 +792,7 @@
   D["chat.amorLoveAbraco"] = "amor love abraco";
   D["chat.anexar"] = "Anexar";
   D["chat.anexo"] = "Anexo";
-  D["chat.animais"] = "Animais";
+  D["chat.animais"] = "Animais e natureza";
   D["chat.anjoangel"] = "😇|anjo angel";
   D["chat.apagarMensagem"] = "Apagar mensagem";
   D["chat.apaixonadocrushamor"] = "😍|apaixonado crush amor";
@@ -849,7 +849,7 @@
   D["chat.chorandosadtriste"] = "😭|chorando sad triste";
   D["chat.circocircus"] = "🎪|circo circus";
   D["chat.coelhorabbit"] = "🐰|coelho rabbit";
-  D["chat.comida"] = "Comida";
+  D["chat.comida"] = "Comidas e bebidas";
   D["chat.conteoqueaconteceuaequipe"] = "Conte o que aconteceu. A equipe do servidor recebe sua denúncia e decide o próximo passo.";
   D["chat.controlegamegamer"] = "🎮|controle game gamer";
   D["chat.copiarTexto"] = "Copiar texto";
@@ -917,7 +917,7 @@
   D["chat.futebolsoccerbola"] = "⚽|futebol soccer bola";
   D["chat.galinhachicken"] = "🐔|galinha chicken";
   D["chat.gatocatpet"] = "🐱|gato cat pet";
-  D["chat.gestos"] = "Gestos";
+  D["chat.gestos"] = "Gestos e mãos";
   D["chat.gif"] = "GIF";
   D["chat.girandodizzy"] = "💫|girando dizzy";
   D["chat.golgoalrede"] = "🥅|gol goal rede";
@@ -1041,7 +1041,7 @@
   D["chat.robotorobot"] = "🤖|roboto robot";
   D["chat.rockchifres"] = "🤘|rock chifres";
   D["chat.rodagigante"] = "🎡|roda gigante";
-  D["chat.rostos"] = "Rostos";
+  D["chat.rostos"] = "Rostos e emoções";
   D["chat.rostosCategorias"] = "Rostos e categorias";
   D["chat.sanduichesandwich"] = "🥪|sanduiche sandwich";
   D["chat.sapofrog"] = "🐸|sapo frog";
@@ -2676,6 +2676,35 @@
   D["grp.removerImagem"] = "Remover imagem";
   D["grp.erroImagem"] = "Envie uma imagem válida.";
   D["grp.imagemGrande"] = "Imagem grande demais (máximo 250 KB).";
+
+  /* ---------- ícone do servidor por imagem (upload) ---------- */
+  D["modal.iconeEscolherImagem"] = "Escolher imagem";
+  D["modal.iconeRemoverImagem"] = "Remover";
+  D["modal.iconeUploadDica"] = "PNG, JPG ou WEBP · a imagem é redimensionada para até 512 px";
+  D["modal.iconeFormatoInvalido"] = "Formato inválido. Use uma imagem PNG, JPG ou WEBP.";
+  D["modal.iconeGrandeDemais"] = "Arquivo grande demais. Use uma imagem de até 8 MB.";
+  D["modal.iconeFalhaLeitura"] = "Não foi possível ler esta imagem.";
+  D["modal.iconeImagemProntaGrande"] = "Esta imagem ficou grande demais. Tente uma menor.";
+  D["api.iconeServidorInvalido"] = "Ícone do servidor inválido.";
+  D["api.envieUmaImagemPngJpgOu"] = "Envie uma imagem PNG, JPG ou WEBP.";
+
+  /* ---------- seletor de emojis: categorias novas + recentes/favoritos ---------- */
+  D["chat.rostosCategorias"] = "Populares e categorias";
+  D["chat.populares"] = "Populares";
+  D["chat.coracoes"] = "Corações e sentimentos";
+  D["chat.flores"] = "Flores e plantas";
+  D["chat.arte"] = "Arte e criatividade";
+  D["chat.musica"] = "Música";
+  D["chat.espaco"] = "Espaço e tecnologia";
+  D["chat.simbolos"] = "Símbolos e efeitos";
+  D["chat.festa"] = "Festa e comemorações";
+  D["chat.bandeiras"] = "Bandeiras e países";
+  D["chat.emojiRecentes"] = "Usados recentemente";
+  D["chat.emojiFavoritos"] = "Favoritos";
+  D["chat.emojiFavoritar"] = "Favoritar este emoji";
+  D["chat.emojiDesfavoritar"] = "Remover dos favoritos";
+  D["chat.emojiNenhumRecente"] = "Os emojis que você usar por aqui aparecem nesta aba.";
+  D["chat.emojiNenhumFavorito"] = "Passe o cursor em um emoji e toque na estrela para guardá-lo aqui.";
 
   NX.i18n.register("pt-BR", D);
 })(window.NX);

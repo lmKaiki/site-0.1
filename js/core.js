@@ -612,9 +612,17 @@ window.NX = window.NX || {};
         ? server.icon.emoji
         : util.initials(server.name);
     const color = (server.icon && server.icon.color) || util.colorFor(server.id);
+    /* ordem: foto enviada → emoji escolhido → iniciais do nome.
+       Se a foto não carregar, o handler de erro (profileart.js)
+       troca a caixa pelo glyph de fallback que vai no data-fb. */
+    const art =
+      server.icon && server.icon.image
+        ? '<span class="server-icon__img"><img src="' + util.h(server.icon.image) +
+          '" alt="" loading="lazy" decoding="async" data-sv-fb="' + util.h(glyph) + '" /></span>'
+        : '<span class="server-icon__glyph">' + util.h(glyph) + "</span>";
     return (
       '<span class="' + cls.join(" ") + '" style="--sv:' + color + '" aria-hidden="true">' +
-      '<span class="server-icon__glyph">' + util.h(glyph) + "</span>" +
+      art +
       (showBadge ? '<i class="server-icon__badge"></i>' : "") +
       "</span>"
     );

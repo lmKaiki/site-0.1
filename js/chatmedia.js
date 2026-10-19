@@ -462,8 +462,45 @@ window.NX = window.NX || {};
      ========================================================= */
   const EMOJI_CATS = [
     {
+      /* primeira categoria = conteúdo da aba “geral” (o seletor
+         abre aqui): o que mais se usa, sempre à mão */
+      id: "populares",
+      icon: "💚",
+      label: (NX.i18n.get("chat.populares", "Populares")),
+      items: [
+        "😀|riso feliz smile grinning",
+        "😂|chorando de rir rir funny laughing",
+        "🤣|morrendo de rir rofl",
+        "❤️|coracao love heart",
+        "🔥|fogo fire chama",
+        "👍|like sim ok polegar",
+        "😭|chorando triste choro crying",
+        "🙏|obrigado please namaste rezando",
+        "✨|brilhos sparkles",
+        "😍|apaixonado crush amar",
+        "🎉|confete party comemorar",
+        "💯|cem pontos perfect",
+        "👀|olhos olhar eyes",
+        "💀|cr skull morto rir",
+        "🤔|pensando thinking duvida",
+        "😅|suor alivio nervous",
+        "😢|triste sad chorar",
+        "👏|palmas clap aplauso",
+        "💪|forca muscle treino",
+        "🥺|implorando pleading olhos",
+        "🥰|amor carinho cute",
+        "😊|sorrindo blush",
+        "🫶|coracao maos heart hands",
+        "😬|dentes grimace",
+        "🙃|de cabeca pra baixo upside",
+        "❤️‍🔥|coracao fogo heart on fire",
+        "⚡|raio lightning raio",
+        "🌟|estrela brilhante shiny",
+      ],
+    },
+    {
       id: "rostos",
-      icon: "smile",
+      icon: "😀",
       label: (NX.i18n.get("chat.rostos", "Rostos")),
       items: [
         (NX.i18n.get("chat.grinningrisosorrindosmile", "😀|grinning riso sorrindo smile")),
@@ -490,12 +527,41 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.raivaangrybravo", "😡|raiva angry bravo")),
         (NX.i18n.get("chat.chorandosadtriste", "😭|chorando sad triste")),
         (NX.i18n.get("chat.implorandopleadingolhos", "🥺|implorando pleading olhos")),
+        "😶|sem boca neutral sem falar",
+        "😐|neutro straight face serio",
+        "😑|incomodado annoyed irritado",
+        "🙄|rolar olhos whatever",
+        "😪|sonolento sleepy sono",
+        "😯|abismado astonished surpresa",
+        "😦|franzido frown preocupa",
+        "😮|boca aberta open mouth",
+        "😲|chocado stunned",
+        "🥱|bocejo yawn cansaco",
+        "😛|lingua tongue",
+        "🤑|dinheiro money eyes",
+        "🧐|monocle duvida duvidando",
+        "🥸|disfarce disguise careca",
+        "🥴|tonto woozy zonzo",
+        "😵|tonto dizzy desmaiado",
+        "🤯|explodindo mind blown cabeca",
+        "🤠|cowboneiro cowboy",
+        "😈|diabinho devil sorrindo",
+        "👿|demoniodevil mal",
+        "👻|fantasma ghost assombração",
+        "💩|copoop emoji cocô",
+        "🤡|palhaço clown",
+        "👽|alien alienigena",
+        "😶‍🌫️|neblina face in clouds",
+        (NX.i18n.get("chat.apaixonadocrushamor", "😍|apaixonado crush amor")),
+        (NX.i18n.get("chat.abracocarinhocute", "🥰|abraco carinho cute")),
+        (NX.i18n.get("chat.gritosurpresashock", "😱|grito surpresa shock")),
+        (NX.i18n.get("chat.olhosdeestrelastarry", "🤩|olhos de estrela starry")),
       ],
     },
     {
-      id: "emocoes",
-      icon: "heart",
-      label: (NX.i18n.get("chat.emocoes", "Emoções")),
+      id: "coracoes",
+      icon: "❤️",
+      label: (NX.i18n.get("chat.coracoes", "Corações e sentimentos")),
       items: [
         (NX.i18n.get("chat.coracaolovevermelho", "❤️|coracao love vermelho")),
         (NX.i18n.get("chat.coracaolaranja", "🧡|coracao laranja")),
@@ -512,20 +578,20 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.coracoesorbitando", "💞|coracoes orbitando")),
         (NX.i18n.get("chat.coracaopulsantebeating", "💓|coracao pulsante beating")),
         (NX.i18n.get("chat.cartaamorletter", "💌|carta amor letter")),
-        (NX.i18n.get("chat.apaixonadocrushamor", "😍|apaixonado crush amor")),
-        (NX.i18n.get("chat.abracocarinhocute", "🥰|abraco carinho cute")),
         (NX.i18n.get("chat.beijokiss", "😘|beijo kiss")),
         (NX.i18n.get("chat.saudadesentimental", "🥺|saudade sentimental")),
-        (NX.i18n.get("chat.gritosurpresashock", "😱|grito surpresa shock")),
-        (NX.i18n.get("chat.olhosdeestrelastarry", "🤩|olhos de estrela starry")),
         (NX.i18n.get("chat.gratidaothanks", "😇|gratidao thanks")),
-        (NX.i18n.get("chat.fogofire", "🔥|fogo fire")),
-        (NX.i18n.get("chat.brilhossparkles", "✨|brilhos sparkles")),
+        "💘|flecha cupid amor",
+        "💝|coracao com laço ribbon heart",
+        "❤️‍🩹|coracao curativo mending healing",
+        "🫀|coracao anatomico anatomical heart",
+        "💋|labios beijo kiss lips",
+        "🤎|coracao marrom brown heart",
       ],
     },
     {
       id: "gestos",
-      icon: "thumb",
+      icon: "🫶",
       label: (NX.i18n.get("chat.gestos", "Gestos")),
       items: [
         (NX.i18n.get("chat.simokaprovarlikepolegar", "👍|sim ok aprovar like polegar")),
@@ -552,12 +618,25 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.simpessoaok", "🙆|sim pessoa ok")),
         (NX.i18n.get("chat.naopessoano", "🙅|nao pessoa no")),
         (NX.i18n.get("chat.maolevantadapergunta", "🙋|mao levantada pergunta")),
+        "👐|maos abertas open hands",
+        "🙌|comemorar raise hands aleluia",
+        "🤲|palmas recebendo palms up",
+        "🤏|pouco pinch um pouco",
+        "🖖|vulcano salute",
+        "💅|unha nail polish",
+        "🤳|selfie celular",
+        "🫡|salutar salute sir yes",
+        "🫱|mao direita right hand",
+        "🫲|mao esquerda left hand",
+        "🫳|mao para baixo drop hand",
+        "🫴|mao para cima palm up",
+        "🤟|love you gesture ile",
       ],
     },
     {
       id: "animais",
-      icon: "paw",
-      label: (NX.i18n.get("chat.animais", "Animais")),
+      icon: "🐶",
+      label: (NX.i18n.get("chat.animais", "Animais e natureza")),
       items: [
         (NX.i18n.get("chat.cachorrodogpet", "🐶|cachorro dog pet")),
         (NX.i18n.get("chat.gatocatpet", "🐱|gato cat pet")),
@@ -583,12 +662,70 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.joaninhaladybug", "🐞|joaninha ladybug")),
         (NX.i18n.get("chat.tartarugaturtle", "🐢|tartaruga turtle")),
         (NX.i18n.get("chat.polvooctopus", "🐙|polvo octopus")),
+        "🦜|papagaio parrot",
+        "🦢|cisne swan",
+        "🦆|pato duck",
+        "🦈|tubarao shark",
+        "🐳|baleia whale",
+        "🐬|golfinho dolphin",
+        "🐊|jacare crocodile",
+        "🦕|dinossauro dino long neck",
+        "🦖|t-rex dinossauro",
+        "🦒|girafa giraffe",
+        "🦓|zebra",
+        "🐪|camelo camel",
+        "🦘|canguru kangaroo",
+        "🦙|lama llama",
+        "🐘|elefante elephant",
+        "🐿️|esquio squirrel",
+        "🦫|castor beaver",
+        "🦔|ourico hedgehog",
+        "🐾|pegadas paw prints",
+        "🐉|dragao dragon",
+        "🐍|serpente snake",
+        "🐠|peixe tropical fish",
+        "🦐|camarao shrimp",
+        "🦀|caranguejo crab",
+        "🐚|concha shell",
+        "🌊|onda wave mar",
+        "💧|gota agua water drop",
+      ],
+    },
+    {
+      id: "flores",
+      icon: "🌺",
+      label: (NX.i18n.get("chat.flores", "Flores e plantas")),
+      items: [
+        "🌺|hibisco hibiscus",
+        "🌹|rosa rose",
+        "🌷|tulipa tulip",
+        "🌸|flor de cerejeira sakura cherry blossom",
+        "🌼|margarina daisy",
+        "🌻|girassol sunflower",
+        "🍀|trevo four leaf clover sorte",
+        "☘️|trevo shamrock",
+        "🍁|folha maple leaf outono",
+        "🍂|folhas caidas fallen leaves",
+        "🌿|erva herb folha",
+        (NX.i18n.get("chat.brotoplant", "🌱|broto plant")),
+        "🍃|folhas ao vento blowing leaf",
+        "🌾|planta de arroz rice plant",
+        "🪻|lilas hyacinth",
+        "🪷|lotus lotus flor d'água",
+        "💮|flor branca white flower",
+        "💐|buque bouquet flores",
+        "🌵|cacto cactus",
+        "🌲|pinheiro evergreen",
+        "🌳|arvore tree",
+        (NX.i18n.get("chat.palmeira", "🌴|palmeira palm")),
+        "🪵|madeira wood tronco",
+        "🍄|cogumelo mushroom",
       ],
     },
     {
       id: "comida",
-      icon: "cup",
-      label: (NX.i18n.get("chat.comida", "Comida")),
+      icon: "🍕",
+      label: (NX.i18n.get("chat.comida", "Comidas e bebidas")),
       items: [
         (NX.i18n.get("chat.hamburguerburger", "🍔|hamburguer burger")),
         (NX.i18n.get("chat.batatafritafries", "🍟|batata frita fries")),
@@ -614,11 +751,53 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.refrigerantedrink", "🥤|refrigerante drink")),
         (NX.i18n.get("chat.cervejabeer", "🍺|cerveja beer")),
         (NX.i18n.get("chat.sorveteicecream", "🍦|sorvete icecream")),
+        "🍇|uva grapes",
+        "🍉|melancia watermelon",
+        "🍊|laranja orange",
+        "🍋|limao lemon",
+        "🍌|banana",
+        "🍍|abacaxi pineapple",
+        "🥭|manga mango",
+        "🍎|maca apple",
+        "🍏|maca verde green apple",
+        "🍐|pera pear",
+        "🍒|cerejas cherries",
+        "🥝|kiwi",
+        "🍅|tomate tomato",
+        "🥥|coco coconut",
+        "🥑|abacate avocado",
+        "🍆|berinjela eggplant",
+        "🥔|batata potato",
+        "🥕|cenoura carrot",
+        "🌽|milho corn",
+        "🌶️|pimenta pepper",
+        "🧅|cebola onion",
+        "🧄|alho garlic",
+        "🥐|croissant",
+        "🥖|baguete baguette pao",
+        "🧀|queijo cheese",
+        "🥚|ovo egg",
+        "🥞|pancakes panqueca",
+        "🧇|waffle",
+        "🥓|bacon",
+        "🍗|coxa e perna drumstick frango",
+        "🍤|camarao empanado tempura",
+        "🍿|pipoca popcorn",
+        "🧂|sal salt",
+        "🧃|caixinha de suco juice box",
+        "🍷|vinho wine",
+        "🍸|coquetel cocktail",
+        "🍹|drinka tropical drink",
+        "🫖|bule teapot",
+        "🍵|cha tea",
+        "🍻|cervejas beers brinde",
+        "🥂|taças cheers brinde",
+        "🥃|copo de whisky shot",
       ],
     },
     {
       id: "esportes",
-      icon: "ball",
+      icon: "⚽",
       label: (NX.i18n.get("chat.esportes", "Esportes")),
       items: [
         (NX.i18n.get("chat.futebolsoccerbola", "⚽|futebol soccer bola")),
@@ -645,11 +824,25 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.medalhabronze", "🥉|medalha bronze")),
         (NX.i18n.get("chat.medalhamedal", "🏅|medalha medal")),
         (NX.i18n.get("chat.golgoalrede", "🥅|gol goal rede")),
+        "🏐|volei volleyball",
+        "🏉|rugby",
+        "🏓|ping pong tênis de mesa",
+        "🏒|hockey",
+        "⛳|golfe golf bandeira",
+        "🎽|camisa de corrida running shirt",
+        "🛹|skateboard patins",
+        "🛼|patins de roleta roller skate",
+        "⛸️|patinação no gelo ice skate",
+        "🛷|trenó sled",
+        "⛹️|esporte bola pessoa",
+        "🤽|polo aquático water polo",
+        "🤾|handebol handball",
+        "🏌️|golfe swing",
       ],
     },
     {
       id: "jogos",
-      icon: "gamepad",
+      icon: "🎮",
       label: (NX.i18n.get("chat.jogos", "Jogos")),
       items: [
         (NX.i18n.get("chat.controlegamegamer", "🎮|controle game gamer")),
@@ -667,20 +860,221 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.adagadagger", "🗡️|adaga dagger")),
         (NX.i18n.get("chat.varinhamagic", "🪄|varinha magic")),
         (NX.i18n.get("chat.boladecristal", "🔮|bola de cristal")),
-        (NX.i18n.get("chat.circocircus", "🎪|circo circus")),
-        (NX.i18n.get("chat.rodagigante", "🎡|roda gigante")),
-        "🎠|carrossel",
-        (NX.i18n.get("chat.montanharussa", "🎢|montanha russa")),
         (NX.i18n.get("chat.cacaniquelluck", "🎰|caça niquel luck")),
         (NX.i18n.get("chat.ioio", "🪀|io io")),
-        (NX.i18n.get("chat.ingressoticket", "🎫|ingresso ticket")),
         (NX.i18n.get("chat.pipakite", "🪁|pipa kite")),
         (NX.i18n.get("chat.discoballfesta", "🪩|disco ball festa")),
       ],
     },
     {
+      id: "arte",
+      icon: "🎨",
+      label: (NX.i18n.get("chat.arte", "Arte e criatividade")),
+      items: [
+        "🎨|paleta palette pintura",
+        "🖌️|pincel paintbrush",
+        "🖍️|lápis de cor crayon",
+        "✏️|lápis pencil",
+        "🖊️|caneta pen",
+        "🖋️|caneta tinteiro fountain pen",
+        "📝|bloco memo nota",
+        "📐|régua triângulo triangle ruler",
+        "📏|régua ruler",
+        "✂️|tesoura scissors",
+        "🗂️|índice de arquivos index",
+        "🗃️|caixa de arquivos card box",
+        "📄|página page papel",
+        "🖼️|moldura quadro framed picture",
+        "📸|câmera com flash camera flash",
+        "🎬|claquete clapperboard cinema",
+        "🎭|teatro masks drama",
+        "🧵|linha thread costura",
+        "🧶| lã yarn tricô",
+        "🪡|agulha needle",
+        "🏺|vaso amphora cerâmica",
+      ],
+    },
+    {
+      id: "musica",
+      icon: "🎵",
+      label: (NX.i18n.get("chat.musica", "Música")),
+      items: [
+        (NX.i18n.get("chat.musicamusic", "🎵|musica music")),
+        "🎶|notas musical notes",
+        "🎤|microfone microphone",
+        "🎧|fones headphones",
+        "🎼|partitura musical score",
+        "🎹|piano keyboard",
+        "🎸|guitarra guitar",
+        "🥁|bateria drum",
+        "🎻|violino violin",
+        "🎺|trompete trumpet",
+        "🎷|saxofone sax",
+        "🪕|banjo",
+        "📯|corneta correio postal horn",
+        "🔊|alto-falante speaker",
+        "🔉|volume médio",
+        "🔈|volume baixo",
+        "🔇|mudo muted",
+        "🔔|sino bell",
+        "🔕|sino riscado no bell",
+        "📣|megafone megaphone",
+      ],
+    },
+    {
+      id: "espaco",
+      icon: "🚀",
+      label: (NX.i18n.get("chat.espaco", "Espaço e tecnologia")),
+      items: [
+        (NX.i18n.get("chat.fogueterocket", "🚀|foguete rocket")),
+        (NX.i18n.get("chat.ovniufo", "🛸|ovni ufo")),
+        (NX.i18n.get("chat.luamoon", "🌙|lua moon")),
+        (NX.i18n.get("chat.solsun", "☀️|sol sun")),
+        (NX.i18n.get("chat.estrelastar", "⭐|estrela star")),
+        (NX.i18n.get("chat.estrelabrilhante", "🌟|estrela brilhante")),
+        (NX.i18n.get("chat.girandodizzy", "💫|girando dizzy")),
+        (NX.i18n.get("chat.terraworld", "🌍|terra world")),
+        "🌎|américas terra",
+        "🌏|ásia e oceania terra",
+        (NX.i18n.get("chat.planetasaturno", "🪐|planeta saturno")),
+        "☄️|cometa comet",
+        "🌌|via láctea milky way",
+        "🌑|lua nova new moon",
+        "🌓|quarto crescente third moon",
+        "🌕|lua cheia full moon",
+        (NX.i18n.get("chat.telescopio", "🔭|telescopio")),
+        "🛰️|satélite satellite",
+        "👨‍🚀|astronauta astronaut",
+        (NX.i18n.get("chat.robotorobot", "🤖|roboto robot")),
+      ],
+    },
+    {
+      id: "simbolos",
+      icon: "✨",
+      label: (NX.i18n.get("chat.simbolos", "Símbolos e efeitos")),
+      items: [
+        (NX.i18n.get("chat.brilhossparkles", "✨|brilhos sparkles")),
+        (NX.i18n.get("chat.fogofire", "🔥|fogo fire")),
+        (NX.i18n.get("chat.raiolightning", "⚡|raio lightning")),
+        (NX.i18n.get("chat.arcoirisrainbow", "🌈|arco iris rainbow")),
+        (NX.i18n.get("chat.nuvemtempo", "⛅|nuvem tempo")),
+        (NX.i18n.get("chat.nevesnowfrio", "❄️|neve snow frio")),
+        "✅|sim check certo",
+        "❌|não cross errado",
+        "⚠️|atenção warning cuidado",
+        "❓|pergunta question",
+        "❗|exclamação exclamation",
+        "♻️|reciclar recycle",
+        "🔒|cadeado lock fechado",
+        "🔓|cadeado aberto lock open",
+        (NX.i18n.get("chat.lampadaideialight", "💡|lampada ideia light")),
+        "🔖|marcador bookmark",
+        "📍|pino local location",
+        "🚩|bandeira quadrada flag",
+        "💭|balão de pensamento thought",
+        "💬|balão de fala speech",
+        "🗯️|balão irritado speech anger",
+        "👁️|olho eye",
+        "💤|zZZ sono sleep",
+        "🌡️|termômetro thermometer",
+        "🧾|recibo receipt",
+        "©️|copyright",
+        "®️|registrado",
+        "™️|marca tm",
+        (NX.i18n.get("chat.cerebrobrain", "🧠|cerebro brain")),
+        (NX.i18n.get("chat.diamantegem", "💎|diamante gem")),
+        "🔴|círculo vermelho red circle",
+        "🟠|círculo laranja orange circle",
+        "🟡|círculo amarelo yellow circle",
+        "🟢|círculo verde green circle",
+        "🔵|círculo azul blue circle",
+        "🟣|círculo roxo purple circle",
+        "⚪|círculo branco white circle",
+        "⚫|círculo preto black circle",
+      ],
+    },
+    {
+      id: "festa",
+      icon: "🎉",
+      label: (NX.i18n.get("chat.festa", "Festa e comemorações")),
+      items: [
+        "🎉|confete party popper",
+        "🎊|bola de confete confetti ball",
+        "🎈|balão balloon",
+        (NX.i18n.get("chat.presentegift", "🎁|presente gift")),
+        (NX.i18n.get("chat.bolocake", "🎂|bolo aniversario birthday cake")),
+        "🧁|cupcake",
+        "🍾|champanhe champagne",
+        "🥂|taças toast brinde",
+        "🎆|fogos de artifício fireworks",
+        "🎇|estrelinha do foguete firecracker",
+        "🪅|piñata pinata",
+        "🎀|laço ribbon",
+        (NX.i18n.get("chat.ingressoticket", "🎫|ingresso ticket")),
+        (NX.i18n.get("chat.circocircus", "🎪|circo circus")),
+        (NX.i18n.get("chat.rodagigante", "🎡|roda gigante")),
+        "🎠|carrossel",
+        (NX.i18n.get("chat.montanharussa", "🎢|montanha russa")),
+        (NX.i18n.get("chat.festapartyaniversario", "🥳|festa party aniversario")),
+        "🎄|árvore de natal christmas tree",
+        "🎃|abóbora halloween jack o lantern",
+        "🦃|peru thanksgiving",
+      ],
+    },
+    {
+      id: "bandeiras",
+      icon: "🇧🇷",
+      label: (NX.i18n.get("chat.bandeiras", "Bandeiras e países")),
+      items: [
+        "🇧🇷|brasil brazil bandeira",
+        "🇦🇷|argentina",
+        "🇨🇱|chile",
+        "🇨🇴|colômbia colombia",
+        "🇲🇽|méxico mexico",
+        "🇵🇪|peru",
+        "🇺🇾|uruguai",
+        "🇵🇾|paraguai",
+        "🇧🇴|bolívia bolivia",
+        "🇻🇪|venezuela",
+        "🇪🇨|equador ecuador",
+        "🇵🇹|portugal",
+        "🇪🇸|espanha spain",
+        "🇫🇷|frança france",
+        "🇮🇹|itália italy",
+        "🇩🇪|alemanha germany",
+        "🇬🇧|reino unido uk grã-bretanha",
+        "🇺🇸|estados unidos eua usa",
+        "🇨🇦|canadá canada",
+        "🇯🇵|japão japan",
+        "🇨🇳|china",
+        "🇰🇷|coreia do sul korea",
+        "🇷🇺|rússia russia",
+        "🇦🇺|austrália australia",
+        "🇳🇿|nova zelândia new zealand",
+        "🇿🇦|áfrica do sul south africa",
+        "🇪🇬|egito egypt",
+        "🇮🇳|índia india",
+        "🇳🇱|holanda netherlands",
+        "🇨🇭|suíça switzerland",
+        "🇸🇪|suécia sweden",
+        "🇳🇴|noruega norway",
+        "🇫🇮|finlândia finland",
+        "🇮🇪|irlanda ireland",
+        "🇧🇪|bélgica belgium",
+        "🇦🇹|áustria austria",
+        "🇵🇱|polônia poland",
+        "🇹🇷|turquia turkey",
+        "🇦🇴|angola",
+        "🇲🇿|moçambique",
+        "🇨🇻|cabo verde",
+        "🇬🇼|guiné-bissau",
+        "🇸🇹|são tomé",
+        "🇹🇱|timor-leste timor",
+      ],
+    },
+    {
       id: "objetos",
-      icon: "box",
+      icon: "📦",
       label: (NX.i18n.get("chat.objetos", "Objetos")),
       items: [
         (NX.i18n.get("chat.carrocar", "🚗|carro car")),
@@ -692,8 +1086,6 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.motomotoqueiro", "🏍️|moto motoqueiro")),
         (NX.i18n.get("chat.bicicletabike2", "🚲|bicicleta bike")),
         (NX.i18n.get("chat.aviaoplaneviagem", "✈️|aviao plane viagem")),
-        (NX.i18n.get("chat.fogueterocket", "🚀|foguete rocket")),
-        (NX.i18n.get("chat.ovniufo", "🛸|ovni ufo")),
         "🚁|helicoptero",
         (NX.i18n.get("chat.barcoavela", "⛵|barco a vela")),
         (NX.i18n.get("chat.navioship", "🚢|navio ship")),
@@ -703,41 +1095,25 @@ window.NX = window.NX || {};
         (NX.i18n.get("chat.notebooklaptop", "💻|notebook laptop")),
         (NX.i18n.get("chat.tecladokeyboard", "⌨️|teclado keyboard")),
         (NX.i18n.get("chat.mouseclique", "🖱️|mouse clique")),
-        (NX.i18n.get("chat.lampadaideialight", "💡|lampada ideia light")),
         (NX.i18n.get("chat.chavekey", "🔑|chave key")),
         (NX.i18n.get("chat.despertadorrelogio", "⏰|despertador relogio")),
-        (NX.i18n.get("chat.presentegift", "🎁|presente gift")),
-      ],
-    },
-    {
-      id: "outros",
-      icon: "sparkles",
-      label: (NX.i18n.get("chat.outros", "Outros")),
-      items: [
-        (NX.i18n.get("chat.brilhossparkles", "✨|brilhos sparkles")),
-        (NX.i18n.get("chat.arcoirisrainbow", "🌈|arco iris rainbow")),
-        (NX.i18n.get("chat.estrelastar", "⭐|estrela star")),
-        (NX.i18n.get("chat.estrelabrilhante", "🌟|estrela brilhante")),
-        (NX.i18n.get("chat.girandodizzy", "💫|girando dizzy")),
-        (NX.i18n.get("chat.luamoon", "🌙|lua moon")),
-        (NX.i18n.get("chat.solsun", "☀️|sol sun")),
-        (NX.i18n.get("chat.nuvemtempo", "⛅|nuvem tempo")),
-        (NX.i18n.get("chat.nevesnowfrio", "❄️|neve snow frio")),
-        (NX.i18n.get("chat.ondawavemar", "🌊|onda wave mar")),
-        (NX.i18n.get("chat.brotoplant", "🌱|broto plant")),
-        "🌵|cacto",
-        "🌴|palmeira",
-        (NX.i18n.get("chat.fogofire", "🔥|fogo fire")),
-        (NX.i18n.get("chat.gotaagua", "💧|gota agua")),
-        (NX.i18n.get("chat.raiolightning", "⚡|raio lightning")),
-        (NX.i18n.get("chat.terraworld", "🌍|terra world")),
-        (NX.i18n.get("chat.planetasaturno", "🪐|planeta saturno")),
-        "🛰️|satelite",
-        "🔭|telescopio",
-        (NX.i18n.get("chat.cerebrobrain", "🧠|cerebro brain")),
-        (NX.i18n.get("chat.robotorobot", "🤖|roboto robot")),
-        (NX.i18n.get("chat.diamantegem", "💎|diamante gem")),
-        (NX.i18n.get("chat.musicamusic", "🎵|musica music")),
+        "⌚|relógio watch",
+        "💰|saco de dinheiro money bag",
+        "💵|dólar bill",
+        "💳|cartão credit card",
+        "📦|caixa package",
+        "📫|caixa de correio mailbox",
+        "✉️|envelope email carta",
+        "📌|tack alfinete pin",
+        "📎|clipe paperclip",
+        "📁|pasta folder",
+        "🧳|mala luggage viagem",
+        "👓|óculos glasses",
+        "👔|gravata tie",
+        "👟|tênis shoe sapato",
+        "🧸|ursinho de pelúcia teddy bear",
+        "🔋|pilha battery",
+        "🔌|tomada plug",
       ],
     },
   ];
@@ -770,6 +1146,52 @@ window.NX = window.NX || {};
     return list;
   }
 
+  /* ---------------- recentes e favoritos (por aparelho) ----------------
+     Guardados no localStorage de quem usa — nada sobe para o servidor e
+     cada aba/rota reaproveita o mesmo painel. Falha de leitura/escrita
+     (modo privado, cota) derruba só a lista, nunca o seletor. */
+  const EMOJI_LS_RECENT = "nx.emoji.recent";
+  const EMOJI_LS_FAV = "nx.emoji.fav";
+  const EMOJI_LS_CAP = 30;
+
+  function emojiLoadList(key) {
+    try {
+      const v = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(v) ? v.filter((e) => typeof e === "string" && e).slice(0, EMOJI_LS_CAP) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function emojiSaveList(key, list) {
+    try {
+      localStorage.setItem(key, JSON.stringify(list.slice(0, EMOJI_LS_CAP)));
+    } catch (e) {
+      /* armazenamento indisponível: segue sem persistir */
+    }
+  }
+
+  function emojiRemember(emoji) {
+    if (!emoji) return;
+    const list = emojiLoadList(EMOJI_LS_RECENT).filter((e) => e !== emoji);
+    list.unshift(emoji);
+    emojiSaveList(EMOJI_LS_RECENT, list);
+  }
+
+  function emojiFavHas(emoji) {
+    return !!emoji && emojiLoadList(EMOJI_LS_FAV).indexOf(emoji) > -1;
+  }
+
+  function emojiFavToggle(emoji) {
+    if (!emoji) return false;
+    const list = emojiLoadList(EMOJI_LS_FAV);
+    const i = list.indexOf(emoji);
+    if (i > -1) list.splice(i, 1);
+    else list.unshift(emoji);
+    emojiSaveList(EMOJI_LS_FAV, list);
+    return i === -1;
+  }
+
   chat.openEmojiPicker = function (anchor, onPick, opts) {
     anchor = visibleAnchor(anchor);
     if (!anchor) return null;
@@ -779,13 +1201,24 @@ window.NX = window.NX || {};
     const showServer = !!serverId && (opts.server !== false);
     let tab = opts.tab || "geral";
     let query = "";
+    let current = null; /* emoji sob o cursor/foco (alvo da estrela) */
 
     if (tab === "server" && !showServer) tab = "geral";
 
-    const tabs = [{ id: "geral", icon: "smile", label: NX.i18n.get("chat.rostosCategorias", "Rostos e categorias") }].concat(
-      EMOJI_CATS.slice(1).map((c) => ({ id: c.id, icon: c.icon, label: c.label })),
-      showServer ? [{ id: "server", icon: "star", label: NX.i18n.get("chat.servidor", "Do servidor") }] : []
-    );
+    /* “Recentes” só aparece depois do primeiro uso; “Favoritos”
+       fica sempre visível (com aviso vazio ensinando a estrela) */
+    const tabs = []
+      .concat(
+        emojiLoadList(EMOJI_LS_RECENT).length
+          ? [{ id: "recentes", icon: "🕐", label: NX.i18n.get("chat.emojiRecentes", "Usados recentemente") }]
+          : []
+      )
+      .concat([{ id: "favoritos", icon: "⭐", label: NX.i18n.get("chat.emojiFavoritos", "Favoritos") }])
+      .concat(
+        [{ id: "geral", icon: "smile", label: NX.i18n.get("chat.rostosCategorias", "Populares e categorias") }],
+        EMOJI_CATS.slice(1).map((c) => ({ id: c.id, icon: c.icon, label: c.label })),
+        showServer ? [{ id: "server", icon: "star", label: NX.i18n.get("chat.servidor", "Do servidor") }] : []
+      );
 
     const tabsHTML = tabs
       .map(
@@ -807,7 +1240,12 @@ window.NX = window.NX || {};
       '<div class="cm-picker__body"><div class="cm-picker__grid" data-cm-grid role="grid" ' +
       'aria-label="' + NX.i18n.get("adm.emojis", "Emojis") + '"></div></div>' +
       '<div class="cm-picker__foot"><span class="cm-picker__preview" data-cm-preview aria-live="polite">' +
-      (NX.i18n.get("chat.escolhaumemoji", "Escolha um emoji") + "</span></div>") +
+      (NX.i18n.get("chat.escolhaumemoji", "Escolha um emoji") + "</span>") +
+      '<button type="button" class="cm-picker__fav" data-cm-fav aria-pressed="false" hidden' +
+      ' aria-label="' + NX.i18n.get("chat.emojiFavoritar", "Favoritar este emoji") + '"' +
+      ' title="' + NX.i18n.get("chat.emojiFavoritar", "Favoritar este emoji") + '">' +
+      NX.icon("star", "", 15) +
+      "</button></div>" +
       "</div>";
 
     const el = NX.ui.popout(anchor, html, {
@@ -821,6 +1259,7 @@ window.NX = window.NX || {};
     const grid = el.querySelector("[data-cm-grid]");
     const preview = el.querySelector("[data-cm-preview]");
     const input = el.querySelector("[data-cm-search]");
+    const starBtn = el.querySelector("[data-cm-fav]");
 
     function cellHTML(e) {
       return (
@@ -840,11 +1279,44 @@ window.NX = window.NX || {};
       );
     }
 
+    /* emoji guardado (recente/favorito) que ainda existe no banco */
+    function entryOf(emoji) {
+      const found = EMOJI_INDEX.filter((e) => e.emoji === emoji)[0];
+      return found || { emoji: emoji, names: emoji };
+    }
+
+    function listCells(list) {
+      return list.map((em) => cellHTML(entryOf(em))).join("");
+    }
+
+    /* estrela do rodapé: reflete o emoji sob o cursor/foco */
+    function setStar(emoji) {
+      current = emoji || null;
+      if (!starBtn) return;
+      const on = emojiFavHas(emoji);
+      starBtn.hidden = !emoji;
+      starBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      const lbl = on
+        ? NX.i18n.get("chat.emojiDesfavoritar", "Remover dos favoritos")
+        : NX.i18n.get("chat.emojiFavoritar", "Favoritar este emoji");
+      starBtn.setAttribute("aria-label", lbl);
+      starBtn.setAttribute("title", lbl);
+    }
+
     function renderGrid() {
       let cells = "";
       if (query) {
         const q = u().normalize(query);
-        const found = EMOJI_INDEX.filter((e) => e.hay.indexOf(q) !== -1).slice(0, 120);
+        /* dedupe: “Populares” repete emojis das categorias — na
+           busca aparece uma vez só */
+        const seen = {};
+        const found = EMOJI_INDEX.filter((e) => e.hay.indexOf(q) !== -1)
+          .filter((e) => {
+            if (seen[e.emoji]) return false;
+            seen[e.emoji] = true;
+            return true;
+          })
+          .slice(0, 120);
         cells = found.map(cellHTML).join("");
         if (showServer) {
           const sv = serverEmojiList(serverId, perms.custom !== false).filter(
@@ -852,6 +1324,22 @@ window.NX = window.NX || {};
           );
           cells += sv.map(serverCellHTML).join("");
         }
+      } else if (tab === "recentes") {
+        const list = emojiLoadList(EMOJI_LS_RECENT);
+        if (!list.length) {
+          grid.innerHTML =
+            ("<div class=\"cm-empty\">" + NX.i18n.get("chat.emojiNenhumRecente", "Os emojis que você usar por aqui aparecem nesta aba.") + "</div>");
+          return;
+        }
+        cells = listCells(list);
+      } else if (tab === "favoritos") {
+        const list = emojiLoadList(EMOJI_LS_FAV);
+        if (!list.length) {
+          grid.innerHTML =
+            ("<div class=\"cm-empty\">" + NX.i18n.get("chat.emojiNenhumFavorito", "Passe o cursor em um emoji e toque na estrela para guardá-lo aqui.") + "</div>");
+          return;
+        }
+        cells = listCells(list);
       } else if (tab === "server") {
         const sv = serverEmojiList(serverId, perms.custom !== false);
         cells = sv.map(serverCellHTML).join("");
@@ -870,19 +1358,36 @@ window.NX = window.NX || {};
     grid.addEventListener("click", (e) => {
       const b = e.target.closest(".cm-emj");
       if (!b) return;
-      const value = b.getAttribute("data-token") || b.getAttribute("data-e");
+      const token = b.getAttribute("data-token");
+      const value = token || b.getAttribute("data-e");
       NX.ui.closePopout();
+      /* emoji do servidor é token <nome>, não entra nos recentes */
+      if (!token && value) emojiRemember(value);
       if (typeof onPick === "function" && value) onPick(value);
     });
 
-    grid.addEventListener("mouseover", (e) => {
-      const b = e.target.closest(".cm-emj");
+    function hoverCell(b) {
       if (!b || !preview) return;
       const g = b.querySelector(".cm-emj__g");
       preview.innerHTML =
         (g ? '<span class="cm-picker__preview-e">' + g.textContent + "</span>" : "") +
         '<span class="cm-picker__preview-t">' + u().h(b.getAttribute("data-name") || "") + "</span>";
-    });
+      setStar(b.getAttribute("data-token") ? null : b.getAttribute("data-e"));
+    }
+
+    grid.addEventListener("mouseover", (e) => hoverCell(e.target.closest(".cm-emj")));
+    /* teclado: Tab/Setas entre células atualizam prévia e estrela */
+    grid.addEventListener("focusin", (e) => hoverCell(e.target.closest(".cm-emj")));
+
+    if (starBtn) {
+      starBtn.addEventListener("click", () => {
+        if (!current) return;
+        emojiFavToggle(current);
+        setStar(current);
+        if (tab === "favoritos") renderGrid(); /* some/aparece na hora */
+        starBtn.focus();
+      });
+    }
 
     el.querySelectorAll(".cm-picker__tab").forEach((btn) => {
       btn.addEventListener("click", () => {

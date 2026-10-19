@@ -66,6 +66,170 @@ window.NX = window.NX || {};
     });
   }
 
+  /* =========================================================
+     UPLOAD DE ÍCONE DE SERVIDOR
+     Substitui a antiga grade de emojis + paleta de cores nos
+     diálogos de servidor: prévia arredondada, botão “+” e
+     “remover”. O arquivo é redimensionado no navegador e o
+     servidor valida de novo (PNG/JPG/WEBP, teto de tamanho).
+     `swatches`/`emojiGrid` continuam existindo para o editor
+     legado de perfil — a mudança é só nos ícones de servidor.
+     ========================================================= */
+  const ICON_TYPES = ["image/png", "image/jpeg", "image/webp"];
+  const ICON_SRC_MAX = 8 * 1024 * 1024; /* arquivo original escolhido */
+  const ICON_MAX_PX = 512; /* lado maior depois de redimensionar */
+  const ICON_OUT_MAX = 900000; /* mesmo teto do servidor */
+
+  function iconPrevHTML(st, fallbackText) {
+    return st.image
+      ? '<img src="' + u().h(st.image) + '" alt="">'
+      : u().h(fallbackText || "");
+  }
+
+  function iconUploadHTML(st, fallbackText) {
+    return (
+      '<div class="icon-upload" data-icon-upload>' +
+      '<span class="icon-upload__prev" data-iup-prev style="--sv:' + u().h(st.color || u().colorFor("novo")) + '">' +
+      iconPrevHTML(st, fallbackText) +
+      "</span>" +
+      '<div class="icon-upload__acts">' +
+      '<div class="icon-upload__row">' +
+      '<button type="button" class="btn btn--soft btn--sm" data-iup-pick>' +
+      NX.icon("plus", "", 15) +
+      "<span>" + NX.i18n.get("modal.iconeEscolherImagem", "Escolher imagem") + "</span></button>" +
+      '<button type="button" class="btn btn--ghost btn--sm" data-iup-clear' + (st.image ? "" : " hidden") + ">" +
+      NX.icon("x", "", 14) +
+      "<span>" + NX.i18n.get("modal.iconeRemoverImagem", "Remover") + "</span></button>" +
+      "</div>" +
+      '<span class="icon-upload__hint">' +
+      NX.i18n.get("modal.iconeUploadDica", "PNG, JPG ou WEBP · a imagem é redimensionada para até 512 px") +
+      "</span>" +
+      '<span class="icon-upload__err" data-iup-err hidden></span>' +
+      "</div>" +
+      '<input type="file" accept="image/png,image/jpeg,image/webp" data-iup-file tabindex="-1" aria-hidden="true">' +
+      "</div>"
+    );
+  }
+
+  function readIconImage(file) {
+    return new Promise((resolve) => {
+      const badFile = NX.i18n.get("modal.iconeFormatoInvalido", "Formato inválido. Use uma imagem PNG, JPG ou WEBP.");
+      const tooBig = NX.i18n.get("modal.iconeGrandeDemais", "Arquivo grande demais. Use uma imagem de até 8 MB.");
+      const unreadable = NX.i18n.get("modal.iconeFalhaLeitura", "Não foi possível ler esta imagem.");
+      if (!file) return resolve({ error: badFile });
+      if (ICON_TYPES.indexOf(file.type) === -1) return resolve({ error: badFile });
+      if (file.size > ICON_SRC_MAX) return resolve({ error: tooBig });
+      const fr = new FileReader();
+      fr.onerror = () => resolve({ error: unreadable });
+      fr.onload = () => {
+        const src = String(fr.result || "");
+        const img = new Image();
+        img.onerror = () => resolve({ error: unreadable });
+        img.onload = () => {
+          try {
+            let w = img.naturalWidth || 1;
+            let hgt = img.naturalHeight || 1;
+            const scale = Math.min(1, ICON_MAX_PX / Math.max(w, hgt));
+            w = Math.max(1, Math.round(w * scale));
+            hgt = Math.max(1, Math.round(hgt * scale));
+            const c = document.createElement("canvas");
+            c.width = w;
+            c.height = hgt;
+            const ctx = c.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, hgt);
+            /* PNG mantém transparência; foto segue JPEG/WEBP para
+               o arquivo ficar pequeno no banco */
+            const mime = file.type === "image/jpeg" ? "image/jpeg" : file.type === "image/webp" ? "image/webp" : "image/png";
+            let out = "";
+            try {
+              out = c.toDataURL(mime, 0.85);
+            } catch (e) {
+              out = "";
+            }
+            if (!out || out.indexOf("data:image/") !== 0) {
+              try {
+                out = c.toDataURL("image/png");
+              } catch (e) {
+                out = "";
+              }
+            }
+            if (!out || out.indexOf("data:image/") !== 0) return resolve({ error: unreadable });
+            if (out.length > ICON_OUT_MAX)
+              return resolve({
+                error: NX.i18n.get("modal.iconeImagemProntaGrande", "Esta imagem ficou grande demais. Tente uma menor."),
+              });
+            resolve({ data: out });
+          } catch (err) {
+            resolve({ error: unreadable });
+          }
+        };
+        img.src = src;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  /* root = formulário/modal que contém o widget; st = estado com
+     { image, imageDirty }; getFallback devolve o texto (iniciais)
+     enquanto não há imagem. */
+  function bindIconUpload(root, st, getFallback) {
+    const box = root.querySelector("[data-icon-upload]");
+    if (!box) return;
+    const file = box.querySelector("[data-iup-file]");
+    const prev = box.querySelector("[data-iup-prev]");
+    const errBox = box.querySelector("[data-iup-err]");
+    const clearBtn = box.querySelector("[data-iup-clear]");
+    const pickBtn = box.querySelector("[data-iup-pick]");
+
+    function showErr(msg) {
+      if (!errBox) return;
+      errBox.textContent = msg || "";
+      errBox.hidden = !msg;
+    }
+
+    function repaint() {
+      if (prev) prev.innerHTML = iconPrevHTML(st, typeof getFallback === "function" ? getFallback() : "");
+      if (clearBtn) clearBtn.hidden = !st.image;
+    }
+
+    if (pickBtn && file) {
+      pickBtn.addEventListener("click", () => {
+        showErr("");
+        try {
+          file.value = "";
+          file.click();
+        } catch (e) {}
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        st.image = null;
+        st.imageDirty = true;
+        showErr("");
+        repaint();
+        if (st.onIconChange) st.onIconChange();
+      });
+    }
+    if (file) {
+      file.addEventListener("change", () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        readIconImage(f).then((res) => {
+          if (res.error) {
+            showErr(res.error);
+            return;
+          }
+          showErr("");
+          st.image = res.data;
+          st.imageDirty = true;
+          repaint();
+          if (st.onIconChange) st.onIconChange();
+        });
+      });
+    }
+    repaint();
+  }
+
   function formData(form) {
     return Object.fromEntries(new FormData(form).entries());
   }
@@ -100,7 +264,7 @@ window.NX = window.NX || {};
      CRIAR SERVIDOR
      ========================================================= */
   M.createServer = function () {
-    const state = { emoji: "", color: u().colorFor("novo"), templateId: "comunidade" };
+    const state = { image: null, imageDirty: false, color: u().colorFor("novo"), templateId: "comunidade" };
     const footer = u().el(
       ACTIONS(
         ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
@@ -126,7 +290,7 @@ window.NX = window.NX || {};
       ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
       '<input class="input" name="name" maxlength="40" placeholder="' + NX.i18n.get("ui.excomunidadeaurora", "Ex.: Comunidade Aurora") + '" data-autofocus /></label>' +
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.iconedoservidor", "Ícone do servidor") + "</span>") +
-      '<div class="icon-picker">' + emojiGrid(state.emoji) + swatches(state.color, "pick-color") + "</div></div>" +
+      iconUploadHTML(state, u().initials(NX.i18n.get("modal.meuServidor", "Meu servidor"))) + "</div>" +
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.estruturainicial", "Estrutura inicial") + "</span>") +
       '<div class="template-grid">' +
       NX.TEMPLATES.map(
@@ -143,15 +307,19 @@ window.NX = window.NX || {};
     const preview = m.body.querySelector("[data-server-preview]");
     const namePrev = m.body.querySelector("[data-name-preview]");
 
+    const fallbackText = () =>
+      u().initials((form.elements.name.value || "").trim() || NX.i18n.get("modal.meuServidor", "Meu servidor"));
+
     const paintPreview = () => {
       const nm = (form.elements.name.value || "").trim();
-      /* sem emoji escolhido o ícone mostra as iniciais — nunca um
-         emoji de sistema no padrão */
-      preview.textContent = state.emoji || u().initials(nm || NX.i18n.get("modal.meuServidor", "Meu servidor"));
+      /* sem foto o ícone mostra as iniciais — nunca um emoji de
+         sistema no padrão */
+      preview.innerHTML = state.image
+        ? '<img src="' + u().h(state.image) + '" alt="">'
+        : u().h(u().initials(nm || NX.i18n.get("modal.meuServidor", "Meu servidor")));
       preview.style.setProperty("--sv", state.color);
     };
-    state.onPick = paintPreview;
-    bindPickers(m.body, state);
+    bindIconUpload(m.body, state, fallbackText);
 
     form.addEventListener("input", () => {
       namePrev.textContent = form.elements.name.value.trim() || NX.i18n.get("modal.meuServidor", "Meu servidor");
@@ -173,8 +341,7 @@ window.NX = window.NX || {};
         btn,
         api().createServer({
           name: formData(form).name,
-          emoji: state.emoji,
-          color: state.color,
+          icon: { image: state.image },
           templateId: state.templateId,
         }),
         form,
@@ -1042,12 +1209,12 @@ window.NX = window.NX || {};
 
     function generalTab() {
       const s = S().server(serverId);
-      const state = { emoji: s.icon.emoji, color: s.icon.color };
+      const state = { image: (s.icon && s.icon.image) || null, imageDirty: false, color: s.icon.color };
       const html =
         '<form id="form-general" class="form" novalidate>' +
         ("<h3 class=\"settings__title\">" + NX.i18n.get("modal.aparenciadoservidor", "Aparência do servidor") + "</h3>") +
         '<div class="server-preview"><span class="server-preview__icon" data-gp style="--sv:' + state.color + '">' +
-        u().h(state.emoji || u().initials(s.name)) + "</span>" +
+        (state.image ? '<img src="' + u().h(state.image) + '" alt="">' : u().h(u().initials(s.name))) + "</span>" +
         '<div class="server-preview__txt"><strong data-gn>' + u().h(s.name) + "</strong>" +
         "<span>" + u().plural(S().memberCount(s.id), "membro", "membros") + "</span></div></div>" +
         ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
@@ -1057,8 +1224,8 @@ window.NX = window.NX || {};
         '<textarea class="input input--area" name="description" rows="2" maxlength="240" placeholder="' + NX.i18n.get("ui.oqueaconteceaqui", "O que acontece aqui?") + '"' +
         (canManage ? "" : " disabled") + ">" + u().h(s.description || "") + "</textarea></label>" +
         (canManage
-          ? ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.icone", "Ícone") + "</span><div class=\"icon-picker\">") +
-            emojiGrid(state.emoji) + swatches(state.color, "pick-color") + "</div></div>" +
+          ? ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.icone", "Ícone") + "</span>") +
+            iconUploadHTML(state, u().initials(s.name)) + "</div>" +
             ("<label class=\"perm-row\"><span class=\"perm-row__txt\"><strong>" + NX.i18n.get("adm.mostrarnoexplorar", "Mostrar no explorar") + "</strong>") +
             ("<small>" + NX.i18n.get("adm.deixaacomunidadevisivelnodiretorio", "Deixa a comunidade visível no diretório público.") + "</small></span>") +
             '<span class="switch"><input type="checkbox" name="discoverable"' +
@@ -1079,14 +1246,16 @@ window.NX = window.NX || {};
           const gp = root.querySelector("[data-gp]");
           const gn = root.querySelector("[data-gn]");
           const st = state;
-          st.onPick = () => {
-            gp.textContent = st.emoji || u().initials(form.elements.name.value.trim() || s.name);
+          st.onIconChange = () => {
+            gp.innerHTML = st.image
+              ? '<img src="' + u().h(st.image) + '" alt="">'
+              : u().h(u().initials(form.elements.name.value.trim() || s.name));
             gp.style.setProperty("--sv", st.color);
           };
-          bindPickers(form, st);
+          bindIconUpload(form, st, () => u().initials(form.elements.name.value.trim() || s.name));
           form.addEventListener("input", () => {
             gn.textContent = form.elements.name.value.trim() || s.name;
-            if (!st.emoji) gp.textContent = u().initials(form.elements.name.value.trim() || s.name);
+            if (!st.image) gp.textContent = u().initials(form.elements.name.value.trim() || s.name);
           });
           form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -1094,12 +1263,19 @@ window.NX = window.NX || {};
             const d = formData(form);
             runTask(
               form.querySelector('button[type="submit"]'),
-              api().updateServer(serverId, {
-                name: d.name,
-                description: d.description,
-                icon: { emoji: st.emoji, color: st.color },
-                discoverable: !!d.discoverable,
-              }),
+              api().updateServer(
+                serverId,
+                Object.assign(
+                  {
+                    name: d.name,
+                    description: d.description,
+                    discoverable: !!d.discoverable,
+                  },
+                  /* a imagem só vai quando foi trocada/removida —
+                     preserva o ícone atual do servidor */
+                  st.imageDirty ? { icon: { image: st.image } } : {}
+                )
+              ),
               form,
               () => {
                 NX.ui.toast(NX.i18n.get("adm.configuracoesSalvas", "Configurações salvas."), "success");
@@ -2243,6 +2419,11 @@ window.NX = window.NX || {};
       { align: "start", side: "top" }
     );
   };
+
+  /* widget de ícone compartilhado: usado nos modais daqui (criar
+     servidor / configurações legado) e no painel NX.admin */
+  M.iconUploadHTML = iconUploadHTML;
+  M.bindIconUpload = bindIconUpload;
 
   NX.modals = M;
 })(window.NX);
