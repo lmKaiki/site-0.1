@@ -1044,6 +1044,8 @@ window.NX = window.NX || {};
         description: (data || {}).description,
         emoji: (data || {}).emoji,
         color: (data || {}).color,
+        glyphColor: (data || {}).glyphColor,
+        mode: (data || {}).mode,
         icon: (data || {}).icon,
         templateId: (data || {}).templateId,
       });
@@ -1057,6 +1059,17 @@ window.NX = window.NX || {};
 
   wrap("updateServer", (serverId, patch) =>
     PATCHQ("/servers/" + enc(serverId), patch || {}), ["servers"]);
+
+  /* diretório público: a lista vem do endpoint /explore (servidores
+     com discoverable=true, inclusive os de outras pessoas). Guardamos
+     em store.explore — fora do db — para nunca virar membership. */
+  wrap("exploreServers", async function () {
+    const list = await GET("/explore");
+    const rows = Array.isArray(list) ? list : [];
+    NX.store.explore = rows;
+    commit(["explore"]);
+    return rows;
+  }, []);
 
   wrap(
     "deleteServer",
@@ -1189,6 +1202,38 @@ window.NX = window.NX || {};
     "roles",
     "members",
   ]);
+
+  /* -------------------------- emojis e figurinhas ----------------
+     Persistência REAL: o acervo mora no banco do servidor, então o
+     reload e a outra conta enxergam o que foi criado aqui. */
+  wrap(
+    "createEmoji",
+    (serverId, data) =>
+      POST("/servers/" + enc(serverId) + "/emojis", {
+        name: (data || {}).name,
+        image: (data || {}).image,
+      }),
+    ["emojis"]
+  );
+  wrap("updateEmoji", (emojiId, patch) => PATCHQ("/emojis/" + enc(emojiId), patch || {}), ["emojis"]);
+  wrap("deleteEmoji", (emojiId) => DEL("/emojis/" + enc(emojiId)), ["emojis"]);
+
+  wrap(
+    "createSticker",
+    (serverId, data) =>
+      POST("/servers/" + enc(serverId) + "/stickers", {
+        name: (data || {}).name,
+        description: (data || {}).description,
+        image: (data || {}).image,
+      }),
+    ["stickers"]
+  );
+  wrap(
+    "updateSticker",
+    (stickerId, patch) => PATCHQ("/stickers/" + enc(stickerId), patch || {}),
+    ["stickers"]
+  );
+  wrap("deleteSticker", (stickerId) => DEL("/stickers/" + enc(stickerId)), ["stickers"]);
 
   /* -------------------------- membros -------------------------- */
   wrap(

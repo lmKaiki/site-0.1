@@ -120,6 +120,8 @@ CREATE TABLE IF NOT EXISTS servers (
   description TEXT,
   is_official INTEGER,
   official_key TEXT,
+  discoverable INTEGER NOT NULL DEFAULT 0,
+  appearance TEXT,
   created_at TEXT,
   updated_at TEXT
 );
@@ -141,7 +143,9 @@ CREATE TABLE IF NOT EXISTS roles (
   color TEXT,
   position INTEGER,
   permissions TEXT,
-  created_at TEXT
+  created_at TEXT,
+  icon TEXT,
+  description TEXT
 );
 CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
@@ -264,7 +268,28 @@ CREATE TABLE IF NOT EXISTS ticket_panels (
   created_at TEXT,
   updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS emojis (
+  id TEXT PRIMARY KEY,
+  server_id TEXT,
+  name TEXT,
+  image TEXT,
+  created_by TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS stickers (
+  id TEXT PRIMARY KEY,
+  server_id TEXT,
+  name TEXT,
+  description TEXT,
+  image TEXT,
+  created_by TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
 CREATE INDEX IF NOT EXISTS idx_server_apps_server ON server_apps(server_id, app_id);
+CREATE INDEX IF NOT EXISTS idx_emojis_server ON emojis(server_id, name);
+CREATE INDEX IF NOT EXISTS idx_stickers_server ON stickers(server_id, name);
 CREATE INDEX IF NOT EXISTS idx_voice_server ON voice(server_id);
 CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver ON friend_requests(receiver_id, status);
 CREATE INDEX IF NOT EXISTS idx_friend_requests_sender ON friend_requests(sender_id, status);
@@ -323,6 +348,18 @@ function addColumnIfMissing(table, column, type) {
 }
 
 function upgradeAdditive() {
+  /* migração 0001 (aparência e descoberta do servidor) — sem estas
+     colunas o "Mostrar no explorar" respondia 503 schema_pending no
+     banco local: o mapa só persiste `discoverable` quando a coluna
+     existe. DEFAULT 0 mantém todos os servidores atuais privados. */
+  addColumnIfMissing("servers", "discoverable", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("servers", "appearance", "TEXT");
+  /* cargos personalizados (migração 0005): o editor de cargo já
+     mostrava ícone e descrição, mas a tabela não tinha as colunas —
+     o createRole descartava os dois em silêncio. Colunas nulas não
+     quebram cargo nenhum existente. */
+  addColumnIfMissing("roles", "icon", "TEXT");
+  addColumnIfMissing("roles", "description", "TEXT");
   addColumnIfMissing("channels", "created_by", "TEXT");
   addColumnIfMissing("channels", "overrides", "TEXT");
   /* migração 0004 (grupos privados nas DMs) — equivalente local do
@@ -334,6 +371,12 @@ function upgradeAdditive() {
   addColumnIfMissing("dms", "member_count", "INTEGER");
   /* mensagens de sistema do grupo precisam do tipo na tabela local */
   addColumnIfMissing("dm_messages", "type", "TEXT");
+  /* reações (migração 0001): sem esta coluna, reagir respondia 503
+     schema_pending no banco local — inclusive para emojis
+     personalizados. DEFAULT '{}' mantém as mensagens atuais sem
+     reação nenhuma, igual ao Supabase. */
+  addColumnIfMissing("messages", "reactions", "TEXT");
+  addColumnIfMissing("dm_messages", "reactions", "TEXT");
   /* membros duplicados não existem: o índice único é o piso do
      "não contar o mesmo usuário duas vezes" também no motor local */
   try {

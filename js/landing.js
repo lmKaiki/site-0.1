@@ -77,15 +77,10 @@ window.NX = window.NX || {};
         { label: (NX.i18n.get("adm.seguranca", "Segurança")), target: "sec-seguranca" },
       ],
     },
-    {
-      title: (NX.i18n.get("landing.ajuda", "Ajuda")),
-      links: [
-        { label: NX.i18n.get("landing.centralAjuda", "Central de ajuda"), route: "#/ajuda" },
-        { label: (NX.i18n.get("landing.suporte", "Suporte")), route: "#/suporte" },
-        { label: (NX.i18n.get("landing.termos", "Termos")), route: "#/termos" },
-        { label: (NX.i18n.get("landing.privacidade", "Privacidade")), route: "#/privacidade" },
-      ],
-    },
+    /* O rodapé ficou só com a identidade (Nexo + Sobre o Nexo) e a
+       coluna Plataforma: as colunas "Ajuda" e "Redes" foram removidas
+       a pedido. As páginas #/ajuda, #/suporte, #/termos e #/privacidade
+       continuam existindo — apenas perderam este atalho no rodapé. */
   ];
 
   /* Painel do herói: só descreve capacidades REAIS do produto.

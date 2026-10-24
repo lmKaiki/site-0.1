@@ -837,6 +837,26 @@ window.NX = window.NX || {};
   /* =========================================================
      SERVIDORES
      ========================================================= */
+  /* diretório público (Explorar): ONLINE o remote.js busca o
+     /api/explore; OFFLINE devolve os servidores descobertos que já
+     estão no cache (necessário ser membro — modo demonstração). */
+  api.exploreServers = async function () {
+    await delay();
+    return Object.values(db().servers)
+      .filter((s) => s.discoverable)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description || "",
+        icon: s.icon || null,
+        banner: s.banner || null,
+        isOfficial: !!s.isOfficial,
+        createdAt: s.createdAt || null,
+        discoverable: true,
+        memberCount: S().memberCount(s.id),
+      }));
+  };
+
   api.createServer = async function (data) {
     await delay();
     const me = S().me();
@@ -853,6 +873,8 @@ window.NX = window.NX || {};
       icon: {
         emoji: data.emoji || "",
         color: data.color || u().colorFor(id),
+        glyphColor: data.glyphColor || null,
+        mode: data.mode === "logo" || data.mode === "image" ? data.mode : null,
         image: iconImage(data.icon && data.icon.image),
       },
       banner: null,
@@ -940,6 +962,9 @@ window.NX = window.NX || {};
     if (patch.icon !== undefined) {
       const next = Object.assign({}, s.icon, patch.icon);
       next.image = iconImage(next.image);
+      /* modo do logo: só "image"/"logo"; o resto volta ao padrão */
+      next.mode =
+        next.mode === "logo" || next.mode === "image" ? next.mode : null;
       s.icon = next;
       changed.push((NX.i18n.get("api.icone", "ícone")));
     }
@@ -1184,8 +1209,9 @@ window.NX = window.NX || {};
       serverId: serverId,
       name: name.slice(0, 30),
       color: data.color || "#35e0a8",
-      icon: String(data.icon || "").slice(0, 4),
-      description: String(data.description || "").slice(0, 120),
+      /* espelho do backend: ícone nomeado ou emoji, descrição curta */
+      icon: String(data.icon || "").trim().slice(0, 12) || null,
+      description: String(data.description || "").trim().slice(0, 160) || null,
       position: count,
       isDefault: false,
       permissions: perms,
@@ -1201,16 +1227,21 @@ window.NX = window.NX || {};
     await delay();
     const role = S().role(roleId);
     if (!role) fail(NX.i18n.get("api.cargoNaoEncontrado2", "Cargo não encontrado."));
-    requirePerm(role.serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao4", "Você não tem permissão para editar cargos."));
+    /* espelho da guarda do backend: dono/administrator passam; o resto
+       não mexe em cargo acima do próprio na hierarquia */
+    if (!S().canManageRole(role.serverId, role))
+      fail(NX.i18n.get("api.cargoAcimaHierarquia", "Você não pode editar um cargo acima do seu na hierarquia."));
     if (patch.name !== undefined) {
       const n = String(patch.name).trim();
       if (n.length < 2) fail(NX.i18n.get("api.nomeCargoPrecisaPelo", "O nome do cargo precisa de pelo menos 2 caracteres."));
       role.name = n.slice(0, 30);
     }
     if (patch.color !== undefined) role.color = patch.color;
-    if (patch.icon !== undefined) role.icon = String(patch.icon || "").slice(0, 4);
+    /* espelho do sanitizeRoleIcon do servidor: aceita nome de ícone
+       SVG (ex.: "crown") ou emoji — nunca mais 12 caracteres */
+    if (patch.icon !== undefined) role.icon = String(patch.icon || "").trim().slice(0, 12);
     if (patch.description !== undefined)
-      role.description = String(patch.description || "").slice(0, 120);
+      role.description = String(patch.description || "").trim().slice(0, 160);
     if (patch.position !== undefined) role.position = patch.position;
     if (patch.permissions !== undefined) {
       const perms = {};
@@ -1226,7 +1257,8 @@ window.NX = window.NX || {};
     await delay();
     const role = S().role(roleId);
     if (!role) fail(NX.i18n.get("api.cargoNaoEncontrado2", "Cargo não encontrado."));
-    requirePerm(role.serverId, "manageRoles", NX.i18n.get("api.voceNaoTemPermissao5", "Você não tem permissão para apagar cargos."));
+    if (!S().canManageRole(role.serverId, role))
+      fail(NX.i18n.get("api.cargoAcimaHierarquia2", "Você não pode excluir um cargo acima do seu na hierarquia."));
     if (role.isDefault) fail(NX.i18n.get("adm.cargoPadraoNaoPode", "O cargo padrão não pode ser excluído."));
     const def = S().defaultRole(role.serverId);
     Object.values(db().memberships).forEach((m) => {
@@ -1247,6 +1279,9 @@ window.NX = window.NX || {};
     const m = S().membership(serverId, userId);
     if (!m) fail(NX.i18n.get("api.esteMembroNaoEsta4", "Este membro não está mais no servidor."));
     if (roleId && !S().role(roleId)) fail(NX.i18n.get("api.cargoInvalido", "Cargo inválido."));
+    /* espelho da guarda do servidor: não se atribui cargo acima do próprio alcance */
+    if (roleId && !S().canManageRole(serverId, S().role(roleId)))
+      fail(NX.i18n.get("api.cargoAcimaHierarquia3", "Você não pode atribuir um cargo acima do seu na hierarquia."));
     m.roleId = roleId || (S().defaultRole(serverId) || {}).id || null;
     log(serverId, "member.role", { userId: userId, role: roleName(serverId, m.roleId) });
     notify(userId, "server", (NX.i18n.get("api.seucargoem", "Seu cargo em") + " ") + server.name + (" " + NX.i18n.get("api.agorae", "agora é") + " ") + roleName(serverId, m.roleId) + ".");
@@ -1782,7 +1817,9 @@ window.NX = window.NX || {};
     const me = S().me();
     const m = db().messages[messageId];
     if (!m) fail(NX.i18n.get("api.mensagemNaoEncontrada7", "Mensagem não encontrada."));
-    const key = String(emoji || "").slice(0, 12);
+    /* 32 = teto de um token de emoji do servidor (<: + 24 + :>).
+       Espelha server/handlers/messages.js */
+    const key = String(emoji || "").trim().slice(0, 32);
     if (!key) fail("");
     if (String(m.channelId).indexOf("dm_") === 0) {
       const dm = db().dms[m.channelId];
@@ -2135,17 +2172,43 @@ window.NX = window.NX || {};
 
   /* =========================================================
      EMOJIS PERSONALIZADOS DO SERVIDOR
+     Espelho offline de server/handlers/emojis.js — as MESMAS
+     regras do servidor (nome, tipo e tamanho), para o modo
+     local não deixar criar o que o online recusaria.
      ========================================================= */
+  const EMOJI_IMG_RE = /^data:image\/(png|jpe?g|webp|gif);base64,/i;
+  const EMOJI_CAPS = { png: 262144, gif: 524288 };
+  const STICKER_CAPS = { png: 524288, gif: 1048576 };
+
+  function normAssetName(raw) {
+    return String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function checkAssetImage(image, caps, kind) {
+    if (!EMOJI_IMG_RE.test(image))
+      fail(NX.i18n.get("api.envieumaimagemvalida", "Envie uma imagem válida."));
+    const cap = /^data:image\/gif/i.test(image) ? caps.gif : caps.png;
+    if (image.length > cap)
+      fail(
+        (NX.i18n.get("api.estaImagemGrandeDemais4", "Esta imagem é grande demais. Até ")) +
+          Math.round(cap / 1024) + " KB."
+      );
+    return image;
+  }
+
   api.createEmoji = async function (serverId, data) {
     await delay();
-    requirePerm(serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao26", "Você não tem permissão para adicionar emojis."));
-    const name = u().slug(String(data.name || "")).replace(/-/g, "");
+    requirePerm(serverId, "manageEmojis", NX.i18n.get("api.voceNaoTemPermissao26", "Você não tem permissão para adicionar emojis."));
+    const name = normAssetName(data.name);
     if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos26", "Dê um nome com pelo menos 2 caracteres ao emoji."));
+    if (name.length > 24) fail(NX.i18n.get("api.nomeMuitoLongo26", "O nome pode ter no máximo 24 caracteres."));
     if (Object.values(db().emojis || {}).some((e) => e.serverId === serverId && e.name === name))
       fail(NX.i18n.get("api.jaExisteEmojiEsse", "Já existe um emoji com esse nome."));
-    const image = String(data.image || "");
-    if (!/^data:image\//.test(image)) fail((NX.i18n.get("api.envieumaimagemvalida", "Envie uma imagem válida.")));
-    if (image.length > 900000) fail(NX.i18n.get("api.estaImagemGrandeDemais3", "Esta imagem é grande demais (máximo 1 MB)."));
+    const image = checkAssetImage(String(data.image || ""), EMOJI_CAPS, "emoji");
     const id = u().uid("em");
     db().emojis = db().emojis || {};
     db().emojis[id] = {
@@ -2155,20 +2218,101 @@ window.NX = window.NX || {};
       image: image,
       createdBy: S().me().id,
       createdAt: Date.now(),
+      updatedAt: null,
     };
     log(serverId, "emoji.create", { name: ":" + name + ":" });
     NX.store.commit(["emojis"]);
     return db().emojis[id];
   };
 
+  api.updateEmoji = async function (emojiId, data) {
+    await delay();
+    const e = (db().emojis || {})[emojiId];
+    if (!e) fail(NX.i18n.get("api.emojiNaoEncontrado", "Emoji não encontrado."));
+    requirePerm(e.serverId, "manageEmojis", NX.i18n.get("api.voceNaoTemPermissao27", "Você não tem permissão para editar emojis."));
+    if (data && data.name !== undefined) {
+      const name = normAssetName(data.name);
+      if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos26", "Dê um nome com pelo menos 2 caracteres ao emoji."));
+      if (Object.values(db().emojis || {}).some((x) => x.serverId === e.serverId && x.name === name && x.id !== emojiId))
+        fail(NX.i18n.get("api.jaExisteEmojiEsse", "Já existe um emoji com esse nome."));
+      e.name = name;
+    }
+    if (data && data.image !== undefined) e.image = checkAssetImage(String(data.image || ""), EMOJI_CAPS, "emoji");
+    e.updatedAt = Date.now();
+    log(e.serverId, "emoji.update", { name: ":" + e.name + ":" });
+    NX.store.commit(["emojis"]);
+    return e;
+  };
+
   api.deleteEmoji = async function (emojiId) {
     await delay();
     const e = (db().emojis || {})[emojiId];
     if (!e) fail(NX.i18n.get("api.emojiNaoEncontrado", "Emoji não encontrado."));
-    requirePerm(e.serverId, "manageChannels", NX.i18n.get("api.voceNaoTemPermissao27", "Você não tem permissão para remover emojis."));
+    requirePerm(e.serverId, "manageEmojis", NX.i18n.get("api.voceNaoTemPermissao27", "Você não tem permissão para remover emojis."));
     delete db().emojis[emojiId];
     log(e.serverId, "emoji.delete", { name: ":" + e.name + ":" });
     NX.store.commit(["emojis"]);
+    return true;
+  };
+
+  /* =========================================================
+     FIGURINHAS DO SERVIDOR
+     ========================================================= */
+  api.createSticker = async function (serverId, data) {
+    await delay();
+    requirePerm(serverId, "manageStickers", NX.i18n.get("api.voceNaoTemPermissao28", "Você não tem permissão para adicionar figurinhas."));
+    const name = normAssetName(data.name);
+    if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos27", "Dê um nome com pelo menos 2 caracteres à figurinha."));
+    if (name.length > 24) fail(NX.i18n.get("api.nomeMuitoLongo27", "O nome pode ter no máximo 24 caracteres."));
+    if (Object.values(db().stickers || {}).some((s) => s.serverId === serverId && s.name === name))
+      fail(NX.i18n.get("api.jaExisteFigurinha", "Já existe uma figurinha com esse nome."));
+    const image = checkAssetImage(String(data.image || ""), STICKER_CAPS, "sticker");
+    const id = u().uid("st");
+    db().stickers = db().stickers || {};
+    db().stickers[id] = {
+      id: id,
+      serverId: serverId,
+      name: name,
+      description: data && data.description ? String(data.description).trim().slice(0, 120) : null,
+      image: image,
+      createdBy: S().me().id,
+      createdAt: Date.now(),
+      updatedAt: null,
+    };
+    log(serverId, "sticker.create", { name: ":" + name + ":" });
+    NX.store.commit(["stickers"]);
+    return db().stickers[id];
+  };
+
+  api.updateSticker = async function (stickerId, data) {
+    await delay();
+    const s = (db().stickers || {})[stickerId];
+    if (!s) fail(NX.i18n.get("api.figurinhaNaoEncontrada", "Figurinha não encontrada."));
+    requirePerm(s.serverId, "manageStickers", NX.i18n.get("api.voceNaoTemPermissao29", "Você não tem permissão para editar figurinhas."));
+    if (data && data.name !== undefined) {
+      const name = normAssetName(data.name);
+      if (name.length < 2) fail(NX.i18n.get("api.nomePeloMenos27", "Dê um nome com pelo menos 2 caracteres à figurinha."));
+      if (Object.values(db().stickers || {}).some((x) => x.serverId === s.serverId && x.name === name && x.id !== stickerId))
+        fail(NX.i18n.get("api.jaExisteFigurinha", "Já existe uma figurinha com esse nome."));
+      s.name = name;
+    }
+    if (data && data.description !== undefined)
+      s.description = data.description ? String(data.description).trim().slice(0, 120) : null;
+    if (data && data.image !== undefined) s.image = checkAssetImage(String(data.image || ""), STICKER_CAPS, "sticker");
+    s.updatedAt = Date.now();
+    log(s.serverId, "sticker.update", { name: ":" + s.name + ":" });
+    NX.store.commit(["stickers"]);
+    return s;
+  };
+
+  api.deleteSticker = async function (stickerId) {
+    await delay();
+    const s = (db().stickers || {})[stickerId];
+    if (!s) fail(NX.i18n.get("api.figurinhaNaoEncontrada", "Figurinha não encontrada."));
+    requirePerm(s.serverId, "manageStickers", NX.i18n.get("api.voceNaoTemPermissao30", "Você não tem permissão para apagar figurinhas."));
+    delete db().stickers[stickerId];
+    log(s.serverId, "sticker.delete", { name: ":" + s.name + ":" });
+    NX.store.commit(["stickers"]);
     return true;
   };
 

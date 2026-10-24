@@ -767,7 +767,10 @@
 
 .lp-foot__top {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 0.85fr));
+  /* Identidade à esquerda, coluna de links alinhada à direita:
+     com uma única coluna de links, "1fr + max-content" evita a
+     faixa vazia que sobraria com o antigo grid de 3 colunas. */
+  grid-template-columns: minmax(0, 1fr) max-content;
   gap: clamp(24px, 3vw, 44px);
 }
 
@@ -879,12 +882,8 @@
   .lp-secure {
     grid-template-columns: minmax(0, 1fr);
   }
-  .lp-foot__top {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .lp-foot__about {
-    grid-column: 1 / -1;
-  }
+  /* Com uma única coluna de links o bloco "Sobre o Nexo" continua
+     ao lado dela até o breakpoint de celular — sem linha vazia. */
 }
 
 @media (max-width: 860px) {

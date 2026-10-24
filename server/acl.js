@@ -28,7 +28,10 @@ const PERM_KEYS = [
   "attachFiles",
   "useEmojis",
   "useCustomEmojis",
+  "useStickers",
   "useGifs",
+  "manageEmojis",
+  "manageStickers",
   "mentionEveryone",
   "kickMembers",
   "banMembers",
@@ -42,6 +45,9 @@ const PERM_KEYS = [
   "moveMembers",
 ];
 
+/* gestão de emojis/figurinhas NÃO entra em BASE_PERMS: é dono/admin
+   ou cargo que o dono marcou. useCustomEmojis/useStickers (USAR) sim. */
+
 const DEFAULT_ON_PERMS = ["inviteToVoice"];
 
 const BASE_PERMS = [
@@ -51,6 +57,7 @@ const BASE_PERMS = [
   "attachFiles",
   "useEmojis",
   "useCustomEmojis",
+  "useStickers",
   "useGifs",
   "joinVoice",
   "inviteToVoice",
@@ -83,11 +90,17 @@ function normalizePerms(input, allowSuper) {
   return out;
 }
 
-function applyPerms(target, source) {
+function applyPerms(target, source, allowDeny) {
   if (!source) return;
+  /* Cargos criados pelo dono só CONCEDEM (como no Discord): um cargo
+     estreito nunca apaga permissões base de quem o recebe — sem isso,
+     dar "Gerenciar emojis" a alguém também tirava o "Enviar mensagens".
+     Negação continua valendo no cargo padrão (trava da comunidade
+     inteira) e nas permissões avulsas do membro, onde ela é explícita. */
+  const deny = allowDeny !== false;
   PERM_KEYS.forEach((k) => {
     if (source[k] === true) target[k] = true;
-    else if (source[k] === false && target[k] !== undefined) target[k] = false;
+    else if (source[k] === false && deny && target[k] !== undefined) target[k] = false;
   });
 }
 
@@ -169,10 +182,10 @@ function effectivePerms(ctx, userId) {
   }
 
   DEFAULT_ON_PERMS.forEach((k) => (out[k] = true));
-  if (ctx.defaultRole) applyPerms(out, ctx.defaultRole.permissions);
+  if (ctx.defaultRole) applyPerms(out, ctx.defaultRole.permissions, true);
   const role = membership.roleId ? ctx.roleById[membership.roleId] : null;
-  if (role && !role.isDefault) applyPerms(out, role.permissions);
-  applyPerms(out, membership.permissions);
+  if (role && !role.isDefault) applyPerms(out, role.permissions, false);
+  applyPerms(out, membership.permissions, true);
 
   if (out.administrator) PERM_KEYS.forEach((k) => (out[k] = true));
   return out;
@@ -193,6 +206,43 @@ function requireMember(ctx, userId) {
   const membership = membershipOf(ctx, userId);
   if (!membership) throw forbidden("Você não faz parte deste servidor.");
   return membership;
+}
+
+/* ------------------------------------------------------------
+   Proteção de hierarquia de cargos.
+   A posição na tela é a hierarquia: quanto MAIOR o número de
+   `position`, mais alto o cargo (a lista desenhada inverte para
+   mostrar o mais alto primeiro, e o cargo padrão — o "Membros" —
+   é sempre o de menor posição, ou seja, o pé da escada).
+   Então quem tem `position` MENOR não pode mexer em cargo de
+   `position` MAIOR: um moderador não edita um administrador, nem
+   reordena cargos acima do próprio. O DONO passa por tudo, e o
+   `administrator` também (é equivalente ao dono em poder, sem
+   poder tirar a propriedade de ninguém).
+   ------------------------------------------------------------ */
+function roleRank(ctx, userId) {
+  const membership = membershipOf(ctx, userId);
+  if (!membership) return -1;
+  let best = -1;
+  const ids = [membership.roleId].concat(membership.extraRoleIds || []);
+  ids.filter(Boolean).forEach((rid) => {
+    const r = ctx.roleById[rid];
+    if (!r || r.isDefault) return;
+    const pos = Number(r.position) || 0;
+    if (pos > best) best = pos;
+  });
+  return best;
+}
+
+/* pode mexer no cargo `target`? dono e administrator sim; o resto
+   só pode mexer em cargos de posição menor ou igual à própria. */
+function canManageRole(ctx, userId, target) {
+  if (isOwner(ctx, userId)) return true;
+  if (!can(ctx, userId, "manageRoles")) return false;
+  if (!target) return true;
+  if (target.isDefault) return false; /* o padrão é fixo */
+  if (can(ctx, userId, "administrator")) return true;
+  return roleRank(ctx, userId) >= (Number(target.position) || 0);
 }
 
 /* ---- overrides por canal/categoria (permitir / negar / herdar) ---- */
@@ -309,6 +359,8 @@ module.exports = {
   loadServer,
   membershipOf,
   isOwner,
+  roleRank,
+  canManageRole,
   effectivePerms,
   can,
   requirePerm,

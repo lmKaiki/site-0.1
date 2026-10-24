@@ -19,29 +19,53 @@ const firebase = require("../firebase");
 const sbauth = require("../supabaseauth");
 const official = require("../official");
 
-/* ---------- limite de tentativas de login (memória do processo) ---------- */
+/* ---------- limite de tentativas (memória do processo) ---------- */
 const FAILS = new Map();
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_WINDOW = 5 * 60 * 1000;
+
+/* Cada tipo tem sua própria janela. login/signup/fb mantêm os
+   números de antes (eram os de tentativa de senha, não de envio).
+
+   O "resend" é diferente: ele consome um recurso ESCASSO. O e-mail
+   de confirmação sai pelo serviço padrão do Supabase, que no plano
+   gratuito aceita pouquíssimos envios por hora -- e cada reenvio
+   gasta um deles. Com a janela de login (5 em 5 min) a pessoa
+   conseguia pedir 5 confirmações antes do Supabase recusar com
+   "over_email_send_rate_limit", que é justamente o erro que ela vê
+   na tela. 3 em 15 min mantém o fluxo utilizável e corta a maior
+   parte do consumo. Nada disso afrouxa segurança: é limite de
+   envio, não de autenticação. */
+const LIMITS = {
+  resend: { max: 3, window: 15 * 60 * 1000 },
+};
+
+function limitFor(kind) {
+  return (
+    LIMITS[kind] || { max: LOGIN_MAX_FAILS, window: LOGIN_WINDOW }
+  );
+}
 
 function failKey(kind, key) {
   return kind + ":" + key;
 }
 
 function blocked(kind, key) {
+  const lim = limitFor(kind);
   const rec = FAILS.get(failKey(kind, key));
   if (!rec) return false;
-  if (Date.now() - rec.at > LOGIN_WINDOW) {
+  if (Date.now() - rec.at > lim.window) {
     FAILS.delete(failKey(kind, key));
     return false;
   }
-  return rec.n >= LOGIN_MAX_FAILS;
+  return rec.n >= lim.max;
 }
 
 function countFail(kind, key) {
+  const lim = limitFor(kind);
   const id = failKey(kind, key);
   const rec = FAILS.get(id) || { n: 0, at: Date.now() };
-  if (Date.now() - rec.at > LOGIN_WINDOW) rec.n = 0;
+  if (Date.now() - rec.at > lim.window) rec.n = 0;
   rec.n += 1;
   rec.at = Date.now();
   FAILS.set(id, rec);
@@ -455,15 +479,29 @@ async function resendEmail(ctx) {
   }
   countFail("resend", email);
 
-  const owner = await db.findByEmail(email);
-  /* sem conta ou sem Supabase Auth: mesma resposta neutra, para
-     não virar ferramenta de descoberta de contas */
-  if (!owner || !sbauth.configured()) {
+  /* O GoTrue é quem sabe se o e-mail tem conta. Antes existia um
+     atalho aqui: se o Nexo não achasse vínculo, respondíamos 202 sem
+     nem perguntar ao Supabase. Era uma resposta FALSA — uma conta
+     criada direto no Supabase Auth (cadastro que abortou no meio,
+     antes de gravar o vínculo) não tem vínculo nenhum no Nexo, e o
+     reenvio "funcionava" sem enviar nada, dando à pessoa um sucesso
+     imaginário.
+
+     Perguntar ao GoTrue não o transforma em ferramenta de descoberta:
+     ele responde da mesma forma para e-mail sem conta (não há nada a
+     enviar), então a resposta neutra continua igual. */
+  if (!sbauth.configured()) {
     return { status: 202, data: { ok: true, message: RESEND_MSG } };
   }
 
   const r = await sbauth.resend(email);
-  if (!r.ok) throw bad(r.message || "Não foi possível reenviar agora.");
+  if (!r.ok) {
+    /* Falha de envio: mantém o status que o sbauth escolheu (503) em
+       vez de jogar tudo num 400 genérico, para o navegador mostrar
+       "não saiu" e não um sucesso falso. */
+    if (r.code) throw new ApiError(r.status || 503, r.message, r.code);
+    throw bad(r.message || "Não foi possível reenviar agora.");
+  }
   return { status: 202, data: { ok: true, message: RESEND_MSG } };
 }
 

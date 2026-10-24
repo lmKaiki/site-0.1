@@ -230,6 +230,274 @@ window.NX = window.NX || {};
     repaint();
   }
 
+  /* =========================================================
+     LOGO PERSONALIZADO — CORES LIVRES
+     Substitui a antiga paleta fixa de 10 bolinhas: seletor de
+     cor nativo + HEX + RGB, aceitando QUALQUER cor válida do
+     espectro. Duas cores: fundo do logo e símbolo (as iniciais).
+     As conversões HEX<->RGB são locais; o servidor guarda o
+     valor já normalizado (sanitizado lá, em servers.js).
+     ========================================================= */
+  const LOGO_DEFAULTS = { bg: "#22d3a6", fg: "#06110f" };
+
+  function hexToRgb(raw) {
+    let s = String(raw || "").trim();
+    if (s.charAt(0) !== "#") s = "#" + s;
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return null;
+    if (s.length === 4) s = "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+    return {
+      r: parseInt(s.substr(1, 2), 16),
+      g: parseInt(s.substr(3, 2), 16),
+      b: parseInt(s.substr(5, 2), 16),
+    };
+  }
+
+  function rgbToHex(r, g, b) {
+    const c = (n) => {
+      const v = Math.max(0, Math.min(255, Math.round(Number(n) || 0)));
+      return (v < 16 ? "0" : "") + v.toString(16);
+    };
+    return ("#" + c(r) + c(g) + c(b)).toLowerCase();
+  }
+
+  /* normalizeHex: aceita #RGB, #RRGGBB ou "RRGGBB" e devolve
+     minúsculo; null quando não é cor de verdade. */
+  function normalizeHex(raw) {
+    const rgb = hexToRgb(raw);
+    return rgb ? rgbToHex(rgb.r, rgb.g, rgb.b) : null;
+  }
+
+  function logoRowHTML(which, label, value) {
+    const rgb = hexToRgb(value) || hexToRgb(LOGO_DEFAULTS[which]);
+    return (
+      '<div class="logo-row" data-logo-row="' + which + '">' +
+      '<span class="logo-row__label">' + u().h(label) + "</span>" +
+      '<div class="logo-row__ctrls">' +
+      '<input type="color" class="logo-row__swatch" data-logo-pick value="' +
+      rgbToHex(rgb.r, rgb.g, rgb.b) + '" aria-label="' + u().h(label) + '">' +
+      '<label class="logo-row__hex"><span>HEX</span>' +
+      '<input class="input input--sm" data-logo-hex maxlength="7" spellcheck="false" value="' +
+      rgbToHex(rgb.r, rgb.g, rgb.b) + '" placeholder="#22d3a6"></label>' +
+      '<div class="logo-row__rgb">' +
+      '<label><span>R</span><input type="number" class="input input--sm" data-logo-n="r" min="0" max="255" value="' + rgb.r + '"></label>' +
+      '<label><span>G</span><input type="number" class="input input--sm" data-logo-n="g" min="0" max="255" value="' + rgb.g + '"></label>' +
+      '<label><span>B</span><input type="number" class="input input--sm" data-logo-n="b" min="0" max="255" value="' + rgb.b + '"></label>' +
+      "</div></div></div>"
+    );
+  }
+
+  /* leitura da cor atual: fundo (st.color) e símbolo (st.glyphColor).
+     null cai no padrão — é a mesma regra usada para montar o HTML
+     e para repintar, então os dois nunca divergem. */
+  function logoValue(st, which) {
+    const v = which === "bg" ? st.color : st.glyphColor;
+    return v || LOGO_DEFAULTS[which];
+  }
+
+  function logoColorsHTML(st) {
+    return (
+      '<div class="logo-colors" data-logo-colors>' +
+      logoRowHTML("bg", NX.i18n.get("modal.logoCorDeFundo", "Cor de fundo"), logoValue(st, "bg")) +
+      logoRowHTML("fg", NX.i18n.get("modal.logoCorDoSimbolo", "Cor do símbolo"), logoValue(st, "fg")) +
+      '<div class="logo-colors__foot">' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-logo-reset>' +
+      NX.icon("refresh", "", 14) +
+      "<span>" + NX.i18n.get("modal.logoRestaurarPadrao", "Restaurar padrão") + "</span></button>" +
+      '<span class="logo-colors__err" data-logo-err hidden></span>' +
+      "</div></div>"
+    );
+  }
+
+  /* st: { color, glyphColor, colorDirty }. `color` é o fundo (o
+     mesmo campo de sempre) e `glyphColor` o símbolo (null = padrão).
+     onColorChange repinta a prévia a cada toque — sem esperar salvar. */
+  function bindLogoColors(root, st, onColorChange) {
+    const box = root.querySelector("[data-logo-colors]");
+    if (!box) return;
+    const errBox = box.querySelector("[data-logo-err]");
+
+    const valOf = (which) => logoValue(st, which);
+
+    function paintRow(which) {
+      const row = box.querySelector('[data-logo-row="' + which + '"]');
+      if (!row) return;
+      const rgb = hexToRgb(valOf(which)) || hexToRgb(LOGO_DEFAULTS[which]);
+      const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+      const pick = row.querySelector("[data-logo-pick]");
+      const hexIn = row.querySelector("[data-logo-hex]");
+      if (pick && pick.value !== hex) pick.value = hex;
+      if (hexIn && hexIn.value.toLowerCase() !== hex) hexIn.value = hex;
+      row.querySelector('[data-logo-n="r"]').value = rgb.r;
+      row.querySelector('[data-logo-n="g"]').value = rgb.g;
+      row.querySelector('[data-logo-n="b"]').value = rgb.b;
+    }
+
+    function setColor(which, hex) {
+      if (which === "bg") st.color = hex;
+      else st.glyphColor = hex;
+      st.colorDirty = true;
+      paintRow(which);
+      if (onColorChange) onColorChange();
+    }
+
+    function showErr(msg) {
+      if (!errBox) return;
+      errBox.textContent = msg || "";
+      errBox.hidden = !msg;
+    }
+
+    box.addEventListener("input", (e) => {
+      const row = e.target.closest("[data-logo-row]");
+      if (!row) return;
+      const which = row.getAttribute("data-logo-row");
+      showErr("");
+      const pick = e.target.closest("[data-logo-pick]");
+      if (pick) return setColor(which, normalizeHex(pick.value) || LOGO_DEFAULTS[which]);
+      const hexIn = e.target.closest("[data-logo-hex]");
+      if (hexIn) {
+        const hex = normalizeHex(hexIn.value);
+        if (hex) {
+          setColor(which, hex);
+        } else {
+          showErr(NX.i18n.get("modal.logoCorInvalida", "Cor inválida. Use um código como #22d3a6."));
+        }
+        return;
+      }
+      const num = e.target.closest("[data-logo-n]");
+      if (num) {
+        const key = num.getAttribute("data-logo-n");
+        const cur = hexToRgb(valOf(which)) || hexToRgb(LOGO_DEFAULTS[which]);
+        cur[key] = Number(num.value);
+        const hex = rgbToHex(cur.r, cur.g, cur.b);
+        setColor(which, hex);
+        const hexIn2 = row.querySelector("[data-logo-hex]");
+        if (hexIn2) hexIn2.value = hex;
+        const pick2 = row.querySelector("[data-logo-pick]");
+        if (pick2) pick2.value = hex;
+      }
+    });
+
+    /* HEX fora de foco com texto incompleto: não grita durante a
+       digitação, só corrige quando a pessoa sai do campo */
+    box.addEventListener(
+      "change",
+      (e) => {
+        const hexIn = e.target.closest("[data-logo-hex]");
+        if (!hexIn) return;
+        const row = hexIn.closest("[data-logo-row]");
+        const which = row.getAttribute("data-logo-row");
+        const hex = normalizeHex(hexIn.value);
+        if (!hex) {
+          showErr(NX.i18n.get("modal.logoCorInvalida", "Cor inválida. Use um código como #22d3a6."));
+          paintRow(which);
+          return;
+        }
+        showErr("");
+        setColor(which, hex);
+      },
+      true
+    );
+
+    const reset = box.querySelector("[data-logo-reset]");
+    if (reset) {
+      reset.addEventListener("click", () => {
+        st.color = LOGO_DEFAULTS.bg;
+        st.glyphColor = LOGO_DEFAULTS.fg;
+        st.colorDirty = true;
+        showErr("");
+        paintRow("bg");
+        paintRow("fg");
+        if (onColorChange) onColorChange();
+      });
+    }
+  }
+
+  /* =========================================================
+     EDITOR DE ÍCONE — IMAGEM × LOGO PERSONALIZADO
+     Um seletor compacto no lugar da antiga grade de emojis e das
+     bolinhas de cor. "Imagem" envia um arquivo; "Logo" usa as
+     cores livres. Uma escolha NUNCA apaga a outra: quem tem
+     imagem continua com ela guardada e pode alternar.
+     ========================================================= */
+  function iconEditorHTML(st, fallbackText) {
+    /* modo ativo: o que o servidor já tem, senão "imagem" quando
+       existe foto (comportamento de sempre) e "logo" quando não
+       (é o que mostra as cores). Guardamos em st.mode porque o
+       submit precisa saber qual dos dois está valendo. */
+    st.mode = st.mode === "logo" || st.mode === "image" ? st.mode : st.image ? "image" : "logo";
+    const useLogo = st.mode === "logo";
+    return (
+      '<div class="icon-editor" data-icon-editor>' +
+      '<div class="icon-editor__tabs" role="tablist">' +
+      '<button type="button" role="tab" class="icon-editor__tab' + (useLogo ? "" : " is-on") +
+      '" data-icon-tab="image" aria-selected="' + (!useLogo) + '">' +
+      NX.icon("image", "", 15) +
+      "<span>" + NX.i18n.get("modal.iconeImagem", "Imagem") + "</span></button>" +
+      '<button type="button" role="tab" class="icon-editor__tab' + (useLogo ? " is-on" : "") +
+      '" data-icon-tab="logo" aria-selected="' + useLogo + '">' +
+      NX.icon("palette", "", 15) +
+      "<span>" + NX.i18n.get("modal.iconeLogo", "Logo") + "</span></button>" +
+      "</div>" +
+      '<div class="icon-editor__pane" data-icon-pane="image"' + (useLogo ? " hidden" : "") + ">" +
+      iconUploadHTML(st, fallbackText) +
+      "</div>" +
+      '<div class="icon-editor__pane" data-icon-pane="logo"' + (useLogo ? "" : " hidden") + ">" +
+      logoColorsHTML(st) +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  /* st: { image, imageDirty, color, glyphColor, colorDirty }.
+     onPaint repinta a prévia do modal (imagem × iniciais coloridas). */
+  function bindIconEditor(root, st, getFallback, onPaint) {
+    const ed = root.querySelector("[data-icon-editor]");
+    if (!ed) return;
+
+    function showPane(which) {
+      st.mode = which;
+      ed.querySelectorAll("[data-icon-pane]").forEach((p) => {
+        p.hidden = p.getAttribute("data-icon-pane") !== which;
+      });
+      ed.querySelectorAll("[data-icon-tab]").forEach((b) => {
+        const on = b.getAttribute("data-icon-tab") === which;
+        b.classList.toggle("is-on", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+
+    ed.addEventListener("click", (e) => {
+      const tab = e.target.closest("[data-icon-tab]");
+      if (!tab) return;
+      const which = tab.getAttribute("data-icon-tab");
+      st.mode = which;
+      /* trocar de modo é uma escolha explícita: no submit ela vai
+         junto, para o servidor saber qual dos dois está ativo */
+      st.modeDirty = true;
+      showPane(which);
+      if (onPaint) onPaint();
+    });
+
+    /* o upload avisa por st.onIconChange: apontamos para a mesma
+       prévia usada pelas cores, para os dois modos repintarem igual */
+    st.onIconChange = onPaint;
+    bindIconUpload(ed, st, getFallback);
+    bindLogoColors(ed, st, onPaint);
+
+    /* ao mandar enviar imagem, o logo deixa de ser a fonte ativa */
+    const file = ed.querySelector("[data-iup-file]");
+    if (file) {
+      file.addEventListener("change", () => {
+        if (file.files && file.files.length) showPane("image");
+      });
+    }
+    /* remover a imagem volta ao logo colorido (não fica sem nada) */
+    const clearBtn = ed.querySelector("[data-iup-clear]");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => showPane("logo"));
+    }
+  }
+
   function formData(form) {
     return Object.fromEntries(new FormData(form).entries());
   }
@@ -264,7 +532,17 @@ window.NX = window.NX || {};
      CRIAR SERVIDOR
      ========================================================= */
   M.createServer = function () {
-    const state = { image: null, imageDirty: false, color: u().colorFor("novo"), templateId: "comunidade" };
+    const state = {
+      image: null,
+      imageDirty: false,
+      color: u().colorFor("novo"),
+      glyphColor: null,
+      colorDirty: false,
+      /* criar sem foto: começa no modo logo (mostra as cores) */
+      mode: "logo",
+      modeDirty: false,
+      templateId: "comunidade",
+    };
     const footer = u().el(
       ACTIONS(
         ("<button class=\"btn btn--ghost\" type=\"button\" data-modal-close>" + NX.i18n.get("common.cancel", "Cancelar") + "</button>") +
@@ -290,7 +568,7 @@ window.NX = window.NX || {};
       ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nomedoservidor", "Nome do servidor") + "</span>") +
       '<input class="input" name="name" maxlength="40" placeholder="' + NX.i18n.get("ui.excomunidadeaurora", "Ex.: Comunidade Aurora") + '" data-autofocus /></label>' +
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.iconedoservidor", "Ícone do servidor") + "</span>") +
-      iconUploadHTML(state, u().initials(NX.i18n.get("modal.meuServidor", "Meu servidor"))) + "</div>" +
+      iconEditorHTML(state, u().initials(NX.i18n.get("modal.meuServidor", "Meu servidor"))) + "</div>" +
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.estruturainicial", "Estrutura inicial") + "</span>") +
       '<div class="template-grid">' +
       NX.TEMPLATES.map(
@@ -312,14 +590,19 @@ window.NX = window.NX || {};
 
     const paintPreview = () => {
       const nm = (form.elements.name.value || "").trim();
-      /* sem foto o ícone mostra as iniciais — nunca um emoji de
-         sistema no padrão */
-      preview.innerHTML = state.image
+      /* modo "logo" mostra o monograma por cima (sem apagar a foto
+         guardada); só a aba Imagem traz a foto de volta. As cores
+         (fundo e símbolo) entram como variáveis CSS para a prévia
+         refletir na hora. */
+      const showImage = state.image && state.mode !== "logo";
+      preview.innerHTML = showImage
         ? '<img src="' + u().h(state.image) + '" alt="">'
         : u().h(u().initials(nm || NX.i18n.get("modal.meuServidor", "Meu servidor")));
       preview.style.setProperty("--sv", state.color);
+      if (state.glyphColor) preview.style.setProperty("--svg", state.glyphColor);
+      else preview.style.removeProperty("--svg");
     };
-    bindIconUpload(m.body, state, fallbackText);
+    bindIconEditor(m.body, state, fallbackText, paintPreview);
 
     form.addEventListener("input", () => {
       namePrev.textContent = form.elements.name.value.trim() || NX.i18n.get("modal.meuServidor", "Meu servidor");
@@ -339,11 +622,21 @@ window.NX = window.NX || {};
       const btn = footer.querySelector('button[type="submit"]');
       runTask(
         btn,
-        api().createServer({
-          name: formData(form).name,
-          icon: { image: state.image },
-          templateId: state.templateId,
-        }),
+        api().createServer(
+          Object.assign(
+            {
+              name: formData(form).name,
+              mode: state.mode,
+              icon: { image: state.image },
+              templateId: state.templateId,
+            },
+            /* cores só quando a pessoa mexeu nelas: sem isso todo
+               servidor novo herdaria a cor da prévia, e não a sua */
+            state.colorDirty
+              ? { color: state.color, glyphColor: state.glyphColor }
+              : {}
+          )
+        ),
         form,
         (server) => {
           m.close();
@@ -1209,11 +1502,21 @@ window.NX = window.NX || {};
 
     function generalTab() {
       const s = S().server(serverId);
-      const state = { image: (s.icon && s.icon.image) || null, imageDirty: false, color: s.icon.color };
+      const state = {
+        image: (s.icon && s.icon.image) || null,
+        imageDirty: false,
+        color: (s.icon && s.icon.color) || u().colorFor(s.id),
+        glyphColor: (s.icon && s.icon.glyphColor) || null,
+        colorDirty: false,
+        /* modo do logo atual (null = o servidor decide) */
+        mode: (s.icon && s.icon.mode) || null,
+        modeDirty: false,
+      };
       const html =
         '<form id="form-general" class="form" novalidate>' +
         ("<h3 class=\"settings__title\">" + NX.i18n.get("modal.aparenciadoservidor", "Aparência do servidor") + "</h3>") +
-        '<div class="server-preview"><span class="server-preview__icon" data-gp style="--sv:' + state.color + '">' +
+        '<div class="server-preview"><span class="server-preview__icon" data-gp style="--sv:' + state.color +
+        (state.glyphColor ? ";--svg:" + u().h(state.glyphColor) : "") + '">' +
         (state.image ? '<img src="' + u().h(state.image) + '" alt="">' : u().h(u().initials(s.name))) + "</span>" +
         '<div class="server-preview__txt"><strong data-gn>' + u().h(s.name) + "</strong>" +
         "<span>" + u().plural(S().memberCount(s.id), "membro", "membros") + "</span></div></div>" +
@@ -1225,11 +1528,22 @@ window.NX = window.NX || {};
         (canManage ? "" : " disabled") + ">" + u().h(s.description || "") + "</textarea></label>" +
         (canManage
           ? ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.icone", "Ícone") + "</span>") +
-            iconUploadHTML(state, u().initials(s.name)) + "</div>" +
+            iconEditorHTML(state, u().initials(s.name)) + "</div>" +
             ("<label class=\"perm-row\"><span class=\"perm-row__txt\"><strong>" + NX.i18n.get("adm.mostrarnoexplorar", "Mostrar no explorar") + "</strong>") +
             ("<small>" + NX.i18n.get("adm.deixaacomunidadevisivelnodiretorio", "Deixa a comunidade visível no diretório público.") + "</small></span>") +
-            '<span class="switch"><input type="checkbox" name="discoverable"' +
-            (s.discoverable ? " checked" : "") + " /><i></i></span></label>"
+            '<span class="switch"><input type="checkbox" name="discoverable" data-disc-toggle' +
+            ' aria-describedby="disc-state"' +
+            (s.discoverable ? " checked" : "") + " /><i></i></span></label>" +
+            /* estado da publicação: mostra o que REALMENTE aconteceu.
+               Se falhar, o toggle volta para o valor anterior — nunca
+               fica "ligado" fingindo que salvou. */
+            '<div class="disc-state" id="disc-state" data-disc-state data-state="' +
+            (s.discoverable ? "on" : "off") + '">' +
+            NX.icon(s.discoverable ? "check" : "circle", "", 14) +
+            "<span>" + (s.discoverable
+              ? NX.i18n.get("adm.explorarAtivo", "Ativo e salvo — visível no diretório.")
+              : NX.i18n.get("adm.explorarInativo", "Desativado — não aparece no diretório.")) +
+            "</span></div>"
           : '<div class="callout callout--info">' + NX.icon("info", "", 16) +
             ("<span>" + NX.i18n.get("modal.vocepodeverasconfiguracoesmas", "Você pode ver as configurações, mas só administradores podem alterá-las.") + "</span></div>")) +
         '<div class="form-error" data-error hidden></div>' +
@@ -1246,21 +1560,114 @@ window.NX = window.NX || {};
           const gp = root.querySelector("[data-gp]");
           const gn = root.querySelector("[data-gn]");
           const st = state;
-          st.onIconChange = () => {
-            gp.innerHTML = st.image
+          const curName = () => form.elements.name.value.trim() || s.name;
+
+          /* uma única função repinta a prévia: foto → iniciais, com
+             as duas cores do logo (fundo e símbolo). Em modo "logo"
+             a foto fica guardada mas não aparece — é isso que permite
+             alternar sem perder a escolha. */
+          const paintPreview = () => {
+            const showImage = st.image && st.mode !== "logo";
+            gp.innerHTML = showImage
               ? '<img src="' + u().h(st.image) + '" alt="">'
-              : u().h(u().initials(form.elements.name.value.trim() || s.name));
+              : u().h(u().initials(curName()));
             gp.style.setProperty("--sv", st.color);
+            if (st.glyphColor) gp.style.setProperty("--svg", u().h(st.glyphColor));
+            else gp.style.removeProperty("--svg");
           };
-          bindIconUpload(form, st, () => u().initials(form.elements.name.value.trim() || s.name));
+          bindIconEditor(form, st, () => u().initials(curName()), paintPreview);
+          paintPreview();
           form.addEventListener("input", () => {
-            gn.textContent = form.elements.name.value.trim() || s.name;
-            if (!st.image) gp.textContent = u().initials(form.elements.name.value.trim() || s.name);
+            gn.textContent = curName();
+            if (!st.image || st.mode === "logo")
+              gp.textContent = u().h(u().initials(curName()));
           });
+
+          /* ---------------- Mostrar no explorar ----------------
+             O interruptor salva NA HORA (não espera o rodapé): é a
+             única forma de mostrar "salvando → salvo → erro" sem
+             mentir. Em erro ele volta ao último valor CONFIRMADO e
+             oferece "Tentar novamente" — nunca fica ligado fingindo
+             que publicou. */
+          const disc = form.querySelector("[data-disc-toggle]");
+          const discState = form.querySelector("[data-disc-state]");
+          let discSaved = !!s.discoverable; /* último valor confirmado */
+          let discBusy = false;
+
+          function paintDisc(kind, msg) {
+            if (!discState) return;
+            discState.setAttribute("data-state", kind);
+            const ico =
+              kind === "on" ? "check" : kind === "saving" ? "refresh" : kind === "error" ? "alert" : "circle";
+            const text =
+              msg ||
+              (kind === "on"
+                ? NX.i18n.get("adm.explorarAtivo", "Ativo e salvo — visível no diretório.")
+                : kind === "saving"
+                ? NX.i18n.get("adm.explorarSalvando", "Salvando…")
+                : kind === "error"
+                ? NX.i18n.get("adm.explorarErro", "Erro ao salvar.")
+                : NX.i18n.get("adm.explorarInativo", "Desativado — não aparece no diretório."));
+            const retry =
+              kind === "error"
+                ? '<button type="button" class="btn btn--ghost btn--sm" data-disc-retry>' +
+                  NX.i18n.get("view.tentarNovamente", "Tentar novamente") +
+                  "</button>"
+                : "";
+            discState.innerHTML =
+              NX.icon(ico, "", 14) + "<span>" + u().h(text) + "</span>" + retry;
+            if (kind === "saving") discState.classList.add("is-spin");
+            else discState.classList.remove("is-spin");
+          }
+
+          async function saveDisc(next) {
+            if (discBusy) return;
+            discBusy = true;
+            if (disc) disc.disabled = true;
+            paintDisc("saving");
+            try {
+              await api().updateServer(serverId, { discoverable: next });
+              discSaved = next;
+              if (disc) disc.checked = discSaved;
+              paintDisc(discSaved ? "on" : "off");
+            } catch (err) {
+              /* falhou de verdade: desfazemos a aparência para o
+                 valor que ESTÁ no servidor e dizemos o motivo */
+              if (disc) disc.checked = discSaved;
+              paintDisc("error", (err && err.message) || NX.i18n.get("adm.explorarErro", "Erro ao salvar."));
+            } finally {
+              discBusy = false;
+              if (disc) disc.disabled = false;
+            }
+          }
+
+          if (disc) {
+            disc.addEventListener("change", () => saveDisc(disc.checked));
+          }
+          if (discState) {
+            discState.addEventListener("click", (e) => {
+              if (!e.target.closest("[data-disc-retry]")) return;
+              saveDisc(disc.checked);
+            });
+          }
+          paintDisc(discSaved ? "on" : "off");
+
           form.addEventListener("submit", (e) => {
             e.preventDefault();
             showErr(form, "");
             const d = formData(form);
+            /* nome/descrição/logo salvam pelo rodapé; o interruptor
+               do Explorar já teve a dele salva por conta própria */
+            const iconPatch = {};
+            if (st.imageDirty) iconPatch.image = st.image;
+            if (st.colorDirty) {
+              iconPatch.color = st.color;
+              iconPatch.glyphColor = st.glyphColor;
+            }
+            /* alternar Imagem × Logo é escolha do usuário: o modo
+               vai junto (a foto fica guardada no banco, só sai do
+               caminho quando o modo é "logo") */
+            if (st.modeDirty) iconPatch.mode = st.mode;
             runTask(
               form.querySelector('button[type="submit"]'),
               api().updateServer(
@@ -1269,15 +1676,15 @@ window.NX = window.NX || {};
                   {
                     name: d.name,
                     description: d.description,
-                    discoverable: !!d.discoverable,
                   },
-                  /* a imagem só vai quando foi trocada/removida —
-                     preserva o ícone atual do servidor */
-                  st.imageDirty ? { icon: { image: st.image } } : {}
+                  Object.keys(iconPatch).length ? { icon: iconPatch } : {}
                 )
               ),
               form,
               () => {
+                st.imageDirty = false;
+                st.colorDirty = false;
+                st.modeDirty = false;
                 NX.ui.toast(NX.i18n.get("adm.configuracoesSalvas", "Configurações salvas."), "success");
                 m.close();
               }
@@ -2424,6 +2831,12 @@ window.NX = window.NX || {};
      servidor / configurações legado) e no painel NX.admin */
   M.iconUploadHTML = iconUploadHTML;
   M.bindIconUpload = bindIconUpload;
+  /* editor unificado Imagem × Logo + cores livres: exportado para o
+     NX.admin usar o MESMO editor (sem divergência entre os dois) */
+  M.iconEditorHTML = iconEditorHTML;
+  M.bindIconEditor = bindIconEditor;
+  M.logoColorsHTML = logoColorsHTML;
+  M.bindLogoColors = bindLogoColors;
 
   NX.modals = M;
 })(window.NX);

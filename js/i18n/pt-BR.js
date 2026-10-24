@@ -291,6 +291,10 @@
   D["adm.estaacaoepermanente"] = "Esta ação é permanente.";
   D["adm.estaspermissoesindividuaissobrepoemocargo"] = "Estas permissões individuais sobrepõem o cargo do membro.";
   D["adm.esteServidorNaoExiste"] = "Este servidor não existe mais ou foi excluído.";
+  D["adm.explorarAtivo"] = "Ativo e salvo — visível no diretório.";
+  D["adm.explorarErro"] = "Erro ao salvar.";
+  D["adm.explorarInativo"] = "Desativado — não aparece no diretório.";
+  D["adm.explorarSalvando"] = "Salvando…";
   D["adm.excluir"] = "Excluir #";
   D["adm.excluirCanal"] = "Excluir canal";
   D["adm.excluirCategoria"] = "Excluir categoria";
@@ -1445,12 +1449,18 @@
   D["modal.gerarconvite"] = "Gerar convite";
   D["modal.gerarnovocodigo"] = "Gerar novo código";
   D["modal.icone"] = "Ícone";
+  D["modal.iconeImagem"] = "Imagem";
+  D["modal.iconeLogo"] = "Logo";
   D["modal.iconedoservidor"] = "Ícone do servidor";
   D["modal.linkConviteCopiado"] = "Link do convite copiado!";
   D["modal.linkCopiado"] = "Link copiado!";
   D["modal.linkCopiado2"] = "Link copiado!";
   D["modal.linkCopiadoCompartilhar"] = "Link copiado para compartilhar.";
   D["modal.linkoucodigo"] = "Link ou código";
+  D["modal.logoCorDeFundo"] = "Cor de fundo";
+  D["modal.logoCorDoSimbolo"] = "Cor do símbolo";
+  D["modal.logoCorInvalida"] = "Cor inválida. Use um código como #22d3a6.";
+  D["modal.logoRestaurarPadrao"] = "Restaurar padrão";
   D["modal.matrizporcargoouusuariocom"] = "Matriz por cargo ou usuário com estados Permitir, Negar e Herdar — incluindo herança da categoria.";
   D["modal.membroRemovido"] = "Membro removido.";
   D["modal.membrodesde"] = "Membro desde";
@@ -2332,6 +2342,9 @@
   D["view.esteCanalEstaSilenciado"] = "Este canal está silenciado: ninguém pode enviar mensagens.";
   D["view.esteeocomecode"] = "Este é o começo de #";
   D["view.esteeoiniciodocanal"] = "Este é o início do canal #";
+  D["view.comoPermitir"] = "Como permitir";
+  D["view.dockAvisoMidia"] = "Aviso de mídia";
+  D["view.dockSemMidia"] = "Sem mídia";
   D["view.explorarServidores"] = "Explorar servidores";
   D["view.membros"] = "Membros —";
   D["view.mensagempara"] = "Mensagem para #";
@@ -2349,11 +2362,13 @@
   D["view.online"] = "online";
   D["view.paginaInicial"] = "Página inicial";
   D["view.pedidosdeamizade"] = "pedido(s) de amizade";
+  D["view.semMidia"] = "sem mídia";
   D["view.sempermissaoparaentrar"] = "Sem permissão para entrar";
   D["view.servidorespublicos"] = "Servidores públicos";
   D["view.servidornaoencontrado"] = "Servidor não encontrado.";
   D["view.seuCargoNaoTem"] = "Seu cargo não tem a permissão “Enviar mensagens” neste servidor.";
   D["view.temseuservidor"] = "Tem seu servidor?";
+  D["view.tentarNovamente"] = "Tentar novamente";
   D["view.todosestaoonline"] = "Todos estão online.";
   D["view.usuarioRemovido"] = "Usuário removido";
   D["view.usuarioRemovido2"] = "Usuário removido";
@@ -2705,6 +2720,45 @@
   D["chat.emojiDesfavoritar"] = "Remover dos favoritos";
   D["chat.emojiNenhumRecente"] = "Os emojis que você usar por aqui aparecem nesta aba.";
   D["chat.emojiNenhumFavorito"] = "Passe o cursor em um emoji e toque na estrela para guardá-lo aqui.";
+
+  /* ---- emojis e figurinhas personalizados por servidor ---- */
+  D["adm.figurinhas"] = "Figurinhas";
+  D["adm.soAdminGerenciarFigurinhas"] = "Só administradores podem gerenciar figurinhas.";
+  D["adm.adicionarfigurinha"] = "Adicionar figurinha";
+  D["adm.descricaoOpcional"] = "Descrição (opcional)";
+  D["adm.exCumprimentoDaComunidade"] = "ex.: cumprimento da comunidade";
+  D["adm.reduzidapara256pxAte2"] = "Reduzida para 256 px · até 2 MB · GIF preservado";
+  D["adm.nenhumaFigurinha"] = "Nenhuma figurinha";
+  D["adm.adicioneimagensgrandes"] = "Adicione imagens maiores para usá-las como figurinha nas conversas.";
+  D["adm.figurinhasServidorDisponiveis"] = "Figurinhas do servidor ficam disponíveis em qualquer canal para quem tem a permissão “Usar figurinhas”.";
+  D["adm.figurinhasDoServidor"] = "Figurinhas do servidor ·";
+  D["adm.escolhaImagemFigurinha"] = "Escolha uma imagem para a figurinha.";
+  D["adm.figurinhaAdicionada"] = "Figurinha adicionada.";
+  D["adm.codigoCopiado"] = "Código copiado.";
+  D["adm.excluFigurinha"] = "Excluir figurinha";
+  D["adm.mensagensJaUsamFigurinha"] = "As mensagens que já usam esta figurinha deixam de exibir a imagem.";
+  D["adm.figurinhaRemovida"] = "Figurinha removida.";
+  D["ui.exboanoite"] = "ex.: boa_noite";
+
+  D["core.gerenciarEmojis"] = "Gerenciar emojis";
+  D["core.adicionarEditarApagarEmojis"] = "Adicionar, editar e apagar emojis do servidor.";
+  D["core.gerenciarFigurinhas"] = "Gerenciar figurinhas";
+  D["core.adicionarEditarApagarFigurinhas"] = "Adicionar, editar e apagar figurinhas do servidor.";
+  D["core.usarFigurinhas"] = "Usar figurinhas";
+  D["core.usarFigurinhasServidor"] = "Usar as figurinhas do servidor.";
+
+  D["chat.figurinhas"] = "Figurinhas";
+  D["chat.nenhumafigurinha"] = "Nenhuma figurinha neste servidor ainda.";
+
+  D["api.nomeMuitoLongo26"] = "O nome pode ter no máximo 24 caracteres.";
+  D["api.nomeMuitoLongo27"] = "O nome pode ter no máximo 24 caracteres.";
+  D["api.estaImagemGrandeDemais4"] = "Esta imagem é grande demais. Até ";
+  D["api.nomePeloMenos27"] = "Dê um nome com pelo menos 2 caracteres à figurinha.";
+  D["api.jaExisteFigurinha"] = "Já existe uma figurinha com esse nome.";
+  D["api.figurinhaNaoEncontrada"] = "Figurinha não encontrada.";
+  D["api.voceNaoTemPermissao28"] = "Você não tem permissão para adicionar figurinhas.";
+  D["api.voceNaoTemPermissao29"] = "Você não tem permissão para editar figurinhas.";
+  D["api.voceNaoTemPermissao30"] = "Você não tem permissão para apagar figurinhas.";
 
   NX.i18n.register("pt-BR", D);
 })(window.NX);

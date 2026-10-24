@@ -151,13 +151,29 @@ const T = {
     alias: { isDefault: "is_default" },
     iso: ["createdAt"],
     jsonb: ["permissions"],
-    drop: ["isDefault"],
+    /* icon/description só passam a existir na migração 0005: sem o
+       `drop`, um banco ainda não migrado estouraria no insert e
+       derrubaria a criação do cargo inteiro */
+    drop: ["isDefault", "icon", "description"],
   },
   categories: {
     key: "id",
     alias: { order: "position" },
     iso: ["createdAt"],
     drop: ["collapsed", "perms"],
+  },
+  /* emojis e figurinhas personalizados do servidor — coluna nova
+     (migração 0006). A imagem é data URL validado no handler,
+     MESMO padrão de avatar/banner/ícone do Nexo. */
+  emojis: {
+    key: "id",
+    alias: { serverId: "server_id", createdBy: "created_by" },
+    iso: ["createdAt", "updatedAt"],
+  },
+  stickers: {
+    key: "id",
+    alias: { serverId: "server_id", createdBy: "created_by" },
+    iso: ["createdAt", "updatedAt"],
   },
   channels: {
     key: "id",
@@ -325,6 +341,10 @@ function defaultFor(table, field) {
     case "channels.updatedAt": return null;
     case "channels.createdBy": return null;
     case "roles.isDefault": return false;
+    /* ícone e descrição do cargo: nulos enquanto a migração 0005 não
+       rodar — o editor trata null como "sem ícone"/"sem descrição" */
+    case "roles.icon": return null;
+    case "roles.description": return null;
     case "messages.attachments": return [];
     case "messages.reactions": return {};
     case "messages.pinned": return false;

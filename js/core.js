@@ -607,21 +607,36 @@ window.NX = window.NX || {};
   util.serverIconHTML = (server, size, showBadge) => {
     if (!server) return "";
     const cls = ["server-icon", size ? "server-icon--" + size : "server-icon--md"];
+    /* modo do logo: "logo" esconde a imagem SEM apagá-la (é o que
+       permite alternar entre foto e logo e voltar, sem perder nada).
+       Servidor antigo sem `mode` continua imagem-primeiro, como sempre. */
+    const iconMode = (server.icon && server.icon.mode) || "image";
+    const monogram = util.initials(server.name);
+    /* em modo logo o símbolo é SEMPRE o monograma: é ele que recebe
+       as cores livres. Um emoji herdado sairia colorido de sistema e
+       daria a impressão de que a cor escolhida não vale. */
     const glyph =
-      server.icon && server.icon.emoji
+      iconMode === "logo"
+        ? monogram
+        : server.icon && server.icon.emoji
         ? server.icon.emoji
-        : util.initials(server.name);
+        : monogram;
     const color = (server.icon && server.icon.color) || util.colorFor(server.id);
+    /* cor livre do símbolo (iniciais): só sai do padrão quando a
+       pessoa escolheu — `null` mantém o traço escuro de sempre */
+    const glyphColor = (server.icon && server.icon.glyphColor) || "";
+    const useImage = !!(server.icon && server.icon.image) && iconMode !== "logo";
     /* ordem: foto enviada → emoji escolhido → iniciais do nome.
        Se a foto não carregar, o handler de erro (profileart.js)
        troca a caixa pelo glyph de fallback que vai no data-fb. */
-    const art =
-      server.icon && server.icon.image
+    const art = useImage
         ? '<span class="server-icon__img"><img src="' + util.h(server.icon.image) +
           '" alt="" loading="lazy" decoding="async" data-sv-fb="' + util.h(glyph) + '" /></span>'
         : '<span class="server-icon__glyph">' + util.h(glyph) + "</span>";
     return (
-      '<span class="' + cls.join(" ") + '" style="--sv:' + color + '" aria-hidden="true">' +
+      '<span class="' + cls.join(" ") + '" style="--sv:' + color +
+      (glyphColor ? ";--svg:" + util.h(glyphColor) : "") +
+      '" aria-hidden="true">' +
       art +
       (showBadge ? '<i class="server-icon__badge"></i>' : "") +
       "</span>"
@@ -750,6 +765,8 @@ window.NX = window.NX || {};
     { key: "manageRoles", label: NX.i18n.get("core.gerenciarCargos", "Gerenciar cargos"), desc: NX.i18n.get("core.criarEditarApagarCargos", "Criar, editar e apagar cargos e permissões."), group: (NX.i18n.get("core.geral", "Geral")) },
     { key: "manageChannels", label: NX.i18n.get("core.gerenciarCanais", "Gerenciar canais"), desc: NX.i18n.get("core.criarEditarApagarCategorias", "Criar, editar e apagar categorias e canais."), group: (NX.i18n.get("core.geral", "Geral")) },
     { key: "manageMembers", label: NX.i18n.get("core.gerenciarMembros", "Gerenciar membros"), desc: NX.i18n.get("core.verDetalhesAlterarCargos", "Ver detalhes e alterar cargos de membros."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageEmojis", label: NX.i18n.get("core.gerenciarEmojis", "Gerenciar emojis"), desc: NX.i18n.get("core.adicionarEditarApagarEmojis", "Adicionar, editar e apagar emojis do servidor."), group: (NX.i18n.get("core.geral", "Geral")) },
+    { key: "manageStickers", label: NX.i18n.get("core.gerenciarFigurinhas", "Gerenciar figurinhas"), desc: NX.i18n.get("core.adicionarEditarApagarFigurinhas", "Adicionar, editar e apagar figurinhas do servidor."), group: (NX.i18n.get("core.geral", "Geral")) },
     { key: "createInvite", label: NX.i18n.get("core.criarConvites", "Criar convites"), desc: NX.i18n.get("core.gerarLinksConviteServidor", "Gerar links de convite para o servidor."), group: (NX.i18n.get("core.geral", "Geral")) },
     { key: "viewLogs", label: NX.i18n.get("core.verLogs", "Ver logs"), desc: NX.i18n.get("core.consultarHistoricoModeracao", "Consultar o histórico de moderação."), group: (NX.i18n.get("core.geral", "Geral")) },
 
@@ -762,6 +779,7 @@ window.NX = window.NX || {};
     { key: "attachFiles", label: NX.i18n.get("core.anexarArquivos", "Anexar arquivos"), desc: NX.i18n.get("core.enviarImagensVideosArquivos", "Enviar imagens, vídeos e arquivos."), group: (NX.i18n.get("core.chat", "Chat")) },
     { key: "useEmojis", label: NX.i18n.get("core.usarEmojis", "Usar emojis"), desc: NX.i18n.get("core.reagirUsarEmojisMensagens", "Reagir e usar emojis nas mensagens."), group: (NX.i18n.get("core.chat", "Chat")) },
     { key: "useCustomEmojis", label: NX.i18n.get("core.usarEmojisPersonalizados", "Usar emojis personalizados"), desc: NX.i18n.get("core.usarEmojisServidor", "Usar os emojis do servidor."), group: (NX.i18n.get("core.chat", "Chat")) },
+    { key: "useStickers", label: NX.i18n.get("core.usarFigurinhas", "Usar figurinhas"), desc: NX.i18n.get("core.usarFigurinhasServidor", "Usar as figurinhas do servidor."), group: (NX.i18n.get("core.chat", "Chat")) },
     { key: "useGifs", label: NX.i18n.get("core.usarGifs", "Usar GIFs"), desc: NX.i18n.get("core.enviarGifsConversas", "Enviar GIFs nas conversas."), group: (NX.i18n.get("core.chat", "Chat")) },
     { key: "mentionEveryone", label: NX.i18n.get("core.mencionarMembros", "Mencionar membros"), desc: NX.i18n.get("core.usarEveryoneMencoesMassa", "Usar @everyone e menções em massa."), group: (NX.i18n.get("core.chat", "Chat")) },
 

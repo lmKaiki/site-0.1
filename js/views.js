@@ -15,6 +15,10 @@ window.NX = window.NX || {};
 
   views.editingMessageId = null;
 
+  /* estado do popover de mídia do dock — vive aqui (e não no DOM) para
+     sobreviver às repinturas do sidebar que o poll da sala dispara */
+  views.voicePop = { open: false, help: false };
+
   /* ================= RAIL (barra de servidores) ================= */
   views.rail = function () {
     const me = S().me();
@@ -188,6 +192,33 @@ window.NX = window.NX || {};
     const conn = mine
       ? st.conn || NX.i18n.get("view.aguardandoSala", "Aguardando…")
       : NX.i18n.get("view.entrandoSala", "Entrando na sala…");
+    /* mídia: UM indicador compacto (nunca um aviso gigante cobrindo o
+       nome, a conexão ou os botões) + popover com detalhes e ações */
+    const mi =
+      mine && st.media && st.media.issues && st.media.issues.length ? st.media.issues : null;
+    const miTitle = mi
+      ? mi
+          .map(function (x) {
+            return x.title;
+          })
+          .join(" · ")
+      : "";
+    const miBody = mi
+      ? mi
+          .map(function (x) {
+            return x.body;
+          })
+          .join(" ")
+      : "";
+    const miHelp = mi
+      ? mi
+          .map(function (x) {
+            return x.help;
+          })
+          .filter(Boolean)
+          .join(" ")
+      : "";
+    const semMidia = NX.i18n.get("view.dockSemMidia", "Sem mídia");
     return (
       '<div class="voice-dock is-live">' +
       '<div class="voice-dock__top">' +
@@ -200,6 +231,28 @@ window.NX = window.NX || {};
         ? '<div class="voice-dock__share">' + NX.icon("monitor", "", 13) + " " +
           NX.i18n.get("view.compartilhandoTela", "Compartilhando a tela") +
           "</div>"
+        : "") +
+      (mi
+        ? '<div class="voice-dock__warnrow">' +
+          '<button type="button" class="voice-dock__warn" data-action="voice-media-info" ' +
+          'aria-haspopup="dialog" aria-expanded="false" title="' + u().h(miTitle) + '">' +
+          NX.icon("alert", "", 14) + "<span>" + semMidia + "</span></button>" +
+          '<div class="voice-dock__pop" hidden role="dialog" aria-label="' +
+          u().h(NX.i18n.get("view.dockAvisoMidia", "Aviso de mídia")) +
+          '">' +
+          "<strong>" + u().h(miTitle) + "</strong>" +
+          "<p>" + u().h(miBody) + "</p>" +
+          (miHelp ? '<p class="voice-dock__pophelp" hidden>' + u().h(miHelp) + "</p>" : "") +
+          '<div class="voice-dock__popacts">' +
+          (miHelp
+            ? '<button type="button" class="btn btn--ghost btn--sm" data-action="voice-media-help" aria-expanded="false">' +
+              u().h(NX.i18n.get("view.comoPermitir", "Como permitir")) +
+              "</button>"
+            : "") +
+          '<button type="button" class="btn btn--primary btn--sm" data-action="voice-media-retry">' +
+          u().h(NX.i18n.get("view.tentarNovamente", "Tentar novamente")) +
+          "</button>" +
+          "</div></div></div>"
         : "") +
       '<div class="voice-dock__acts">' +
       '<button type="button" class="voice-dock__btn' + (mic ? "" : " is-off") +
@@ -486,7 +539,10 @@ window.NX = window.NX || {};
   }
 
   function exploreSidebar() {
-    const servers = S().discoverableServers();
+    const servers =
+      NX.store.explore && NX.store.explore.length
+        ? S().exploreServers()
+        : S().discoverableServers();
     return (
       '<header class="side-head">' + NX.icon("compass", "", 18) + ("<span>" + NX.i18n.get("nav.explore", "Explorar") + "</span></header>") +
       '<div class="sidebar__scroll">' +
@@ -982,6 +1038,22 @@ window.NX = window.NX || {};
         (st.conn || NX.i18n.get("view.aguardandoSala", "Aguardando…")) +
         (st.me && st.me.screen ? " · " + NX.icon("monitor", "", 13) + " " + NX.i18n.get("view.compartilhandoTela", "Compartilhando a tela") : "") +
         (st.me && !st.me.mic ? " · " + NX.icon("volumeOff", "", 13) + " " + NX.i18n.get("view.mudo", "Mudo") : "") +
+        /* honestidade: sem mídia no ar, a sala não é "funcional" */
+        (st.media && st.media.issues && st.media.issues.length
+          ? ' · <span class="voice-room__mediawarn" title="' +
+            u().h(
+              st.media.issues
+                .map(function (x) {
+                  return x.title;
+                })
+                .join(" · ")
+            ) +
+            '">' +
+            NX.icon("alert", "", 12) +
+            " " +
+            NX.i18n.get("view.semMidia", "sem mídia") +
+            "</span>"
+          : "") +
         "</p>"
       : "";
 
@@ -1472,8 +1544,15 @@ window.NX = window.NX || {};
       );
     };
 
+    /* O cabeçalho junta duas informações visuais ("Membros — 1" e
+       "0 online"). Em texto puro elas se encostavam e viravam
+       "Membros — 10 online" -- lido assim também por leitores de
+       tela. O resumo em aria-label descreve os dois números. */
+    const headAria =
+      NX.i18n.get("view.membrosAria", "Membros") +
+      ": " + members.length + " total, " + online.length + " online";
     let html =
-      ("<div class=\"members__head\"><span>" + NX.i18n.get("view.membros", "Membros —") + " ") + members.length + "</span>" +
+      '<div class="members__head" aria-label="' + headAria + '"><span>' + NX.i18n.get("view.membros", "Membros —") + " " + members.length + "</span>" +
       '<span class="members__online-dot">' + online.length + " online</span></div>";
     html += '<div class="members__scroll">';
     html += activeNowHTML(me);

@@ -70,7 +70,12 @@ window.NX = window.NX || {};
     startedAt: 0,
     connection: "new",
     mediaWarned: false,
-    mediaHint: "", /* como liberar, quando o bloqueio é permissão */
+    /* UMA fonte de verdade do aviso de permissão: um item por tipo
+       (microfone/câmera) com o motivo REAL — o mesmo evento nunca gera
+       dois avisos na tela. */
+    mediaIssues: [],
+    mediaDismissed: false, /* aviso principal fechado (só visual) */
+    permHelpOpen: false, /* "Como permitir" aberto no aviso principal */
     root: null,
     audioEl: null,
     room: null, /* sala de voz do servidor (malha WebRTC) */
@@ -299,12 +304,214 @@ window.NX = window.NX || {};
     return (e && e.message) || fallback;
   }
 
+  /* motivo REAL do bloqueio: permissão negada x sem aparelho x
+     aparelho ocupado x navegador sem suporte x captura encerrada —
+     o aviso diz qual, sem culpar permissão quando não é permissão */
+  function failReason(e) {
+    const n = (e && e.name) || "";
+    if (isDenied(e)) return "denied";
+    if (n === "NotFoundError" || n === "DevicesNotFoundError" || n === "OverconstrainedError")
+      return "nodevice";
+    if (n === "NotReadableError" || n === "TrackStartError" || n === "AbortError") return "busy";
+    if (n === "NotSupportedError" || n === "TypeError") return "unsupported";
+    if (n === "EndedError") return "ended";
+    if (n === "pending") return "pending";
+    return "error";
+  }
+
+  /* título curto + explicação objetiva por tipo e motivo (o componente
+     único de aviso mostra isto; a ajuda de "Como permitir" fica à parte) */
+  function issueCopy(kind, reason) {
+    const cam = kind === "camera";
+    const K = function (titleKey, title, bodyKey, body) {
+      return { title: t(titleKey, title), body: t(bodyKey, body) };
+    };
+    if (reason === "denied")
+      return cam
+        ? K(
+            "call.permTituloCamera",
+            "Permissão da câmera necessária",
+            "call.permBodyCamera",
+            "O Nexo não consegue acessar sua câmera. Verifique as permissões do navegador e tente novamente."
+          )
+        : K(
+            "call.permTituloMicro",
+            "Permissão do microfone necessária",
+            "call.permBodyMicro",
+            "O Nexo não consegue acessar seu microfone. Verifique as permissões do navegador e tente novamente."
+          );
+    if (reason === "nodevice")
+      return cam
+        ? K(
+            "call.permTituloCamNodev",
+            "Câmera não encontrada",
+            "call.permBodyCamNodev",
+            "Nenhuma câmera foi encontrada. Conecte uma câmera e verifique se ela está liberada no sistema."
+          )
+        : K(
+            "call.permTituloMicroNodev",
+            "Microfone não encontrado",
+            "call.permBodyMicroNodev",
+            "Nenhum microfone foi encontrado. Conecte um aparelho e verifique se ele está liberado no sistema."
+          );
+    if (reason === "busy")
+      return cam
+        ? K(
+            "call.permTituloCamBusy",
+            "Câmera em uso",
+            "call.permBodyCamBusy",
+            "Outro aplicativo está usando a câmera. Feche o outro programa e tente novamente."
+          )
+        : K(
+            "call.permTituloMicroBusy",
+            "Microfone em uso",
+            "call.permBodyMicroBusy",
+            "Outro aplicativo está usando o microfone. Feche o outro programa e tente novamente."
+          );
+    if (reason === "unsupported")
+      return K(
+        "call.permTituloSemSuporte",
+        "Navegador sem suporte a mídia",
+        "call.permBodySemSuporte",
+        "Este navegador não permite capturar microfone nem câmera."
+      );
+    if (reason === "ended")
+      return cam
+        ? K(
+            "call.permTituloCamEnd",
+            "Captura de vídeo encerrada",
+            "call.permBodyCamEnd",
+            "A câmera parou no meio da chamada (permissão revogada ou aparelho desconectado). Verifique e tente novamente."
+          )
+        : K(
+            "call.permTituloMicroEnd",
+            "Captura de áudio encerrada",
+            "call.permBodyMicroEnd",
+            "O microfone parou no meio da chamada (permissão revogada ou aparelho desconectado). Verifique e tente novamente."
+          );
+    if (reason === "pending")
+      return cam
+        ? K(
+            "call.permTituloCamPend",
+            "Aguardando permissão da câmera",
+            "call.permBodyCamPend",
+            "O navegador ainda não liberou a câmera. Use “Tentar novamente” para o navegador fazer o pedido."
+          )
+        : K(
+            "call.permTituloMicroPend",
+            "Aguardando permissão do microfone",
+            "call.permBodyMicroPend",
+            "O navegador ainda não liberou o microfone. Use “Tentar novamente” para o navegador fazer o pedido."
+          );
+    return cam
+      ? K(
+          "call.permTituloCamErro",
+          "Câmera indisponível",
+          "call.permBodyCamErro",
+          "Não foi possível usar a câmera. Verifique o aparelho e as permissões do navegador."
+        )
+      : K(
+          "call.permTituloMicroErro",
+          "Microfone indisponível",
+          "call.permBodyMicroErro",
+          "Não foi possível usar o microfone. Verifique o aparelho e as permissões do navegador."
+        );
+  }
+
+  function findIssue(kind) {
+    for (let i = 0; i < state.mediaIssues.length; i++)
+      if (state.mediaIssues[i].kind === kind) return state.mediaIssues[i];
+    return null;
+  }
+
+  function issueMessage(kind) {
+    const it = findIssue(kind);
+    return it ? it.message : "";
+  }
+
+  /* registra/deduplica o problema por tipo. Um motivo novo (ou primeiro)
+     volta a mostrar o aviso principal; repetir o mesmo motivo não
+     reabre o que a pessoa fechou. */
+  function setMediaIssue(kind, err, fallback, extra) {
+    extra = extra || {};
+    const reason = extra.reason || failReason(err);
+    const prev = findIssue(kind);
+    const copy = issueCopy(kind, reason);
+    const help =
+      extra.help !== undefined
+        ? extra.help
+        : reason === "denied"
+        ? permHelp(kind === "camera" ? "camera" : "microphone")
+        : "";
+    const issue = {
+      kind: kind,
+      reason: reason,
+      title: copy.title,
+      body: copy.body,
+      help: help,
+      message:
+        extra.message ||
+        mediaFail(kind === "camera" ? "camera" : "microphone", err, fallback || copy.body),
+    };
+    if (prev) {
+      const fresh = prev.reason !== reason || prev.message !== issue.message;
+      state.mediaIssues[state.mediaIssues.indexOf(prev)] = issue;
+      if (fresh) {
+        state.mediaDismissed = false;
+        state.permHelpOpen = false;
+      }
+    } else {
+      state.mediaIssues.push(issue);
+      state.mediaDismissed = false;
+      state.permHelpOpen = false;
+    }
+    state.mediaWarned = state.mediaIssues.length > 0;
+  }
+
+  function clearMediaIssue(kind) {
+    state.mediaIssues = state.mediaIssues.filter(function (x) {
+      return x.kind !== kind;
+    });
+    if (!state.mediaIssues.length) {
+      state.mediaWarned = false;
+      state.mediaDismissed = false;
+      state.permHelpOpen = false;
+    }
+  }
+
+  function clearMediaIssues() {
+    state.mediaIssues = [];
+    state.mediaWarned = false;
+    state.mediaDismissed = false;
+    state.permHelpOpen = false;
+  }
+
+  /* uma nova tentativa da própria pessoa merece aviso visível de novo
+     (se ela tinha fechado o cartão, o resultado volta a aparecer) */
+  function reopenPermCard() {
+    if (state.mediaIssues.length) state.mediaDismissed = false;
+  }
+
+  /* o aviso contextual só existe quando a pessoa está VENDO uma tela
+     que o mostra (call ativa, lobby ou sala visível/dock): fora disso
+     (ex.: chamada "ligando", call minimizada) o toast é o retorno
+     honesto — nunca os dois ao mesmo tempo. */
+  function mediaUIVisible() {
+    try {
+      if (state.room && roomVisible()) return true;
+      if (state.phase === "lobby") return true;
+      if (state.phase === "active" && !state.minimized) return true;
+      if (state.room && document.querySelector(".voice-dock")) return true;
+    } catch (e) {}
+    return false;
+  }
+
   async function acquireMedia(withVideo, opts) {
     opts = opts || {};
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMediaIssue("microphone", { name: "NotSupportedError" }, null);
       throw new Error(t("call.naoSuportaCameraMicro", "Este navegador não suporta câmera/microfone."));
-
-    state.mediaHint = "";
+    }
 
     /* RECUPERAÇÃO (F5 / voltar para a chamada): captura só se o
        navegador JÁ concedeu — nunca abrimos pedido sozinho. Se ainda
@@ -314,24 +521,29 @@ window.NX = window.NX || {};
       const mp = await permState("microphone");
       const cp = withVideo ? await permState("camera") : "unknown";
       if (mp !== "granted" && cp !== "granted") {
-        if (mp === "denied" || cp === "denied")
-          state.mediaHint = permHelp(mp === "denied" ? "microphone" : "camera");
-        throw new Error(
-          t(
-            "call.semPermissaoAuto",
-            "Sem acesso ao microfone/câmera ainda — clique em “Microfone” ou “Câmera” para o navegador fazer o pedido."
-          )
+        const kind = mp === "granted" ? "camera" : "microphone";
+        const denied = mp === "denied" || cp === "denied";
+        const msg = t(
+          "call.semPermissaoAuto",
+          "Sem acesso ao microfone/câmera ainda — clique em “Microfone” ou “Câmera” para o navegador fazer o pedido."
         );
+        setMediaIssue(kind, { name: denied ? "NotAllowedError" : "pending" }, msg, {
+          reason: denied ? "denied" : "pending",
+          message: msg,
+          help: denied ? permHelp(kind === "camera" ? "camera" : "microphone") : "",
+        });
+        throw new Error(msg);
       }
     }
 
-    const warns = [];
+    const warns = []; /* falhas DESTA tentativa (mensagem real por tipo) */
     /* junta com o que já existe: a captura anterior continua no ar */
     const stream = state.localStream || new MediaStream();
     let changed = false;
 
     if (micTrack()) {
       state.mic = !!micTrack().enabled; /* reutiliza: sem novo pedido */
+      clearMediaIssue("microphone"); /* áudio de verdade no ar */
     } else {
       try {
         const a = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
@@ -341,16 +553,18 @@ window.NX = window.NX || {};
           changed = true;
         });
         state.mic = true;
+        clearMediaIssue("microphone"); /* confirmado por track */
       } catch (e) {
         state.mic = false;
-        if (isDenied(e)) state.mediaHint = permHelp("microphone");
-        warns.push(mediaFail("microphone", e, t("call.naoUsarMicro", "Não foi possível usar o microfone.")));
+        setMediaIssue("microphone", e, t("call.naoUsarMicro", "Não foi possível usar o microfone."));
+        warns.push(issueMessage("microphone"));
       }
     }
 
     if (withVideo) {
       if (cameraTrack()) {
         state.cam = true; /* reutiliza: sem novo pedido */
+        clearMediaIssue("camera");
       } else {
         try {
           const v = await navigator.mediaDevices.getUserMedia({ video: videoConstraints() });
@@ -360,10 +574,11 @@ window.NX = window.NX || {};
             changed = true;
           });
           state.cam = true;
+          clearMediaIssue("camera"); /* confirmado por track */
         } catch (e) {
           state.cam = false;
-          if (isDenied(e)) state.mediaHint = permHelp("camera");
-          warns.push(mediaFail("camera", e, t("call.naoUsarCamera", "Não foi possível usar a câmera.")));
+          setMediaIssue("camera", e, t("call.naoUsarCamera", "Não foi possível usar a câmera."));
+          warns.push(issueMessage("camera"));
         }
       }
     }
@@ -372,10 +587,20 @@ window.NX = window.NX || {};
       throw new Error(warns[0] || t("call.semPermissaoMidia", "Não foi possível usar microfone nem câmera."));
 
     state.localStream = stream;
-    state.mediaWarned = warns.length > 0; /* aviso honesto se faltou um dos lados */
+    state.mediaWarned = state.mediaIssues.length > 0;
     /* na sala de voz a mídia nova precisa entrar nas conexões já abertas */
     if (state.room && changed) roomApplyMedia();
-    if (warns.length) toast(warns.join(" "), "warn");
+    /* toast só quando NÃO existe aviso contextual na tela (a mesma
+       permissão nunca é anunciada em dois lugares de uma vez) */
+    if (state.mediaIssues.length && !mediaUIVisible())
+      toast(
+        state.mediaIssues
+          .map(function (x) {
+            return x.message;
+          })
+          .join(" "),
+        "warn"
+      );
     return state.localStream;
   }
 
@@ -497,11 +722,13 @@ window.NX = window.NX || {};
       if (kind === "audio") {
         if (micTrack()) return; /* sobrou outro micro vivo */
         state.mic = false;
+        setMediaIssue("microphone", { name: "EndedError" }, null);
       } else {
         if (cameraTrack()) return;
         state.cam = false;
+        setMediaIssue("camera", { name: "EndedError" }, null);
       }
-      state.mediaWarned = true;
+      state.mediaWarned = state.mediaIssues.length > 0;
       if (state.room) roomSendMedia();
       render();
     };
@@ -1064,7 +1291,7 @@ window.NX = window.NX || {};
     state.phase = "outgoing";
     state.startedAt = Date.now();
     state.connection = "new";
-    state.mediaWarned = false;
+    clearMediaIssues();
     state.pendingCall = null;
     state.minimized = false;
     render();
@@ -1078,8 +1305,10 @@ window.NX = window.NX || {};
       try {
         await acquireMedia(!!opts.video);
       } catch (e) {
-        state.mediaWarned = true;
-        if (e && e.message) toast(e.message, "warn");
+        /* o motivo real já virou aviso contextual (setMediaIssue):
+           toast só quando nenhuma superfície está na tela — o mesmo
+           problema nunca é anunciado em dois lugares */
+        if (e && e.message && (!state.mediaIssues.length || !mediaUIVisible())) toast(e.message, "warn");
       }
     }
     const pc = createPC();
@@ -1126,8 +1355,10 @@ window.NX = window.NX || {};
     try {
       await acquireMedia(false);
     } catch (e) {
-      state.mediaWarned = true;
-      if (e && e.message) toast(e.message, "warn");
+      /* o motivo real já virou aviso contextual (setMediaIssue):
+         toast só quando nenhuma superfície está na tela — o mesmo
+         problema nunca é anunciado em dois lugares */
+      if (e && e.message && (!state.mediaIssues.length || !mediaUIVisible())) toast(e.message, "warn");
     }
     createPC(true); /* sem tracks ainda: entram depois da resposta */
     render();
@@ -1253,14 +1484,20 @@ window.NX = window.NX || {};
           if (!state.room) createPC();
           setOutgoingTrack("audio", micTrack(), state.localStream, state.screenAudioSender);
           if (state.room) roomApplyMedia();
-          state.mediaWarned = !!(state.localStream && !micTrack());
+          if (state.localStream && !micTrack()) {
+            setMediaIssue("microphone", null, null, { reason: "error" });
+          } else {
+            clearMediaIssue("microphone"); /* captura confirmada por track */
+          }
           render();
         })
         .catch(function (e) {
-          /* recusado: mensagem clara + como liberar, estado seguro */
+          /* recusado: estado seguro + o aviso único já explica o motivo
+             real (toast só quando não há superfície na tela) */
           state.mic = false;
-          state.mediaWarned = true;
-          toast((e && e.message) || t("call.naoUsarMicro", "Não foi possível usar o microfone."), "error");
+          reopenPermCard();
+          if (e && e.message && !mediaUIVisible())
+            toast(e.message || t("call.naoUsarMicro", "Não foi possível usar o microfone."), "error");
           render();
         });
       return;
@@ -1289,8 +1526,11 @@ window.NX = window.NX || {};
     const on = !state.cam;
     if (on) {
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
-          throw new Error(t("call.naoSuportaCameraMicro", "Este navegador não suporta câmera/microfone."));
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          const ue = new Error(t("call.naoSuportaCameraMicro", "Este navegador não suporta câmera/microfone."));
+          ue.name = "NotSupportedError";
+          throw ue;
+        }
         const v = await navigator.mediaDevices.getUserMedia({ video: videoConstraints() });
         const track = v.getVideoTracks()[0];
         if (!state.localStream) state.localStream = new MediaStream();
@@ -1304,6 +1544,7 @@ window.NX = window.NX || {};
         state.localStream.addTrack(track);
         watchLocalTrack(track, "video");
         state.cam = true;
+        clearMediaIssue("camera"); /* captura confirmada por track */
         /* se a tela já ocupa a linha de vídeo, a câmera espera: a tela
            é o conteúdo que o outro lado está vendo agora */
         if (!state.screen) setOutgoingTrack("video", track, state.localStream);
@@ -1316,8 +1557,11 @@ window.NX = window.NX || {};
         attachLocalPreview();
       } catch (e) {
         state.cam = false;
-        /* recusado/sem aparelho/ocupado: cada um com seu aviso real */
-        toast(mediaFail("camera", e, t("call.naoUsarCamera", "Não foi possível usar a câmera.")), "error");
+        /* recusado/sem aparelho/ocupado: registrado no aviso único com
+           o motivo real (toast só se não há superfície na tela) */
+        setMediaIssue("camera", e, t("call.naoUsarCamera", "Não foi possível usar a câmera."));
+        reopenPermCard();
+        if (!mediaUIVisible()) toast(issueMessage("camera"), "error");
         render();
       }
       return;
@@ -1526,13 +1770,17 @@ window.NX = window.NX || {};
       watchLocalTrack(track, "audio");
       setOutgoingTrack("audio", track, state.localStream, state.screenAudioSender);
       state.mic = true;
+      clearMediaIssue("microphone"); /* captura confirmada por track */
       if (state.room) {
         roomApplyMedia();
         roomSendMedia();
       }
       render();
     } catch (e) {
-      toast(mediaFail("microphone", e, t("call.naoTrocarMicro", "Não foi possível trocar o microfone.")), "error");
+      /* motivo real no aviso único; toast só sem superfície na tela */
+      setMediaIssue("microphone", e, t("call.naoTrocarMicro", "Não foi possível trocar o microfone."));
+      reopenPermCard();
+      if (!mediaUIVisible()) toast(issueMessage("microphone"), "error");
     }
   }
 
@@ -1557,10 +1805,14 @@ window.NX = window.NX || {};
         roomPush("cam", track);
         roomSendMedia();
       }
+      clearMediaIssue("camera"); /* captura confirmada por track */
       render();
       attachLocalPreview();
     } catch (e) {
-      toast(mediaFail("camera", e, t("call.naoTrocarCamera", "Não foi possível trocar a câmera.")), "error");
+      /* motivo real no aviso único; toast só sem superfície na tela */
+      setMediaIssue("camera", e, t("call.naoTrocarCamera", "Não foi possível trocar a câmera."));
+      reopenPermCard();
+      if (!mediaUIVisible()) toast(issueMessage("camera"), "error");
     }
   }
 
@@ -1717,6 +1969,127 @@ window.NX = window.NX || {};
     );
   }
 
+  /* =========================================================
+     AVISO ÚNICO DE PERMISSÃO (call1:1, sala de voz e lobby)
+     Um só componente, dentro da área da chamada, com largura
+     limitada, texto quebrado corretamente, ação real de nova
+     tentativa e fechar VISUAL (nunca fingi que a permissão foi
+     concedida). O mesmo aviso não aparece em outro lugar.
+     ========================================================= */
+  function permCardHTML(flow) {
+    const issues = state.mediaIssues;
+    if (!issues.length || state.mediaDismissed) return "";
+    const multi = issues.length > 1;
+    const title = multi
+      ? t("call.permTituloMulti", "Permissões de mídia necessárias")
+      : issues[0].title;
+    const body = issues
+      .map(function (x) {
+        return x.body;
+      })
+      .join(" ");
+    const help = issues
+      .map(function (x) {
+        return x.help;
+      })
+      .filter(Boolean)
+      .join(" ");
+    const closeLbl = t("call.permFechar", "Fechar aviso");
+    return (
+      '<div class="call-perm' +
+      (flow ? " call-perm--flow" : " call-perm--float") +
+      '" role="alert" data-perm-card>' +
+      '<div class="call-perm__head">' +
+      '<span class="call-perm__ico" aria-hidden="true">' + NX.icon("alert", "", 17) + "</span>" +
+      "<strong>" + hh(title) + "</strong>" +
+      '<button type="button" class="call-perm__x" data-call="perm-dismiss" aria-label="' +
+      hh(closeLbl) +
+      '" title="' +
+      hh(closeLbl) +
+      '">' +
+      NX.icon("x", "", 14) +
+      "</button>" +
+      "</div>" +
+      '<p class="call-perm__body">' + hh(body) + "</p>" +
+      (state.permHelpOpen && help ? '<p class="call-perm__help">' + hh(help) + "</p>" : "") +
+      '<div class="call-perm__acts">' +
+      (help
+        ? '<button type="button" class="btn btn--ghost btn--sm" data-call="perm-help" aria-expanded="' +
+          (state.permHelpOpen ? "true" : "false") +
+          '">' +
+          (
+            state.permHelpOpen
+              ? t("call.permOcultar", "Ocultar")
+              : t("call.permComoPermitir", "Como permitir")
+          ) +
+          "</button>"
+        : "") +
+      '<button type="button" class="btn btn--primary btn--sm" data-call="perm-retry">' +
+      NX.icon("refresh", "", 14) +
+      " " +
+      t("call.permTentarNovamente", "Tentar novamente") +
+      "</button>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  /* "Tentar novamente": nova tentativa REAL de captura. O aviso só sai
+     quando a captura é confirmada por uma track viva de verdade. */
+  async function retryMedia(silent) {
+    /* tentativa nova = resultado à vista: se o aviso estava fechado,
+       ele volta a aparecer com o desfecho real (liberado ou não) */
+    reopenPermCard();
+    const withVideo =
+      !!cameraTrack() ||
+      state.mediaIssues.some(function (x) {
+        return x.kind === "camera";
+      }) ||
+      !!(state.pendingCall && state.pendingCall.video);
+    try {
+      await acquireMedia(withVideo);
+      if (state.room) roomApplyMedia();
+      if (state.phase !== "none" && state.localStream) {
+        try {
+          setOutgoingTrack("audio", micTrack(), state.localStream, state.screenAudioSender);
+        } catch (e) {}
+      }
+      if (!silent && !state.mediaIssues.length)
+        toast(t("call.midiaLiberada", "Mídia liberada — captura confirmada."), "success");
+    } catch (e) {
+      /* o motivo real já foi registrado em setMediaIssue: o próprio
+         aviso (cartão ou dock) explica — sem toast em duplicidade */
+    }
+    render();
+    try {
+      if (NX.store && NX.store.commit) NX.store.commit(["voice"]);
+    } catch (e) {}
+  }
+
+  /* quando o navegador muda a permissão sozinho (configurações do
+     site), o aviso acompanha: concedido de verdade → tenta capturar de
+     novo e só assim o aviso sai. Nada é marcado como funcionando sem
+     track no ar. */
+  function watchPermChanges() {
+    if (!navigator.permissions || !navigator.permissions.query) return;
+    ["microphone", "camera"].forEach(function (name) {
+      try {
+        navigator.permissions
+          .query({ name: name })
+          .then(function (st) {
+            st.onchange = function () {
+              if (st.state !== "granted") return;
+              if (!state.room && state.phase === "none") return;
+              if (state.mediaIssues.length) retryMedia(true);
+            };
+          })
+          .catch(function () {});
+      } catch (e) {
+        /* navegador não expõe: quem avisa é o próprio pedido */
+      }
+    });
+  }
+
   function screenHTML() {
     const peer = state.peer || {};
     const sharing = state.screen && state.screenStream;
@@ -1768,10 +2141,7 @@ window.NX = window.NX || {};
       '<span class="call-stage__localtag">' + (state.mic ? NX.icon("mic", "", 13) + " " + t("call.microAtivo", "Micro ativo") : NX.icon("mic", "", 13) + " " + t("call.microDesligado", "Micro desligado")) + "</span>" +
       "</div>" +
       (state.mediaWarned
-        ? '<div class="call-warn">' + NX.icon("alert", "", 16) + "<span>" +
-          t("call.avisoMidia", "Sem permissão de mídia: você participa da chamada, mas a outra pessoa não ouve/vera você.") +
-          (state.mediaHint ? '<small class="call-warn__hint">' + hh(state.mediaHint) + "</small>" : "") +
-          "</span></div>"
+        ? permCardHTML(false)
         : "") +
       "</div>" +
       '<div class="call-bar">' +
@@ -2642,11 +3012,7 @@ window.NX = window.NX || {};
       '<span>' + (state.cam ? NX.icon("camera", "", 17) : NX.icon("videoOff", "", 17)) + "</span><small>" +
       (state.cam ? t("call.camera", "Câmera") : t("call.camOff", "Câmera off")) + "</small></button>" +
       "</div>" +
-      (state.mediaWarned
-        ? '<p class="lobby__warn">' + NX.icon("alert", "", 15) + "<span>" +
-          t("call.lobbySemMidia", "Sem permissão de mídia: você pode entrar, mas não enviará áudio/vídeo.") +
-          "</span></p>"
-        : "") +
+      (state.mediaWarned ? permCardHTML(true) : "") +
       '<div class="lobby__acts">' +
       '<button type="button" class="lobby__cancel" data-call="lob-cancel">' +
       t("call.cancelar", "Cancelar") + "</button>" +
@@ -2690,15 +3056,17 @@ window.NX = window.NX || {};
     state.pendingCall = { peerId: peerId, video: !!opts.video };
     state.cam = false;
     state.mic = false; /* só vira "ligado" quando houver captura real */
-    state.mediaWarned = false;
+    clearMediaIssues();
     state.startedAt = Date.now();
     state.phase = "lobby";
     render();
     try {
       await acquireMedia(!!opts.video);
     } catch (e) {
-      state.mediaWarned = true;
-      if (e && e.message) toast(e.message, "warn");
+      /* o motivo real já virou aviso contextual (setMediaIssue):
+         toast só quando nenhuma superfície está na tela — o mesmo
+         problema nunca é anunciado em dois lugares */
+      if (e && e.message && (!state.mediaIssues.length || !mediaUIVisible())) toast(e.message, "warn");
     }
     if (state.phase === "lobby") {
       render();
@@ -2714,7 +3082,8 @@ window.NX = window.NX || {};
         render();
         attachLobbyPreview();
       } catch (e) {
-        state.mediaWarned = true;
+        /* o motivo real já está no aviso único do lobby */
+        reopenPermCard();
         render();
       }
       return;
@@ -2727,8 +3096,11 @@ window.NX = window.NX || {};
         fresh.enabled = true;
         state.localStream.addTrack(fresh);
         state.mic = true;
+        clearMediaIssue("microphone"); /* captura confirmada por track */
       } catch (e) {
-        toast(mediaFail("microphone", e, t("call.micNegadoMsg", "Não foi possível acessar seu microfone.")), "error");
+        setMediaIssue("microphone", e, t("call.micNegadoMsg", "Não foi possível acessar seu microfone."));
+        reopenPermCard();
+        if (!mediaUIVisible()) toast(issueMessage("microphone"), "error");
       }
     } else {
       tr.enabled = !tr.enabled;
@@ -2742,7 +3114,9 @@ window.NX = window.NX || {};
     const on = !state.cam;
     if (on) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast(t("call.naoSuportaCameraMicro", "Este navegador não suporta câmera/microfone."), "error");
+        setMediaIssue("camera", { name: "NotSupportedError" }, null);
+        reopenPermCard();
+        render();
         return;
       }
       try {
@@ -2756,9 +3130,12 @@ window.NX = window.NX || {};
         state.localStream.addTrack(track);
         watchLocalTrack(track, "video");
         state.cam = true;
+        clearMediaIssue("camera"); /* captura confirmada por track */
       } catch (e) {
         state.cam = false;
-        toast(mediaFail("camera", e, t("call.camErroMsg", "Não foi possível acessar sua câmera.")), "error");
+        setMediaIssue("camera", e, t("call.camErroMsg", "Não foi possível acessar sua câmera."));
+        reopenPermCard();
+        if (!mediaUIVisible()) toast(issueMessage("camera"), "error");
       }
     } else {
       const tr = state.localStream && state.localStream.getVideoTracks()[0];
@@ -2791,7 +3168,7 @@ window.NX = window.NX || {};
     state.peer = null;
     state.cam = false;
     state.mic = false;
-    state.mediaWarned = false;
+    clearMediaIssues();
     render();
   }
 
@@ -2862,6 +3239,15 @@ window.NX = window.NX || {};
       else if (act === "lob-cancel") cancelLobby();
       else if (act === "lob-enter") enterCall();
       else if (act === "media") toggleMedia();
+      else if (act === "perm-dismiss") {
+        /* fechar é VISUAL: a permissão continua como está (o dock segue
+           sinalizando, sem fingir que foi concedida) */
+        state.mediaDismissed = true;
+        render();
+      } else if (act === "perm-help") {
+        state.permHelpOpen = !state.permHelpOpen;
+        render();
+      } else if (act === "perm-retry") retryMedia();
       else if (act === "room-focus") toggleRoomFocus();
       else if (act === "room-menu") openRoomMenu(btn);
       else if (act === "full") toggleFull();
@@ -4004,8 +4390,10 @@ window.NX = window.NX || {};
     try {
       await acquireMedia(opts.withVideo === true, { auto: !!opts.quiet });
     } catch (e) {
-      state.mediaWarned = true;
-      if (e && e.message) toast(e.message, "warn");
+      /* o motivo real já virou aviso contextual (setMediaIssue):
+         toast só quando nenhuma superfície está na tela — o mesmo
+         problema nunca é anunciado em dois lugares */
+      if (e && e.message && (!state.mediaIssues.length || !mediaUIVisible())) toast(e.message, "warn");
     }
 
     state.room.phase = "active";
@@ -4068,7 +4456,7 @@ window.NX = window.NX || {};
     state.root = null;
     state.popOpen = "";
     state.mediaOpen = false;
-    state.mediaWarned = false;
+    clearMediaIssues();
 
     try {
       if (NX.api && typeof NX.api.leaveVoice === "function") await NX.api.leaveVoice();
@@ -4171,7 +4559,15 @@ window.NX = window.NX || {};
       roomVisible() ? "v" : "h",
       Object.keys(r.members).join(","),
       state.screen ? "share" : "",
-      state.mediaWarned ? "warn" : "",
+      /* aviso de permissão: motivo + fechar/ajuda entram na chave para
+         a sala repintar quando o estado muda */
+      state.mediaIssues
+        .map(function (x) {
+          return x.kind + ":" + x.reason;
+        })
+        .join(",") +
+        (state.mediaDismissed ? "#d" : "") +
+        (state.permHelpOpen ? "#h" : ""),
     ].join("|");
   }
 
@@ -4392,13 +4788,8 @@ window.NX = window.NX || {};
         ? '<div class="vroom__spot"><video class="call-video vroom__spotvideo" data-room-spot autoplay playsinline></video>' +
           '<span class="vroom__splabel">' + NX.icon("monitor", "", 13) + " " + spotOwner + "</span></div>"
         : "") +
+      (state.mediaWarned ? permCardHTML(true) : "") +
       '<div class="vroom__grid">' + cards + "</div>" +
-      (state.mediaWarned
-        ? '<div class="call-warn">' + NX.icon("alert", "", 16) + "<span>" +
-          t("call.avisoMidia", "Sem permissão de mídia: você participa da sala, mas as outras pessoas não te ouvem nem veem.") +
-          (state.mediaHint ? '<small class="call-warn__hint">' + hh(state.mediaHint) + "</small>" : "") +
-          "</span></div>"
-        : "") +
       "</div>" +
 
       '<div class="call-bar">' +
@@ -5098,6 +5489,15 @@ window.NX = window.NX || {};
       me: me ? { id: me.id, mic: !!state.mic, cam: !!state.cam, screen: !!state.screen } : null,
       /* estado agregado REAL da conexão (mesmo texto do cabeçalho) */
       conn: roomHeaderConn(),
+      /* mídia de verdade: um problema real por tipo (o dock mostra um
+         indicador compacto em vez de um aviso gigante) */
+      media: {
+        ok: !state.mediaIssues.length,
+        issues: state.mediaIssues.map(function (x) {
+          return { kind: x.kind, reason: x.reason, title: x.title, body: x.body, help: x.help };
+        }),
+        dismissed: !!state.mediaDismissed,
+      },
       visible: roomVisible(),
       seconds: Math.floor((Date.now() - r.startedAt) / 1000),
     };
@@ -5205,15 +5605,17 @@ window.NX = window.NX || {};
     state.phase = "active";
     state.startedAt = active.startedAt || Date.now();
     state.connection = "new";
-    state.mediaWarned = false;
+    clearMediaIssues();
     render();
     try {
       /* F5 no meio da chamada: reutiliza o que já foi concedido e,
          se ainda não foi liberado, não abrimos pedido sozinho */
       await acquireMedia(false, { auto: true });
     } catch (e) {
-      state.mediaWarned = true;
-      if (e && e.message) toast(e.message, "warn");
+      /* o motivo real já virou aviso contextual (setMediaIssue):
+         toast só quando nenhuma superfície está na tela — o mesmo
+         problema nunca é anunciado em dois lugares */
+      if (e && e.message && (!state.mediaIssues.length || !mediaUIVisible())) toast(e.message, "warn");
     }
     createPC(false); /* dispara renegotiate → a outra ponta responde */
     attachLocalPreview();
@@ -6026,6 +6428,16 @@ window.NX = window.NX || {};
       renderRoom();
       return true;
     },
+    /* nova tentativa REAL de mídia ("Tentar novamente" do aviso/dock) */
+    retryMedia: function (silent) {
+      return retryMedia(silent);
+    },
     peek: poll,
   };
+
+  /* acompanha mudança de permissão no navegador (configurações do site):
+     concedido de verdade → tenta capturar e o aviso só sai com track */
+  try {
+    watchPermChanges();
+  } catch (e) {}
 })(window.NX);

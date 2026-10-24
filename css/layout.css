@@ -586,6 +586,7 @@
 
 /* doca de voz */
 .voice-dock {
+  position: relative;
   margin: 8px;
   padding: 10px;
   border-radius: var(--r-md);
@@ -642,6 +643,85 @@
   font-weight: 600;
   color: var(--accent);
   margin: -2px 0 8px;
+}
+
+/* indicador COMPACTO de mídia: uma linha própria em fluxo — não cobre
+   o nome do canal, o estado da conexão nem os botões */
+.voice-dock__warnrow {
+  margin: 0 0 8px;
+}
+
+.voice-dock__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(255, 196, 92, 0.4);
+  background: rgba(255, 196, 92, 0.12);
+  color: #ffd68a;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+
+.voice-dock__warn:hover {
+  background: rgba(255, 196, 92, 0.2);
+}
+
+.voice-dock__warn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* detalhes num popover ACIMA do dock (nunca sobre os controles dele) */
+.voice-dock__pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(300px, calc(100vw - 48px));
+  max-height: min(50vh, 320px);
+  overflow: auto;
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2, #10181a);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-3);
+  z-index: 140;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.voice-dock__pop strong {
+  font-size: 13px;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.voice-dock__pop p {
+  margin: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.voice-dock__pophelp {
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.voice-dock__popacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .voice-dock__acts {
@@ -1478,6 +1558,20 @@
   border: 1px solid rgba(53, 224, 168, 0.32);
 }
 
+/* honestidade: chip compacto de "sem mídia" na linha de estado */
+.voice-room__mediawarn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffd68a;
+  background: rgba(255, 196, 92, 0.14);
+  border: 1px solid rgba(255, 196, 92, 0.4);
+}
+
 .voice-card.is-me {
   border-color: rgba(53, 224, 168, 0.45);
   background: linear-gradient(160deg, rgba(53, 224, 168, 0.1), var(--bg-panel));
@@ -1507,6 +1601,9 @@
   min-height: var(--header-h);
   display: flex;
   align-items: center;
+  /* sem este espaçamento os dois textos encostavam um no outro e
+     "Membros — 1" + "0 online" aparecia como "Membros — 10 online" */
+  gap: 8px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   font-size: 11.5px;

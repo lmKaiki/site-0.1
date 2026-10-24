@@ -46,6 +46,23 @@ async function decorateAndLabelApps(rows) {
   return out;
 }
 
+/* Linhas de uma tabela NOVA por servidor, tolerando migração aditiva
+   ainda não aplicada. `db.schemaFor` é memoizado por processo, então a
+   checagem custa uma introspecção no primeiro pedido e nada depois:
+   quando a tabela não existe, o acervo volta vazio e o resto do /sync
+   segue intacto. */
+async function galleryRows(table, serverIds) {
+  if (!serverIds.length) return [];
+  let schema = null;
+  try {
+    schema = await db.schemaFor(table);
+  } catch (e) {
+    schema = null;
+  }
+  if (!schema || !schema.size) return [];
+  return (await db.select(table, { where: { server_id: serverIds }, limit: 2000 })) || [];
+}
+
 async function syncPayload(user) {
   /* ---- servidor: membros, convites, cargos, canais ---- */
   const memberships = await db.select("memberships", {
@@ -75,6 +92,17 @@ async function syncPayload(user) {
   const logs = serverIds.length
     ? await db.select("logs", { where: { server_id: serverIds }, order: "at", desc: true, limit: 80 })
     : [];
+  /* ---- emojis e figurinhas personalizados dos MEUS servidores ----
+     Antes viviam só no navegador (db().emojis): morriam no reload e
+     nunca chegavam a outro membro. Aqui saem do banco junto com o
+     resto do sync, filtrados pelos servidores dos quais sou membro.
+     Quem não é membro não recebe o acervo de forma nenhuma. */
+  /* Tabelas novas da migração 0006. Se ainda não foram aplicadas
+     online, a tabela não existe e o acervo vem VAZIO — sem derrubar
+     o resto do /sync. Quebrar o sync inteiro por uma tabela opcional
+     derrubaria o carregamento do app inteiro. */
+  const emojis = await galleryRows("emojis", serverIds);
+  const stickers = await galleryRows("stickers", serverIds);
 
   /* ---- apps/bots: catálogo + instalações dos meus servidores ---- */
   try {
@@ -350,6 +378,8 @@ async function syncPayload(user) {
       (m) => m.id
     ),
     roles: toMap(roles, (r) => r.id),
+    emojis: toMap(emojis, (e) => e.id),
+    stickers: toMap(stickers, (s) => s.id),
     categories: toMap(categories, (c) => c.id),
     channels: toMap(visibleChannels, (c) => c.id),
     invites: invitesMap,

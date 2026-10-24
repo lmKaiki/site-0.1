@@ -243,6 +243,36 @@ window.NX = window.NX || {};
     kickSyncWait();
   }
 
+  /* ---------------- diretório público (Explorar) ----------------
+     Busca o /api/explore (servidores com "Mostrar no explorar" ligado)
+     ao abrir a rota. A guarda impede um loop: a resposta dá commit no
+     scope "explore", o que repinta a rota — e repintar não pode
+     disparar outra busca. Só busca de novo se a lista estiver vazia
+     e a última tentativa não for imediata. */
+  let exploreFetchedAt = 0;
+  let exploreInFlight = false;
+  function loadExploreDirectory() {
+    if (exploreInFlight) return;
+    if (!NX.api || typeof NX.api.exploreServers !== "function") return;
+    const hasData = (NX.store.explore || []).length > 0;
+    const now = Date.now();
+    /* já tem lista → não busca a cada tecla de rota; sem lista →
+       intervalo curto para não martelar o endpoint */
+    if (hasData && now - exploreFetchedAt < 60000) return;
+    if (!hasData && now - exploreFetchedAt < 1500) return;
+    exploreInFlight = true;
+    exploreFetchedAt = now;
+    Promise.resolve()
+      .then(() => NX.api.exploreServers())
+      .catch(function () {
+        /* offline/erro: a tela mostra o estado vazio com a mensagem
+           de sempre — nada de fingir que o servidor não existe */
+      })
+      .then(function () {
+        exploreInFlight = false;
+      });
+  }
+
   /* ---------------- roteador ---------------- */
   function route() {
     if (routing) return;
@@ -503,6 +533,7 @@ window.NX = window.NX || {};
       next = { name: activeId ? "dm" : "messages", dmId: activeId, dmOtherId: other ? other.id : null };
     } else if (head === "explorar") {
       next = { name: "explore" };
+      loadExploreDirectory();
     } else if (head === "amigos") {
       /* #/amigos · /todos · /online · /idle · /offline · /recebidas · /enviadas */
       const TABS = ["todos", "online", "idle", "offline", "recebidas", "enviadas"];
@@ -942,6 +973,40 @@ window.NX = window.NX || {};
     }
   };
 
+  /* ---- aviso de mídia do dock: indicador compacto + popover ----
+     O detalhe fica no popover (nada de aviso gigante por cima do
+     nome/conexão/botões); as ações são reais, do mesmo sistema da call */
+  A["voice-media-info"] = (el) => {
+    const dock = el.closest ? el.closest(".voice-dock") : null;
+    const pop = dock && dock.querySelector(".voice-dock__pop");
+    if (!pop) return;
+    const open = pop.hidden;
+    pop.hidden = !open;
+    el.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  A["voice-media-help"] = (el) => {
+    const pop = el.closest ? el.closest(".voice-dock__pop") : null;
+    const help = pop && pop.querySelector(".voice-dock__pophelp");
+    if (!help) return;
+    help.hidden = !help.hidden;
+    el.setAttribute("aria-expanded", help.hidden ? "false" : "true");
+    el.textContent = help.hidden
+      ? NX.i18n.get("view.comoPermitir", "Como permitir")
+      : NX.i18n.get("call.permOcultar", "Ocultar");
+  };
+
+  A["voice-media-retry"] = async () => {
+    try {
+      await NX.call.retryMedia();
+    } catch (e) {
+      NX.ui.error(e && e.message ? e.message : String(e));
+    }
+    try {
+      NX.store.commit(["voice"]);
+    } catch (e) {}
+  };
+
   /* ---- mensagens ---- */
   A["msg-edit"] = (el) => {
     NX.views.editingMessageId = el.getAttribute("data-id");
@@ -1057,6 +1122,18 @@ window.NX = window.NX || {};
   /* ---------------- eventos globais ---------------- */
   function bindGlobal() {
     document.addEventListener("click", (e) => {
+      /* popover de mídia do dock: fecha ao clicar fora dele */
+      const openDockPop = document.querySelector(".voice-dock__pop:not([hidden])");
+      if (openDockPop) {
+        const inPop = e.target.closest && e.target.closest(".voice-dock__pop");
+        const isTrigger =
+          e.target.closest && e.target.closest('[data-action="voice-media-info"]');
+        if (!inPop && !isTrigger) {
+          openDockPop.hidden = true;
+          const trig = document.querySelector('.voice-dock__warn[aria-expanded="true"]');
+          if (trig) trig.setAttribute("aria-expanded", "false");
+        }
+      }
       const el = e.target.closest("[data-action]");
       if (!el) return;
       const name = el.getAttribute("data-action");
@@ -1089,6 +1166,14 @@ window.NX = window.NX || {};
 
     document.addEventListener("keydown", (e) => {
       if (e.key === (NX.i18n.get("app.escape", "Escape"))) {
+        /* popover de mídia do dock: Esc fecha só ele */
+        const dockPop = document.querySelector(".voice-dock__pop:not([hidden])");
+        if (dockPop) {
+          dockPop.hidden = true;
+          const trig = document.querySelector('.voice-dock__warn[aria-expanded="true"]');
+          if (trig) trig.setAttribute("aria-expanded", "false");
+          return;
+        }
         if (NX.ui.isOpen()) return;
         const shell = document.getElementById("screen-app");
         if (shell.classList.contains("sidebar-open") || shell.classList.contains("members-open")) {

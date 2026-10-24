@@ -61,7 +61,12 @@
   --text: #e8f3f0;
   --text-strong: #ffffff;
   --text-muted: #93a8a4;
-  --text-dim: #6b817d;
+  /* secundário: #6b817d media 4,18:1 sobre os cards (rgb 18,28,30) --
+     abaixo do AA (4,5) em texto de 11 a 13px. #748984 sobe para
+     4,67:1 sobre o mesmo card e 5,16:1 sobre a superficie, mantendo o
+     mesmo tom cinza-esverdeado dessaturado. A medida foi feita nos
+     elementos reais (.server-card__foot, .mini-profile__user). */
+  --text-dim: #748984;
 
   --accent: #35e0a8;
   --accent-strong: #17c98e;

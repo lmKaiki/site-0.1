@@ -25,6 +25,7 @@ const handlers = [
   require("../server/handlers/social"),
   require("../server/handlers/servers"),
   require("../server/handlers/messages"),
+  require("../server/handlers/emojis"),
   require("../server/handlers/sync"),
   require("../server/handlers/apps"),
   require("../server/handlers/calls"),

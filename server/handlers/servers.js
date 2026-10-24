@@ -69,6 +69,52 @@ function sanitizeServerIconImage(raw) {
   return raw;
 }
 
+/* ------------------------------------------------------------
+   Cores do logo do servidor (fundo e símbolo).
+   São pintadas no cliente via CSS, mas o BANCO só pode receber
+   cor bem formada: validamos o formato aqui e descartamos o resto.
+   Aceita #RGB ou #RRGGBB (com ou sem #), devolve minúsculo.
+   ------------------------------------------------------------ */
+function sanitizeLogoColor(raw) {
+  if (raw === null || raw === undefined) return null;
+  let s = String(raw).trim();
+  if (!s) return null;
+  if (s.charAt(0) !== "#") s = "#" + s;
+  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s))
+    throw bad("Cor inválida. Use um código hexadecimal como #22D3A6.");
+  if (s.length === 4) s = "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+  return s.toLowerCase();
+}
+
+/* ------------------------------------------------------------
+   Ícone de um cargo personalizado.
+   O cliente aceita duas coisas e só: o NOME de um ícone SVG da
+   galeria do Nexo (ex.: "crown") ou um EMOJI escolhido. Nada de
+   HTML, atributo ou URL — o valor é sempre escapado ao voltar
+   para a tela, e aqui já chega limpo.
+   ------------------------------------------------------------ */
+function sanitizeRoleIcon(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  /* 12 caracteres é folgado para nome de ícone e para emoji com
+     ZWJ (ex.: "👨‍👩‍👧"), e curto demais para esconder qualquer coisa */
+  if (s.length > 12)
+    throw bad("O ícone do cargo pode ter no máximo 12 caracteres.");
+  /* caracteres de controle (inclusive quebra de linha) nunca fazem
+     parte de um ícone */
+  if (/[\u0000-\u001f\u007f]/.test(s))
+    throw bad("O ícone contém caracteres inválidos.");
+  return s;
+}
+
+/* Descrição curta do cargo: texto puro, uma linha só. */
+function sanitizeRoleDescription(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return s ? s.slice(0, 160) : null;
+}
+
 /* registro de auditoria: actorId, ação, alvo, serverId, timestamp.
    Nunca registra senha, token ou cookie. */
 async function log(serverId, action, meta, target, actorId) {
@@ -114,6 +160,8 @@ async function loadMembership(serverId, userId) {
 function routes() {
   return [
     ["GET", "/servers", listServers],
+    /* público: só servidores com discoverable=true (ver listExplore) */
+    ["GET", "/explore", listExplore],
     ["POST", "/servers", createServer],
     ["PATCH", "/servers/:id", updateServer],
     ["DELETE", "/servers/:id", deleteServer],
@@ -155,6 +203,46 @@ async function listServers(ctx) {
   return { data: servers || [] };
 }
 
+/* ------------------------ EXPLORAR (público) ------------------------
+   Diretório público: lista SOMENTE servidores com discoverable=true.
+   Nunca devolve servidores privados, membros, canais ou dono — só o
+   que a tela do diretório mostra. As contagens são REAIS, lidas das
+   próprias memberships/channels (nada inventado). Preenche também
+   `memberCount`/`channelCount` porque quem NÃO é membro não tem essas
+   memberships no cache local. */
+async function listExplore(ctx) {
+  const rows = (await db.select("servers", { where: { discoverable: true }, limit: 100 })) || [];
+  if (!rows.length) return { data: [] };
+
+  const ids = rows.map((s) => s.id);
+  const memberRows = (await db.select("memberships", { where: { server_id: ids }, limit: 20000 })) || [];
+  const channelRows = (await db.select("channels", { where: { server_id: ids }, limit: 20000 })) || [];
+
+  const counts = {};
+  ids.forEach((id) => (counts[id] = { members: 0, channels: 0 }));
+  memberRows.forEach((m) => {
+    if (counts[m.serverId]) counts[m.serverId].members++;
+  });
+  channelRows.forEach((c) => {
+    if (counts[c.serverId]) counts[c.serverId].channels++;
+  });
+
+  const data = rows.map((s) => ({
+    id: s.id,
+    name: s.name,
+    description: s.description || "",
+    icon: s.icon || null,
+    banner: s.banner || null,
+    isOfficial: !!s.isOfficial,
+    createdAt: s.createdAt || null,
+    discoverable: true,
+    memberCount: counts[s.id].members,
+    channelCount: counts[s.id].channels,
+  }));
+
+  return { data };
+}
+
 /* ---------------- Servidor Oficial Nexo — REMOVIDO ----------------
    A rota pública GET /servers/official e o officialView() saíram
    junto com a criação automática (server/official.js não provisiona
@@ -186,7 +274,14 @@ async function createServer(ctx) {
         typeof body.emoji === "string" && body.emoji.trim()
           ? body.emoji.trim().slice(0, 8)
           : null,
-      color: body.color || u.colorFor(id),
+      color: sanitizeLogoColor(body.color) || u.colorFor(id),
+      /* cor do símbolo (iniciais/glyph): null = padrão escuro */
+      glyphColor: sanitizeLogoColor(body.glyphColor),
+      /* modo do logo do criador; null = imagem-primeiro (padrão) */
+      mode:
+        String(body.mode || "") === "logo" || String(body.mode || "") === "image"
+          ? String(body.mode)
+          : null,
       image: sanitizeServerIconImage(body.icon && body.icon.image),
     },
     banner: null,
@@ -303,6 +398,19 @@ async function updateServer(ctx) {
     const next = Object.assign({}, s.icon, patchBody.icon);
     /* null limpa a imagem e volta o fallback (emoji/iniciais) */
     next.image = sanitizeServerIconImage(next.image);
+    /* cores do logo: só formato válido entra no banco. `null` limpa
+       (volta ao padrão) e `undefined` preserva a atual. */
+    if (patchBody.icon.color !== undefined)
+      next.color = sanitizeLogoColor(patchBody.icon.color) || u.colorFor(serverId);
+    if (patchBody.icon.glyphColor !== undefined)
+      next.glyphColor = sanitizeLogoColor(patchBody.icon.glyphColor);
+    /* modo do logo: "image" (foto em primeiro) ou "logo" (monograma
+       colorido por cima, SEM apagar a foto). Qualquer outra coisa
+       vira null = servidor decide (imagem-primeiro, como sempre). */
+    if (patchBody.icon.mode !== undefined) {
+      const md = String(patchBody.icon.mode || "");
+      next.mode = md === "logo" || md === "image" ? md : null;
+    }
     update.icon = next;
   }
   if (patchBody.appearance !== undefined) {
@@ -679,6 +787,9 @@ async function createRole(ctx) {
   if ((await db.count("roles", { where: { server_id: serverId } })) >= 60)
     throw bad("Este servidor já atingiu o limite de cargos.");
 
+  /* cargos personalizados: nome, cor, ícone e descrição livres.
+     Permissões são escolhidas, mas NUNCA vêm automático — quem
+     cria um cargo não recebe nada só por tê-lo criado. */
   const role = {
     id: u.uid("rl"),
     serverId,
@@ -686,6 +797,8 @@ async function createRole(ctx) {
     color: body.color || u.colorFor(name),
     position: Number(body.position) || (await db.count("roles", { where: { server_id: serverId } })),
     isDefault: false,
+    icon: sanitizeRoleIcon(body.icon),
+    description: sanitizeRoleDescription(body.description),
     permissions: acl.normalizePerms(body.permissions, true),
     createdAt: now(),
   };
@@ -705,6 +818,9 @@ async function updateRole(ctx) {
   const ctxS = await acl.loadServer(role.serverId);
   acl.requireMember(ctxS, me.id);
   acl.requirePerm(ctxS, me.id, "manageRoles", "Você não tem permissão para editar cargos.");
+  /* hierarquia: não deixa um nível menor mexer num cargo maior */
+  if (!acl.canManageRole(ctxS, me.id, role))
+    throw forbidden("Você não pode editar um cargo acima do seu na hierarquia.");
 
   const body = ctx.body || {};
   const update = {};
@@ -714,7 +830,15 @@ async function updateRole(ctx) {
     update.name = n.slice(0, 32);
   }
   if (body.color !== undefined) update.color = String(body.color || "").slice(0, 20);
-  if (body.position !== undefined) update.position = Number(body.position) || 0;
+  if (body.icon !== undefined) update.icon = sanitizeRoleIcon(body.icon);
+  if (body.description !== undefined)
+    update.description = sanitizeRoleDescription(body.description);
+  if (body.position !== undefined) {
+    const target = Number(body.position);
+    if (!Number.isFinite(target) || target < 0)
+      throw bad("Posição de cargo inválida.");
+    update.position = target;
+  }
   if (body.permissions !== undefined)
     update.permissions = acl.normalizePerms(body.permissions, true);
 
@@ -738,6 +862,8 @@ async function deleteRole(ctx) {
   acl.requireMember(ctxS, me.id);
   acl.requirePerm(ctxS, me.id, "manageRoles", "Você não tem permissão para apagar cargos.");
   if (role.isDefault) throw bad("O cargo padrão do servidor não pode ser excluído.");
+  if (!acl.canManageRole(ctxS, me.id, role))
+    throw forbidden("Você não pode excluir um cargo acima do seu na hierarquia.");
 
   await db.remove("roles", { where: { id: role.id } });
   /* o cargo some dos membros (a associação fica em member_roles) */
@@ -774,6 +900,16 @@ async function updateMember(ctx) {
       if (!target) throw bad("Cargo inválido.");
       if (!acl.isOwner(ctxS, me.id) && !acl.can(ctxS, me.id, "manageRoles"))
         throw forbidden("Você não tem permissão para este cargo.");
+      /* Hierarquia: só se atribui cargo que esteja dentro do próprio
+         alcance. Sem isto, qualquer pessoa com manageRoles se dava um
+         cargo acima da própria — inclusive a si mesma, já que a rota
+         aceita `isSelf`. Dono e administrador passam por tudo. */
+      if (!acl.canManageRole(ctxS, me.id, target))
+        throw forbidden("Você não pode atribuir um cargo acima do seu na hierarquia.");
+      /* Ninguém tira o cargo de quem está acima de si na hierarquia */
+      const currentRole = membership.roleId ? ctxS.roleById[membership.roleId] : null;
+      if (currentRole && !currentRole.isDefault && !acl.canManageRole(ctxS, me.id, currentRole))
+        throw forbidden("Você não pode alterar o cargo de alguém acima de você na hierarquia.");
     }
     update.roleId = body.roleId;
   }

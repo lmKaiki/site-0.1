@@ -524,28 +524,80 @@ window.NX = window.NX || {};
   }
 
   /* ---------------- reenvio com limite ----------------
-     O limite de envio é do Supabase; aqui somamos um intervalo
-     local para o botão não virar um repetidor de spam. */
+     O envio de confirmação sai pelo Supabase e, no plano gratuito,
+     esse limite é apertado. Aqui somamos uma espera local para o
+     botão não virar um repetidor de spam.
+
+     A espera é GRAVADA por e-mail, e não só lembrada em memória:
+     antes, um F5 zerava a contagem e a pessoa conseguia disparar
+     outra leva logo em seguida -- e cada tentativa gasta um envio
+     da cota, que é justamente o que acaba primeiro. */
   const RESEND_COOLDOWN = 90 * 1000;
+  const RESEND_KEY = "nexo:resend-cooldown:";
   let resendUntil = 0;
   let resendTimer = null;
+  /* trava extra: o NX.ui.busy já desabilita o botão, mas esta
+     garante que duas tentativas nunca fiquem voando juntas */
+  let resendBusy = false;
+
+  function resendKey(mail) {
+    return RESEND_KEY + String(mail || "").toLowerCase();
+  }
+
+  /* Só devolve o valor se ainda estiver válido: um horário velho
+     no armazenamento não pode prender o botão para sempre. */
+  function loadResendUntil(mail) {
+    const at = NX.storage.get(resendKey(mail), 0);
+    return typeof at === "number" && at > Date.now() ? at : 0;
+  }
+
+  /* Mensagem por tipo de problema. Rede e limite não são a mesma
+     coisa: numa queda de rede a pessoa pode tentar já; num limite,
+     tentar de novo só consome mais da cota e adia a resolução.
+     Nada aqui afirma que o e-mail foi enviado -- quando o Supabase
+     recusa, mostramos a recusa. */
+  function resendError(e) {
+    const code = (e && e.code) || "";
+    const msg = (e && e.message) || "";
+    if (code === "network")
+      return "Sem conexão com o servidor. Verifique sua internet e tente de novo.";
+    if (code === "timeout")
+      return "O servidor demorou a responder. Tente novamente em instantes.";
+    if (
+      code === "rate_limited" ||
+      /limite de envios|rate limit|over_email|muitas solicita/i.test(msg)
+    )
+      return msg || "O envio de e-mails atingiu o limite. Aguarde alguns minutos.";
+    return msg || "Não foi possível reenviar agora.";
+  }
 
   function startResend(root, btn) {
-    const box = btn.querySelector("[data-resend-count]");
+    /* recarrega a espera gravada: sem isto, voltar para a tela
+       depois de um F5 liberava o botão na hora */
+    resendUntil = Math.max(resendUntil, loadResendUntil(pendingEmail));
+    /* O span é relido a cada tique, e não guardado: o NX.ui.busy
+       troca o innerHTML do botão durante a requisição e o end()
+       devolve um span NOVO. Com a referência guardada, o contador
+       continuava sendo escrito num nó já destacado do DOM e não
+       voltava a aparecer depois de um reenvio. */
     const tick = () => {
+      const box = btn.querySelector("[data-resend-count]");
       const left = resendUntil - Date.now();
       if (left > 0) {
         btn.disabled = true;
+        const s = Math.ceil(left / 1000);
         if (box) {
           box.hidden = false;
-          box.textContent = " (" + Math.ceil(left / 1000) + "s)";
+          box.textContent = " (" + s + "s)";
         }
+        btn.title = "Aguarde " + s + "s para pedir outro envio";
       } else {
         btn.disabled = false;
         if (box) {
           box.hidden = true;
           box.textContent = "";
         }
+        btn.title = "";
         if (resendTimer) {
           clearInterval(resendTimer);
           resendTimer = null;
@@ -554,18 +606,43 @@ window.NX = window.NX || {};
     };
 
     btn.addEventListener("click", () => {
+      if (resendBusy) return;
       if (Date.now() < resendUntil) return;
+      const email = pendingEmail;
       const errBox = root.querySelector("[data-error]");
       const okBox = root.querySelector("[data-ok]");
+      /* limpa as DUAS caixas. Antes só a de erro era limpa, então
+         um sucesso seguido de uma falha deixava as duas visíveis ao
+         mesmo tempo, dizendo coisas diferentes sobre o mesmo pedido */
       if (errBox) errBox.hidden = true;
+      if (okBox) okBox.hidden = true;
+      /* sem e-mail não há o que enviar: dizemos isso em vez de
+         mandar um pedido que o servidor vai recusar genérico */
+      if (!email) {
+        if (errBox) {
+          errBox.hidden = false;
+          errBox.innerHTML =
+            NX.icon("alert", "", 16) +
+            "<span>" +
+            "Não guardamos qual e-mail confirmar. Volte para o cadastro e tente de novo." +
+            "</span>";
+        }
+        return;
+      }
+      resendBusy = true;
       const end = NX.ui.busy(btn);
+      const hold = () => {
+        end();
+        resendUntil = Math.max(resendUntil, Date.now() + RESEND_COOLDOWN);
+        NX.storage.set(resendKey(email), resendUntil);
+        resendBusy = false;
+        tick();
+        if (!resendTimer) resendTimer = setInterval(tick, 1000);
+      };
       NX.api
-        .resendEmail({ email: pendingEmail })
+        .resendEmail({ email: email })
         .then((res) => {
-          end();
-          resendUntil = Date.now() + RESEND_COOLDOWN;
-          tick();
-          if (!resendTimer) resendTimer = setInterval(tick, 1000);
+          hold();
           if (okBox) {
             okBox.hidden = false;
             okBox.innerHTML =
@@ -579,18 +656,15 @@ window.NX = window.NX || {};
           }
         })
         .catch((e) => {
-          end();
+          hold();
           /* mesmo na falha, segura o botão: o servidor já contou
              a tentativa e não adianta martelar */
-          resendUntil = Date.now() + RESEND_COOLDOWN;
-          tick();
-          if (!resendTimer) resendTimer = setInterval(tick, 1000);
           if (errBox) {
             errBox.hidden = false;
             errBox.innerHTML =
               NX.icon("alert", "", 16) +
               "<span>" +
-              u().h((e && e.message) || "Não foi possível reenviar agora.") +
+              u().h(resendError(e)) +
               "</span>";
           }
         });
@@ -870,7 +944,11 @@ window.NX = window.NX || {};
 
   pages.explore = function () {
     const me = S().me();
-    const servers = S().discoverableServers();
+    /* diretório público: vem do /api/explore (online). Offline cai nos
+       servidores descobertos do cache local. */
+    const servers = NX.store.explore && NX.store.explore.length
+      ? S().exploreServers()
+      : S().discoverableServers();
 
     if (!servers.length) {
       return (
@@ -888,16 +966,23 @@ window.NX = window.NX || {};
     const cards = servers
       .map((s) => {
         const isMember = !!S().membership(s.id, me.id);
-        const online = S().onlineCount(s.id);
+        /* contagens REAIS: quem não é membro não tem memberships nem
+           canais no cache, então valem as dicas do endpoint público */
+        const members = isMember
+          ? S().memberCount(s.id)
+          : s.memberCount || S().memberCount(s.id) || 0;
+        const channels = S().channelsOf(s.id).length || s.channelCount || 0;
+        const online = isMember ? S().onlineCount(s.id) : 0;
         return (
           '<article class="explore-card">' +
           '<div class="explore-card__head">' +
           u().serverIconHTML(s, "lg", false) +
           "<div><h3>" + u().h(s.name) + "</h3>" +
-          "<span>" + u().plural(S().memberCount(s.id), "membro", "membros") + " · " + online + " online</span></div></div>" +
+          "<span>" + u().plural(members, "membro", "membros") +
+          (isMember ? " · " + online + " online" : "") + "</span></div></div>" +
           "<p>" + u().h(s.description || NX.i18n.get("adm.descricao2", "Sem descrição.")) + "</p>" +
           '<div class="explore-card__foot">' +
-          '<span class="tag">' + u().plural(S().channelsOf(s.id).length, "canal", "canais") + "</span>" +
+          '<span class="tag">' + u().plural(channels, "canal", "canais") + "</span>" +
           (isMember
             ? '<button class="btn btn--soft btn--sm" data-action="open-server" data-id="' + s.id + ("\">" + NX.i18n.get("page.abrir", "Abrir") + "</button>")
             : '<button class="btn btn--primary btn--sm" data-action="join-explore" data-id="' + s.id + ("\">" + NX.i18n.get("adm.entrar", "Entrar") + "</button>")) +

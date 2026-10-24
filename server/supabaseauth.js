@@ -172,10 +172,43 @@ async function signUp(email, password, profile) {
    envio; aqui somamos um limite local por minuto para não
    transformar o Nexo em repetidor de spam.
    ------------------------------------------------------------ */
+/* Nem toda recusa do GoTrue é igual. As que significam "o serviço de
+   e-mail do projeto não conseguiu despachar" (SMTP mal configurado,
+   provedor fora do ar) ganham mensagem própria, porque a pessoa
+   precisa saber que a mensagem NÃO saiu e que a culpa não é do
+   endereço dela.
+
+   Repare que a mensagem nunca fala do e-mail informado — só do
+   serviço. Assim ela não serve de ferramenta para descobrir se uma
+   conta existe. */
+function deliveryFailure(status, json) {
+  const code = String(
+    (json && (json.error_code || json.code)) || ""
+  ).toLowerCase();
+  const msg = String(
+    (json && (json.msg || json.message || json.error)) || ""
+  ).toLowerCase();
+  if (msg.indexOf("error sending") > -1 || msg.indexOf("failed to send") > -1)
+    return true;
+  return code === "unexpected_failure" && msg.indexOf("email") > -1;
+}
+
 async function resend(email) {
   if (!configured()) return { ok: false, status: 0, notConfigured: true };
   const r = await call("/auth/v1/resend", { body: { email, type: "signup" } });
   if (!r.ok) {
+    if (deliveryFailure(r.status, r.json)) {
+      return {
+        ok: false,
+        status: 503,
+        code: "email_unavailable",
+        deliveryFailed: true,
+        message:
+          "Não conseguimos enviar o e-mail de confirmação agora. " +
+          "O serviço de envio do projeto está indisponível — isso não é " +
+          "problema do seu endereço. Tente novamente mais tarde.",
+      };
+    }
     return {
       ok: false,
       status: r.status,

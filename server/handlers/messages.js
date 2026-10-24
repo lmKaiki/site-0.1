@@ -191,8 +191,16 @@ async function toggleReaction(ctx) {
   const me = await auth.requireUser(ctx.event);
   const message = await loadMessage(ctx.params.id);
   if (!message) throw notFound("Mensagem não encontrada.");
-  const emoji = String((ctx.body || {}).emoji || "").slice(0, 12);
-  if (!emoji) throw bad("");
+  /* Emoji da reação: até 32 caracteres — é o teto de um token de
+     emoji personalizado (<: + nome de 24 + :>), não mais 12. Com o
+     limite antigo, um emoji de nome longo virava um token cortado
+     e a reação deixava de aparecer a imagem.
+     A checagem é ANTES do slice: cortar e depois conferir o
+     comprimento nunca rejeita nada. */
+  const rawEmoji = String((ctx.body || {}).emoji || "").trim();
+  if (!rawEmoji) throw bad("");
+  if (rawEmoji.length > 32) throw bad("Emoji da reação inválido.");
+  const emoji = rawEmoji.slice(0, 32);
 
   const isDM = String(message.channelId).indexOf("dm_") === 0;
   if (isDM) {

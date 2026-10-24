@@ -56,6 +56,11 @@ window.NX = window.NX || {};
 
   const store = {
     db: emptyDB(),
+    /* diretório público (Explorar): lista transitória vinda do
+       endpoint público /api/explore. FICA SÓ EM MEMÓRIA — não entra
+       no db persistido, para nunca se misturar às memberships nem
+       sobreviver a um reload como se o usuário fosse membro. */
+    explore: [],
     ui: { lastChannel: {}, collapsed: {}, sidebarOpen: false, membersOpen: true, activeNowCollapsed: false },
     listeners: [],
     ready: false,
@@ -768,6 +773,20 @@ window.NX = window.NX || {};
       .filter((s) => s.discoverable)
       .sort((a, b) => S.memberCount(b.id) - S.memberCount(a.id));
 
+  /* diretório público: o que veio do /api/explore. Mantém os que
+     também estão no cache local (os meus) e ordena por membros. */
+  S.exploreServers = () =>
+    (store.explore || [])
+      .map((s) => {
+        const local = store.db.servers[s.id];
+        return local
+          ? Object.assign({}, s, local, {
+              memberCount: Math.max(local.memberCount || 0, s.memberCount || 0),
+            })
+          : s;
+      })
+      .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+
   /* contagem real vinda do servidor: quando o cache ainda não tem
      as memberships (ex.: tela de convite de quem não é membro),
      vale a dica server.memberCount. Com memberships locais, o
@@ -782,11 +801,14 @@ window.NX = window.NX || {};
   };
 
   /* ---------------- permissões ---------------- */
-  function applyPerms(target, source) {
+  /* Espelho de server/acl.js: cargos concedem (nunca apagam permissão
+     base); só o cargo padrão e as permissões avulsas do membro negam. */
+  function applyPerms(target, source, allowDeny) {
     if (!source) return;
+    const deny = allowDeny !== false;
     NX.PERM_KEYS.forEach((k) => {
       if (source[k] === true) target[k] = true;
-      else if (source[k] === false && target[k] !== undefined) target[k] = false;
+      else if (source[k] === false && deny && target[k] !== undefined) target[k] = false;
     });
   }
 
@@ -806,10 +828,10 @@ window.NX = window.NX || {};
        (qualquer camada abaixo pode desligar com false explícito) */
     (NX.DEFAULT_ON_PERMS || []).forEach((k) => (out[k] = true));
 
-    applyPerms(out, S.defaultRole(serverId) && S.defaultRole(serverId).permissions);
+    applyPerms(out, S.defaultRole(serverId) && S.defaultRole(serverId).permissions, true);
     const role = store.db.roles[membership.roleId];
-    if (role && !role.isDefault) applyPerms(out, role.permissions);
-    applyPerms(out, membership.permissions);
+    if (role && !role.isDefault) applyPerms(out, role.permissions, false);
+    applyPerms(out, membership.permissions, true);
 
     if (out.administrator) NX.PERM_KEYS.forEach((k) => (out[k] = true));
     return out;
@@ -819,6 +841,38 @@ window.NX = window.NX || {};
     if (!perm) return true;
     const p = S.effectivePerms(serverId, userId);
     return !!p[perm];
+  };
+
+  /* ------------------------------------------------------------
+     Proteção de hierarquia de cargos — MESMA regra do backend
+     (server/acl.js → canManageRole), só que calculada daqui para
+     a interface esconder botão de quem não pode.
+     position MAIOR = cargo mais alto na escada; o cargo padrão é
+     sempre o de menor posição. dono e administrator passam por
+     tudo; o resto só mexe em cargo de posição menor ou igual à
+     própria. O DONO não é cargo — é servers.owner_id.
+     ------------------------------------------------------------ */
+  S.canManageRole = (serverId, targetRole) => {
+    const me = store.db.me;
+    if (!me) return false;
+    const s = store.db.servers[serverId];
+    if (!s) return false;
+    if (s.ownerId === me.id) return true;
+    if (!S.can(serverId, me.id, "manageRoles")) return false;
+    if (!targetRole) return true;
+    if (targetRole.isDefault) return false; /* o padrão é fixo */
+    if (S.can(serverId, me.id, "administrator")) return true;
+    const mem = S.membership(serverId, me.id);
+    if (!mem) return false;
+    let best = -1;
+    const ids = [mem.roleId].concat(mem.extraRoleIds || []);
+    ids.filter(Boolean).forEach((rid) => {
+      const r = store.db.roles[rid];
+      if (!r || r.isDefault) return;
+      const pos = Number(r.position) || 0;
+      if (pos > best) best = pos;
+    });
+    return best >= (Number(targetRole.position) || 0);
   };
 
   /* ---- overrides por canal/categoria (Permitir / Negar / Herdar) ----
@@ -944,6 +998,17 @@ window.NX = window.NX || {};
   S.emojiByName = (serverId, name) =>
     Object.values(store.db.emojis || {}).find(
       (e) => e.serverId === serverId && e.name === String(name || "").toLowerCase()
+    ) || null;
+
+  /* ---- figurinhas do servidor (mesma fonte, tabela própria) ---- */
+  S.serverStickers = (serverId) =>
+    Object.values(store.db.stickers || {})
+      .filter((s) => s.serverId === serverId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+  S.stickerByName = (serverId, name) =>
+    Object.values(store.db.stickers || {}).find(
+      (s) => s.serverId === serverId && s.name === String(name || "").toLowerCase()
     ) || null;
 
   /* ---- notificações ---- */

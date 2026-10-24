@@ -307,19 +307,28 @@ window.NX = window.NX || {};
     const a = state.a;
     const r = state.r;
     const e = state.e;
+    const st = state.st;
 
     const icon = root.querySelector('[data-pv="icon"]');
     if (icon && d) {
       icon.style.setProperty("--sv", d.color);
+      /* cor livre do símbolo: só sai do padrão quando escolhida */
+      if (d.glyphColor) icon.style.setProperty("--svg", d.glyphColor);
+      else icon.style.removeProperty("--svg");
       const glyph = icon.querySelector("[data-pv-glyph]");
       const img = icon.querySelector("[data-pv-img]");
+      /* modo "logo" esconde a foto SEM apagar a escolha guardada */
+      const showImage = !!d.image && d.mode !== "logo";
       if (glyph) {
-        glyph.textContent = d.image ? "" : (d.emoji || u().initials(d.__name || srv().name || ""));
-        glyph.hidden = !!d.image;
+        /* em modo logo o símbolo é o monograma (o mesmo que o
+           serverIconHTML mostra na lista) — nunca o emoji legado */
+        const fallback = d.mode === "logo" ? "" : d.emoji || "";
+        glyph.textContent = showImage ? "" : (fallback || u().initials(d.__name || srv().name || ""));
+        glyph.hidden = showImage;
       }
       if (img) {
-        img.hidden = !d.image;
-        if (d.image) img.src = d.image;
+        img.hidden = !showImage;
+        if (showImage) img.src = d.image;
       }
     }
     const banner = root.querySelector('[data-pv="banner"]');
@@ -369,6 +378,36 @@ window.NX = window.NX || {};
     }
     const eCode = root.querySelector('[data-pv="emoji-code"]');
     if (eCode && e) eCode.textContent = "<:" + (u().slug(e.name || "").replace(/-/g, "") || "nome") + ":>";
+
+    /* figurinha: prévia grande, como ela aparece na conversa */
+    const sPrev = root.querySelector('[data-pv="sticker"]');
+    if (sPrev && st) {
+      const im = sPrev.querySelector("img");
+      if (im) {
+        im.hidden = !st.image;
+        if (st.image) im.src = st.image;
+      }
+      const sp = sPrev.querySelector("[data-pv-glyph]");
+      if (sp) {
+        sp.hidden = !!st.image;
+        sp.innerHTML = st.image ? "" : NX.icon("image", "", 26);
+      }
+      const nm = sPrev.querySelector("[data-pv-sticker-name]");
+      if (nm) nm.textContent = st.name || "";
+    }
+    const sCode = root.querySelector('[data-pv="sticker-code"]');
+    if (sCode && st) sCode.textContent = "{{sticker:" + (normStickerName(st.name) || "nome") + "}}";
+  }
+
+  /* nome da figurinha: MESMA regra do backend (server/handlers/
+     emojis.js normalizeName) para o código mostrado na tela bater
+     com o que fica salvo */
+  function normStickerName(raw) {
+    return String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "_")
+      .replace(/^_+|_+$/g, "");
   }
 
   function bindFiles(root) {
@@ -385,12 +424,15 @@ window.NX = window.NX || {};
             ? { max: 1200, maxLen: 1300000 }
             : kind === "emoji"
             ? { max: 128, maxLen: 700000, preferPng: true }
+            : kind === "sticker"
+            ? { max: 256, maxLen: 1000000, preferPng: true }
             : { max: 256, maxLen: 700000, preferPng: true };
         readImage(file, opts)
           .then((url) => {
             if (kind === "banner" && state.d) state.d.banner = url;
             else if (kind === "bg" && state.a) state.a.backgroundImage = url;
             else if (kind === "emoji" && state.e) state.e.image = url;
+            else if (kind === "sticker" && state.st) state.st.image = url;
             else return;
             syncPreviews(root);
             NX.ui.toast(NX.i18n.get("adm.imagemProntaCliqueSalvar", "Imagem pronta — clique em Salvar para aplicar."), "info");
@@ -545,8 +587,6 @@ window.NX = window.NX || {};
   reg("adm-role-up", (el) => moveRole(el.getAttribute("data-id"), -1));
   reg("adm-role-down", (el) => moveRole(el.getAttribute("data-id"), 1));
   reg("adm-role-del", (el) => deleteRole(el.getAttribute("data-id")));
-  reg("adm-role-preset", (el) => createFromPreset(el.getAttribute("data-key")));
-
   /* ---- membros ---- */
   reg("adm-member-menu", (el) => memberMenu(el, el.getAttribute("data-id")));
   reg("adm-member-profile", (el) => {
@@ -566,6 +606,13 @@ window.NX = window.NX || {};
   reg("adm-emoji-del", (el) => deleteEmoji(el.getAttribute("data-id")));
   reg("adm-emoji-copy", async (el) => {
     const good = await u().copy("<:" + el.getAttribute("data-name") + ":>");
+    NX.ui.toast(good ? NX.i18n.get("adm.sintaxeCopiada", "Sintaxe copiada!") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), good ? "success" : "error");
+  });
+
+  /* ---- figurinhas ---- */
+  reg("adm-sticker-del", (el) => deleteSticker(el.getAttribute("data-id")));
+  reg("adm-sticker-copy", async (el) => {
+    const good = await u().copy("{{sticker:" + normStickerName(el.getAttribute("data-name")) + "}}");
     NX.ui.toast(good ? NX.i18n.get("adm.sintaxeCopiada", "Sintaxe copiada!") : NX.i18n.get("adm.naoFoiPossivelCopiar2", "Não foi possível copiar."), good ? "success" : "error");
   });
 
@@ -593,11 +640,17 @@ window.NX = window.NX || {};
     state.d = {
       emoji: (s.icon && s.icon.emoji) || "",
       color: (s.icon && s.icon.color) || u().colorFor(s.id),
+      /* cor livre do símbolo (monograma): null = padrão escuro */
+      glyphColor: (s.icon && s.icon.glyphColor) || null,
+      colorDirty: false,
       image: (s.icon && s.icon.image) || null,
       imageDirty: false,
+      /* modo do logo: "image" (foto em primeiro) ou "logo" (monograma
+         colorido). null = servidor decide — imagem-primeiro, como sempre */
+      mode: (s.icon && s.icon.mode) || null,
+      modeDirty: false,
       banner: s.banner || null,
-      __disc: !!s.discoverable,
-      __discDirty: false,
+      __discSaved: !!s.discoverable,
       __name: s.name
     };
 
@@ -613,9 +666,12 @@ window.NX = window.NX || {};
       ("<span class=\"adm-hero__banner-ph\">" + NX.i18n.get("adm.sembanner", "Sem banner") + "</span>") +
       "</div>" +
       '<div class="adm-hero__row">' +
-      '<span class="adm-hero__icon" data-pv="icon" style="--sv:' + esc(state.d.color) + '">' +
-      '<span data-pv-glyph>' + esc(state.d.emoji) + "</span>" +
-      '<img data-pv-img alt=""' + (state.d.image ? ' src="' + state.d.image + '"' : " hidden") + " />" +
+      '<span class="adm-hero__icon" data-pv="icon" style="--sv:' + esc(state.d.color) +
+      (state.d.glyphColor ? ";--svg:" + esc(state.d.glyphColor) : "") + '">' +
+      '<span data-pv-glyph' + (state.d.image && state.d.mode !== "logo" ? " hidden" : "") + ">" +
+      esc(state.d.emoji || u().initials(s.name)) + "</span>" +
+      '<img data-pv-img alt=""' +
+      (state.d.image && state.d.mode !== "logo" ? ' src="' + state.d.image + '"' : " hidden") + " />" +
       "</span>" +
       '<div class="adm-hero__txt"><strong data-pv="name">' + esc(s.name) + "</strong>" +
       "<span>" + plural(S().memberCount(s.id), "membro", "membros") +
@@ -626,7 +682,7 @@ window.NX = window.NX || {};
       '<input class="input" name="name" maxlength="40" value="' + esc(s.name) + '" data-autofocus /></label>' +
 
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("modal.iconedoservidor", "Ícone do servidor") + "</span>") +
-      NX.modals.iconUploadHTML(state.d, u().initials(s.name)) +
+      NX.modals.iconEditorHTML(state.d, u().initials(s.name)) +
       "</div>" +
 
       ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.banner", "Banner") + "</span>") +
@@ -641,10 +697,16 @@ window.NX = window.NX || {};
       esc(s.description || "") + "</textarea>" +
       ("<span class=\"field__hint\">" + NX.i18n.get("adm.aparecenapaginadeconvitee", "Aparece na página de convite e no explorar.") + "</span></label>") +
 
+      ("<div class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.mostrarnoexplorar", "Mostrar no explorar") + "</span>") +
       ("<label class=\"perm-row\"><span class=\"perm-row__txt\"><strong>" + NX.i18n.get("adm.mostrarnoexplorar", "Mostrar no explorar") + "</strong>") +
       ("<small>" + NX.i18n.get("adm.deixaacomunidadevisivelnodiretorio", "Deixa a comunidade visível no diretório público.") + "</small></span>") +
-      '<span class="switch"><input type="checkbox" name="discoverable"' + (s.discoverable ? " checked" : "") +
+      '<span class="switch"><input type="checkbox" name="discoverable" data-disc-toggle' + (s.discoverable ? " checked" : "") +
       " /><i></i></span></label>" +
+      /* estado honesto da publicação: nunca mostra "salvo" quando
+         a operação falhou — o interruptor volta ao último valor
+         confirmado e aparece "Tentar novamente" */
+      '<div class="disc-state" data-disc-state data-state="off"></div>' +
+      "</div>" +
 
       errBox() +
       '<div class="settings__save"><button class="btn btn--primary" type="submit" data-busy-label="Salvando">' +
@@ -658,30 +720,102 @@ window.NX = window.NX || {};
     const form = root.querySelector('[data-adm-form="visao"]');
     if (!form) return;
     const nameInput = form.elements.name;
-    /* widget de upload do ícone (compartilhado com os modais de
-       criação); st = state.d { image, imageDirty, color } */
-    if (NX.modals && typeof NX.modals.bindIconUpload === "function") {
+    /* editor unificado de ícone (Imagem × Logo com cores livres),
+       compartilhado com os modais de criação. st = state.d */
+    if (NX.modals && typeof NX.modals.bindIconEditor === "function") {
       state.d.onIconChange = () => syncPreviews(root);
-      NX.modals.bindIconUpload(form, state.d, () => u().initials(form.elements.name.value.trim() || srv().name));
+      NX.modals.bindIconEditor(form, state.d, () => u().initials(form.elements.name.value.trim() || srv().name), () => syncPreviews(root));
     }
     nameInput.addEventListener("input", () => {
       const el = root.querySelector('[data-pv="name"]');
       if (el) el.textContent = nameInput.value.trim() || srv().name;
       if (state.d) state.d.__name = nameInput.value.trim();
     });
-    /* "Mostrar no explorar" só vai quando o usuário mexe: o banco
-       pode não ter a coluna (sqlite / migração pendente) e o save
-       do ícone não deve falhar por isso */
+
+    /* ---------------- Mostrar no explorar ----------------
+       O interruptor salva NA HORA (não espera o rodapé): é a única
+       forma de mostrar "salvando → salvo → erro" sem mentir. Em erro
+       ele volta ao último valor CONFIRMADO e oferece "Tentar
+       novamente" — nunca fica ligado fingindo que publicou. */
     const disc = form.elements.discoverable;
-    if (disc && state.d) {
-      disc.addEventListener("change", () => {
-        state.d.__discDirty = disc.checked !== state.d.__disc;
+    const discState = root.querySelector("[data-disc-state]");
+    let discSaved = !!(state.d && state.d.__discSaved);
+    let discBusy = false;
+
+    function paintDisc(kind, msg) {
+      if (!discState) return;
+      discState.setAttribute("data-state", kind);
+      const icoName = kind === "on" ? "check" : kind === "saving" ? "refresh" : kind === "error" ? "alert" : "circle";
+      const text =
+        msg ||
+        (kind === "on"
+          ? NX.i18n.get("adm.explorarAtivo", "Ativo e salvo — visível no diretório.")
+          : kind === "saving"
+          ? NX.i18n.get("adm.explorarSalvando", "Salvando…")
+          : kind === "error"
+          ? NX.i18n.get("adm.explorarErro", "Erro ao salvar.")
+          : NX.i18n.get("adm.explorarInativo", "Desativado — não aparece no diretório."));
+      const retry =
+        kind === "error"
+          ? '<button type="button" class="btn btn--ghost btn--sm" data-disc-retry>' +
+            NX.i18n.get("view.tentarNovamente", "Tentar novamente") +
+            "</button>"
+          : "";
+      discState.innerHTML = ico(icoName, 14) + "<span>" + esc(text) + "</span>" + retry;
+      discState.classList.toggle("is-spin", kind === "saving");
+    }
+
+    function saveDisc(next) {
+      if (discBusy) return Promise.resolve();
+      discBusy = true;
+      if (disc) disc.disabled = true;
+      paintDisc("saving");
+      return api()
+        .updateServer(state.serverId, { discoverable: next })
+        .then(() => {
+          discSaved = next;
+          if (state.d) state.d.__discSaved = discSaved;
+          if (disc) disc.checked = discSaved;
+          paintDisc(discSaved ? "on" : "off");
+        })
+        .catch((e) => {
+          /* falhou de verdade: desfazemos a aparência para o valor
+             que ESTÁ no servidor e dizemos o motivo */
+          if (disc) disc.checked = discSaved;
+          paintDisc("error", (e && e.message) || NX.i18n.get("adm.explorarErro", "Erro ao salvar."));
+        })
+        .then(() => {
+          discBusy = false;
+          if (disc) disc.disabled = false;
+        });
+    }
+
+    if (disc) {
+      disc.addEventListener("change", () => saveDisc(disc.checked));
+    }
+    if (discState) {
+      discState.addEventListener("click", (ev) => {
+        if (!ev.target.closest("[data-disc-retry]")) return;
+        saveDisc(disc.checked);
       });
     }
+    paintDisc(discSaved ? "on" : "off");
+
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       showErr(root, "");
       const d = state.d;
+      /* nome/descrição/banner salvam pelo rodapé; o interruptor do
+         Explorar já teve a dele salva por conta própria ali em cima */
+      const iconPatch = {};
+      if (d.imageDirty) iconPatch.image = d.image;
+      if (d.colorDirty) {
+        iconPatch.color = d.color;
+        iconPatch.glyphColor = d.glyphColor;
+      }
+      /* alternar Imagem × Logo é escolha do usuário: o modo vai junto
+         (a foto fica guardada, só sai do caminho quando é "logo") */
+      if (d.modeDirty) iconPatch.mode = d.mode;
       run(
         form.querySelector('button[type="submit"]'),
         () =>
@@ -693,14 +827,14 @@ window.NX = window.NX || {};
                 description: form.elements.description.value,
                 banner: d.banner
               },
-              /* a imagem só vai quando o usuário trocou ou removeu —
-                 preserva o ícone atual (emoji/cor legados inclusive) */
-              d.imageDirty ? { icon: { image: d.image } } : {},
-              d.__discDirty ? { discoverable: !!form.elements.discoverable.checked } : {}
+              Object.keys(iconPatch).length ? { icon: iconPatch } : {}
             )
           ),
         root,
         () => {
+          d.imageDirty = false;
+          d.colorDirty = false;
+          d.modeDirty = false;
           ok(NX.i18n.get("adm.configuracoesSalvas", "Configurações salvas."));
           render();
         }
@@ -1146,50 +1280,19 @@ window.NX = window.NX || {};
   }
 
   /* =========================================================
-     5 · CARGOS  (+ presets)
+     5 · CARGOS
+     =========================================================
+     Os presets fixos (DONO, ADMIN, MODERADOR, VIP, MEMBRO) foram
+     REMOVIDOS da interface de propósito: não existe mais "modelo
+     pronto" para o dono clicar. O DONO nunca foi um cargo de
+     verdade — é a linha fixa do proprietário, calculada em
+     acl.isOwner a partir de servers.owner_id, e continua aqui
+     como leitura, sem botão e sem editor.
+     Nada de segurança foi removido: criar/editar/apagar cargo
+     continua exigindo a permissão manageRoles validada no
+     backend (server/handlers/servers.js → acl.requirePerm), e
+     membros comuns continuam sem essa permissão.
      ========================================================= */
-  const PRESETS = [
-    { key: "dono", icon: "crown", name: (NX.i18n.get("adm.dono3", "DONO")), fixed: true },
-    {
-      key: "admin",
-      icon: "shield",
-      name: "ADMIN",
-      color: "#35e0a8",
-      description: NX.i18n.get("adm.administraServidorJuntoDono", "Administra o servidor junto com o dono."),
-      permissions: ["administrator"]
-    },
-    {
-      key: "moderador",
-      icon: "hammer",
-      name: (NX.i18n.get("adm.moderador", "MODERADOR")),
-      color: "#8f83ff",
-      description: NX.i18n.get("adm.mantemConversaSaudavelCuida", "Mantém a conversa saudável e cuida dos membros."),
-      permissions: [
-        "viewChannels", "sendMessages", "createInvite", "joinVoice", "speak",
-        "manageMembers", "kickMembers", "banMembers", "unbanMembers", "timeoutMembers",
-        "editMessages", "deleteMessages", "pinMessages", "viewLogs"
-      ]
-    },
-    {
-      key: "vip",
-      icon: "star",
-      name: (NX.i18n.get("adm.vip", "VIP")),
-      color: "#ff7ab6",
-      description: NX.i18n.get("adm.apoiadoresColaboradoresEspeciais", "Apoiadores e colaboradores especiais."),
-      permissions: [
-        "viewChannels", "sendMessages", "createInvite", "attachFiles",
-        "useEmojis", "useCustomEmojis", "useGifs", "joinVoice", "speak"
-      ]
-    },
-    {
-      key: "membro",
-      icon: "user",
-      name: (NX.i18n.get("adm.membro", "MEMBRO")),
-      color: "#93a8a4",
-      description: NX.i18n.get("adm.cargoPadraoQuemEntra", "Cargo padrão de quem entra no servidor."),
-      permissions: ["viewChannels", "sendMessages", "createInvite", "joinVoice", "speak"]
-    }
-  ];
 
   function tabCargos() {
     if (!can("manageRoles")) return { html: gate(NX.i18n.get("adm.soAdministradoresPodemGerenciar3", "Só administradores podem gerenciar cargos.")), wire: noop };
@@ -1198,20 +1301,6 @@ window.NX = window.NX || {};
     const s = srv();
     const owner = S().user(s.ownerId);
     const roles = S().rolesOf(state.serverId);
-
-    const presets =
-      '<div class="adm-presets">' +
-      PRESETS.map(
-        (p) =>
-          '<button type="button" class="adm-preset' + (p.fixed ? " is-fixed" : "") +
-          '" data-action="adm-role-preset" data-key="' + p.key + '"' +
-          (p.fixed ? ' title="' + NX.i18n.get("ui.cargofixododononaopodesereditado", "Cargo fixo do dono — não pode ser editado") + '"' : "") + ">" +
-          '<span class="adm-preset__ico">' + (NX.hasIcon(p.icon) ? NX.icon(p.icon, "", 18) : esc(p.icon || "")) + "</span>" +
-          "<span><strong>" + esc(p.name) + "</strong><small>" +
-          (p.fixed ? NX.i18n.get("adm.soDonoFixo", "só dono · fixo") : NX.i18n.get("adm.criarPreset", "criar preset")) +
-          "</small></span></button>"
-      ).join("") +
-      "</div>";
 
     const ownerRow =
       '<div class="adm-role adm-role--owner">' +
@@ -1253,49 +1342,21 @@ window.NX = window.NX || {};
       html:
         head(
           (NX.i18n.get("adm.cargos", "Cargos")),
-          (NX.i18n.get("adm.cargosagrupampermissoesquantomaisalto", "Cargos agrupam permissões — quanto mais alto na lista, maior a hierarquia. Clique em um cargo para abrir o editor.")),
+          (NX.i18n.get("adm.cargosagrupampermissoesquantomaisalto", "Cargos agrupam permissões — quanto mais alto na lista, maior a hierarquia. Clique em um cargo para abrir o editor.")) +
+          "<span class=\"form-note\">" +
+          NX.i18n.get(
+            "adm.cargosSemPresetHierarquia",
+            "Não existem presets: você cria cargos do zero com nome, cor, ícone e permissões à sua escolha. Um cargo nunca herda permissão por existir — só o que você marcar nele vale. Ninguém edita um cargo acima do próprio na hierarquia (o dono e quem tem Administrador passam)."
+          ) +
+          "</span>",
           '<button type="button" class="btn btn--primary btn--sm" data-action="adm-role-open" data-id="novo">' +
             ico("plus", 15) + (" " + NX.i18n.get("adm.criarCargo2", "Criar cargo") + "</button>")
         ) +
-        ("<div class=\"adm-sub-title\">" + NX.i18n.get("adm.presetsrapidos", "Presets rápidos") + "</div>") +
-        presets +
         ownerRow +
         ("<div class=\"adm-sub-title\">" + NX.i18n.get("adm.cargosdoservidor", "Cargos do servidor") + "</div>") +
         '<div class="adm-roles">' + rows + "</div>",
       wire: noop
     };
-  }
-
-  function createFromPreset(key) {
-    const p = PRESETS.find((x) => x.key === key);
-    if (!p) return;
-    if (p.fixed) {
-      NX.ui.toast(NX.i18n.get("adm.cargoDonoExclusivoDono", "O cargo DONO é exclusivo do dono e fica fixo no topo."), "info");
-      return;
-    }
-    const exists = S().rolesOf(state.serverId).find((r) => r.name.toUpperCase() === p.name);
-    if (exists) {
-      state.roleId = exists.id;
-      render();
-      NX.ui.toast((NX.i18n.get("adm.jaexisteumcargo", "Já existe um cargo “")) + p.name + (NX.i18n.get("adm.abrimosoeditor", "” — abrimos o editor.")), "info");
-      return;
-    }
-    const perms = {};
-    NX.PERM_KEYS.forEach((k) => (perms[k] = p.permissions.indexOf(k) !== -1));
-    api()
-      .createRole(state.serverId, {
-        name: p.name,
-        color: p.color,
-        icon: p.icon,
-        description: p.description,
-        permissions: perms
-      })
-      .then((role) => {
-        state.roleId = role.id;
-        ok((NX.i18n.get("adm.cargo", "Cargo") + " ") + p.name + " criado.");
-        render();
-      })
-      .catch(bad);
   }
 
   async function moveRole(id, dir) {
@@ -1850,7 +1911,7 @@ window.NX = window.NX || {};
      9 · EMOJIS
      ========================================================= */
   function tabEmojis() {
-    if (!can("manageChannels")) return { html: gate(NX.i18n.get("adm.soAdministradoresPodemGerenciar5", "Só administradores podem gerenciar emojis.")), wire: noop };
+    if (!can("manageEmojis")) return { html: gate(NX.i18n.get("adm.soAdministradoresPodemGerenciar5", "Só administradores podem gerenciar emojis.")), wire: noop };
     state.e = state.e && state.e.keep ? state.e : { name: "", image: null };
 
     const add =
@@ -1945,6 +2006,134 @@ window.NX = window.NX || {};
         .deleteEmoji(id)
         .then(() => {
           ok(NX.i18n.get("adm.emojiRemovido", "Emoji removido."));
+          render();
+        })
+        .catch(bad);
+    });
+  }
+
+  /* =========================================================
+     9b · FIGURINHAS
+     Galeria do servidor — maior que o emoji e com descrição
+     opcional, usada como bloco de mensagem ({{sticker:nome}}).
+     ========================================================= */
+  function tabFigurinhas() {
+    if (!can("manageStickers"))
+      return { html: gate(NX.i18n.get("adm.soAdminGerenciarFigurinhas", "Só administradores podem gerenciar figurinhas.")), wire: noop };
+    state.st = state.st && state.st.keep ? state.st : { name: "", description: "", image: null };
+
+    const add =
+      '<form class="adm-card" novalidate data-adm-form="sticker">' +
+      '<div class="adm-card__head">' + ico("image", 16) + ("<strong>" + NX.i18n.get("adm.adicionarfigurinha", "Adicionar figurinha") + "</strong></div>") +
+      '<div class="adm-emoji-add">' +
+      '<span class="adm-emoji-prev adm-emoji-prev--sticker" data-pv="sticker">' +
+      '<span data-pv-glyph></span><img alt="" hidden /></span>' +
+      '<div class="adm-emoji-add__fields">' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.nome3", "Nome") + "</span>") +
+      '<input class="input" name="name" maxlength="24" placeholder="' + NX.i18n.get("ui.exboanoite", "ex.: boa_noite") + '" data-autofocus /></label>' +
+      ("<label class=\"field\"><span class=\"field__label\">" + NX.i18n.get("adm.descricaoOpcional", "Descrição (opcional)") + "</span>") +
+      '<input class="input" name="description" maxlength="120" placeholder="' +
+      NX.i18n.get("adm.exCumprimentoDaComunidade", "ex.: cumprimento da comunidade") + '" /></label>' +
+      '<div class="adm-inline">' +
+      ("<label class=\"btn btn--soft btn--sm\">" + NX.i18n.get("adm.escolherimagem", "Escolher imagem") + "<input type=\"file\" accept=\"image/*\" data-adm-file=\"sticker\" hidden /></label>") +
+      ("<span class=\"adm-inline__hint\">" + NX.i18n.get("adm.reduzidapara256pxAte2", "Reduzida para 256 px · até 2 MB · GIF preservado") + "</span>") +
+      "</div></div></div>" +
+      ("<p class=\"form-note\">" + NX.i18n.get("adm.sintaxe", "Sintaxe:") + " " + "<code class=\"mono\" data-pv=\"sticker-code\">{{sticker:nome}}</code></p>") +
+      errBox() +
+      '<div class="settings__save"><button class="btn btn--primary" type="submit" data-busy-label="Adicionando">' +
+      (NX.i18n.get("adm.adicionarfigurinha", "Adicionar figurinha") + "</button></div>") +
+      "</form>";
+
+    const list = S().serverStickers(state.serverId);
+    const grid = list.length
+      ? '<div class="adm-emojis adm-emojis--stickers">' +
+        list
+          .map(
+            (s) =>
+              '<div class="adm-emoji adm-emoji--sticker">' +
+              '<span class="adm-emoji__img adm-emoji__img--lg"><img src="' + s.image + '" alt="' + esc(s.name) + '" /></span>' +
+              '<span class="adm-emoji__txt"><strong class="truncate">' + esc(s.name) + "</strong>" +
+              (s.description ? '<span class="adm-emoji__desc truncate">' + esc(s.description) + "</span>" : "") +
+              '<code class="mono">{{sticker:' + esc(s.name) + "}}</code></span>" +
+              '<span class="spacer"></span>' +
+              '<button type="button" class="btn btn--ghost btn--sm" data-action="adm-sticker-copy" data-name="' +
+              esc(s.name) + '">' + ico("copy", 15) + "</button>" +
+              '<button type="button" class="btn btn--ghost btn--sm btn--danger-text" data-action="adm-sticker-del" data-id="' +
+              s.id + ("\">" + NX.i18n.get("common.delete", "Excluir") + "</button>") +
+              "</div>"
+          )
+          .join("") +
+        "</div>"
+      : empty("image", NX.i18n.get("adm.nenhumaFigurinha", "Nenhuma figurinha"),
+          NX.i18n.get("adm.adicioneimagensgrandes", "Adicione imagens maiores para usá-las como figurinha nas conversas."));
+
+    return {
+      html:
+        head((NX.i18n.get("adm.figurinhas", "Figurinhas")),
+          NX.i18n.get("adm.figurinhasServidorDisponiveis", "Figurinhas do servidor ficam disponíveis em qualquer canal para quem tem a permissão “Usar figurinhas”.")) +
+        add +
+        ("<div class=\"adm-sub-title\">" + NX.i18n.get("adm.figurinhasDoServidor", "Figurinhas do servidor ·") + " ") + list.length + "</div>" +
+        grid,
+      wire: wireStickers
+    };
+  }
+
+  function wireStickers(root) {
+    const form = root.querySelector('[data-adm-form="sticker"]');
+    if (!form) return;
+    const nameInput = form.elements.name;
+    const descInput = form.elements.description;
+    nameInput.addEventListener("input", () => {
+      if (state.st) state.st.name = nameInput.value;
+      syncPreviews(root);
+    });
+    if (descInput) descInput.addEventListener("input", () => {
+      if (state.st) state.st.description = descInput.value;
+    });
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      showErr(root, "");
+      run(
+        form.querySelector('button[type="submit"]'),
+        () => {
+          if (!state.st || !state.st.image) return Promise.reject(NX.fail(NX.i18n.get("adm.escolhaImagemFigurinha", "Escolha uma imagem para a figurinha.")));
+          return api().createSticker(state.serverId, {
+            name: state.st.name,
+            description: state.st.description,
+            image: state.st.image,
+          });
+        },
+        root,
+        () => {
+          state.st = { name: "", description: "", image: null };
+          ok(NX.i18n.get("adm.figurinhaAdicionada", "Figurinha adicionada."));
+          render();
+        }
+      );
+    });
+  }
+
+  function copySticker(name) {
+    u().copy("{{sticker:" + normStickerName(name) + "}}").then(() => {
+      ok(NX.i18n.get("adm.codigoCopiado", "Código copiado."));
+    });
+  }
+
+  function deleteSticker(id) {
+    const s = S().serverStickers(state.serverId).find((x) => x.id === id);
+    if (!s) return;
+    NX.ui.confirm({
+      title: NX.i18n.get("adm.excluFigurinha", "Excluir figurinha") + " " + s.name,
+      message: NX.i18n.get("adm.mensagensJaUsamFigurinha", "As mensagens que já usam esta figurinha deixam de exibir a imagem."),
+      confirmLabel: (NX.i18n.get("common.delete", "Excluir")),
+      danger: true,
+      icon: "trash"
+    }).then((yes) => {
+      if (!yes) return;
+      api()
+        .deleteSticker(id)
+        .then(() => {
+          ok(NX.i18n.get("adm.figurinhaRemovida", "Figurinha removida."));
           render();
         })
         .catch(bad);
@@ -2492,7 +2681,8 @@ window.NX = window.NX || {};
     { id: "cargos", label: (NX.i18n.get("adm.cargos", "Cargos")), icon: "shield", perm: "manageRoles", render: tabCargos },
     { id: "membros", label: (NX.i18n.get("adm.membros", "Membros")), icon: "users", perm: "manageMembers", render: tabMembros },
     { id: "convites", label: (NX.i18n.get("set.item.privacyInvites", "Convites")), icon: "link", perm: "createInvite", render: tabConvites },
-    { id: "emojis", label: (NX.i18n.get("adm.emojis", "Emojis")), icon: "smile", perm: "manageChannels", render: tabEmojis },
+    { id: "emojis", label: (NX.i18n.get("adm.emojis", "Emojis")), icon: "smile", perm: "manageEmojis", render: tabEmojis },
+    { id: "figurinhas", label: (NX.i18n.get("adm.figurinhas", "Figurinhas")), icon: "image", perm: "manageStickers", render: tabFigurinhas },
     { id: "moderacao", label: (NX.i18n.get("adm.moderacao", "Moderação")), icon: "bolt", perm: "manageServer", render: tabModeracao },
     { id: "banidos", label: (NX.i18n.get("adm.banidos", "Banidos")), icon: "lock", perm: "banMembers", render: tabBanidos },
     { id: "logs", label: (NX.i18n.get("adm.logs", "Logs")), icon: "clock", perm: "viewLogs", render: tabLogs },

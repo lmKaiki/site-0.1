@@ -130,7 +130,8 @@
   height: 44px;
   border-radius: 30%;
   background: linear-gradient(150deg, var(--sv), color-mix(in srgb, var(--sv) 45%, #0b1416 40%));
-  color: #06110f;
+  /* cor do símbolo: livre quando escolhida, traço escuro no padrão */
+  color: var(--svg, #06110f);
   font-weight: 800;
   font-size: 17px;
   user-select: none;
@@ -752,6 +753,21 @@
 
 .toast.is-in { opacity: 1; transform: none; }
 .toast.is-out { opacity: 0; transform: translateY(8px); }
+
+/* na chamada/sala o toast sobe para o topo: nunca cobre a barra de
+   controles nem o dock da barra lateral */
+body.in-call .toast-root,
+body.in-room .toast-root {
+  top: 60px;
+  bottom: auto;
+}
+
+@media (max-width: 640px) {
+  body.in-call .toast-root,
+  body.in-room .toast-root {
+    top: 92px;
+  }
+}
 .toast__msg { line-height: 1.4; }
 .toast--success { border-color: rgba(53, 224, 168, 0.45); }
 .toast--success .toast__ico { color: var(--accent); }
@@ -1299,6 +1315,179 @@
   font-weight: 600;
   color: var(--danger, #ff7b7b);
 }
+
+/* a prévia do upload também obedece à cor livre do símbolo */
+.icon-upload__prev { color: var(--svg, #06110f); }
+
+/* ============ EDITOR DE ÍCONE (Imagem × Logo) ============
+   Substitui a antiga grade de emojis e as bolinhas fixas: dois
+   modos no mesmo espaço compacto. As escolhas não se apagam —
+   trocar de modo só muda qual delas está ativa. */
+.icon-editor {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px;
+}
+
+.icon-editor__tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-body, rgba(0, 0, 0, 0.24));
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 10px);
+  margin-bottom: 10px;
+}
+
+.icon-editor__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-editor__tab:hover { color: var(--text); }
+
+.icon-editor__tab.is-on {
+  background: var(--accent, #22d3a6);
+  color: #06110f;
+}
+
+.icon-editor__pane[hidden] { display: none; }
+
+.icon-editor__pane .icon-upload { border: 0; background: transparent; padding: 0; }
+
+/* ============ CORES LIVRES DO LOGO ============
+   Seletor nativo + HEX + RGB, sem paleta fixa. Fundo e símbolo
+   são cores independentes; qualquer cor válida do espectro vale. */
+.logo-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.logo-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.logo-row__label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.logo-row__ctrls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.logo-row__swatch {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.logo-row__swatch::-webkit-color-swatch-wrapper { padding: 3px; }
+.logo-row__swatch::-webkit-color-swatch { border: 0; border-radius: 8px; }
+.logo-row__swatch::-moz-color-swatch { border: 0; border-radius: 8px; }
+
+.logo-row__hex {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo-row__hex > span,
+.logo-row__rgb label > span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.logo-row__hex .input { width: 108px; text-transform: lowercase; font-family: ui-monospace, monospace; }
+
+.logo-row__rgb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logo-row__rgb label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.logo-row__rgb .input { width: 62px; }
+
+.logo-colors__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.logo-colors__err {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger, #ff7b7b);
+}
+
+/* ============ ESTADO DO "MOSTRAR NO EXPLORAR" ============
+   Quatro estados honestos: ativo e salvo, desativado, salvando e
+   erro (com "Tentar novamente"). Nenhum deles mente: o erro só
+   aparece com o interruptor de volta ao último valor confirmado. */
+.disc-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 10px);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg-input);
+}
+
+.disc-state[data-state="on"] {
+  color: var(--accent, #22d3a6);
+  border-color: color-mix(in srgb, var(--accent, #22d3a6) 45%, transparent);
+}
+
+.disc-state[data-state="error"] {
+  color: var(--danger, #ff7b7b);
+  border-color: color-mix(in srgb, var(--danger, #ff7b7b) 45%, transparent);
+}
+
+.disc-state[data-state="saving"] { color: var(--text); }
+
+.disc-state.is-spin svg { animation: spin 0.9s linear infinite; }
+
+.disc-state .btn { margin-left: auto; }
 
 /* ================= CONVITE (tela cheia) ================= */
 .invite-wrap {
@@ -1868,7 +2057,10 @@
 .explore-card:hover { transform: translateY(-3px); border-color: rgba(53, 224, 168, 0.4); }
 .explore-card__head { display: flex; gap: 12px; align-items: center; }
 .explore-card__head h3 { margin: 0; font-size: 16.5px; color: var(--text-strong); letter-spacing: -0.01em; }
-.explore-card__head span { font-size: 12.5px; color: var(--text-dim); }
+/* o span de texto fica dentro do <div> ao lado do ícone — restringido
+   para não atingir o .server-icon (que também é um <span>), senão a
+   cor livre do monograma (--svg) era sobrescrita por --text-dim */
+.explore-card__head > div span { font-size: 12.5px; color: var(--text-dim); }
 .explore-card p { margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.55; flex: 1 1 auto; }
 .explore-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
@@ -2010,6 +2202,7 @@
   font-size: 26px;
   overflow: hidden;
   background: linear-gradient(150deg, var(--sv), color-mix(in srgb, var(--sv) 45%, #0b1416 40%));
+  color: var(--svg, #06110f);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 

@@ -153,6 +153,17 @@
   background: var(--bg-panel);
 }
 
+/* O input interno zera o outline (linha 168) porque o destaque é do
+   invólucro -- mas este invólucro NÃO tinha :focus-within, então a
+   busca global ficava sem nenhum indicador para quem navega por
+   teclado. Mesmo tratamento dos outros campos de busca do Nexo
+   (.cm-search e .help__searchbox), com o acento na borda que este
+   elemento realmente tem (a inferior). */
+.ex-search__bar:focus-within {
+  border-bottom-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .ex-search__ico {
   display: grid;
   place-items: center;

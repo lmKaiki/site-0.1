@@ -16,6 +16,29 @@
   border-radius: 4px;
 }
 
+/* ================= figurinhas no texto =================
+   Figurinha é bloco de mensagem, não emoji inline: ocupa a linha
+   inteira e nunca empurra o texto para o lado. */
+.chat-sticker,
+.cm-sticker {
+  display: inline-flex;
+  max-width: min(320px, 100%);
+  margin: 4px 0;
+  line-height: 0;
+  border-radius: 14px;
+  background: transparent;
+}
+
+.cm-sticker__img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
 /* ================= anexos da mensagem ================= */
 .cm-atts {
   display: flex;
@@ -444,6 +467,12 @@
   width: 26px;
   height: 26px;
   object-fit: contain;
+}
+
+/* célula de figurinha: maior que a de emoji (a arte é o produto) */
+.cm-emj--sticker .cm-emj__img {
+  width: 52px;
+  height: 52px;
 }
 
 .cm-picker__foot {

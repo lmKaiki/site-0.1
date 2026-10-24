@@ -146,6 +146,72 @@ const PLATES = [
       "Recompensa da Jornada Nexo: um brilho que percorre a placa. Não é vendida.",
     rewardOnly: true,
   },
+
+  /* ============================================================
+     COLEÇÃO AMPLIADA · 2026
+     Cada peça muda FORMA, CONTORNO, MATERIAL ou MOVIMENTO —
+     nada aqui é "mesmo desenho em outra cor":
+       · faixas laterais, tubos, fios e cantos (contorno);
+       · pontos, escamas, cristais, pixels e listras (material);
+       · fluxo, varredura, cintilação e pulso (movimento).
+     ============================================================ */
+
+  /* ---------------- NEON ---------------- */
+  { id: "neon-ciano", name: "Ciano Neon", category: "neon", kind: "static", price: 90, rarity: "incomum", description: "Barra de luz ciano em cada lateral do nome." },
+  { id: "neon-roxo", name: "Roxo Neon", category: "neon", kind: "animated", price: 165, rarity: "rara", description: "Roxo elétrico que corre em laço pelo fundo." },
+  { id: "neon-rosa", name: "Rosa Neon", category: "neon", kind: "static", price: 95, rarity: "incomum", description: "Brilho rosa estático com halo suave nas bordas." },
+  { id: "neon-tubo", name: "Tubo de Neon", category: "neon", kind: "static", price: 145, rarity: "rara", description: "Um tubo de vidro aceso emoldurando a linha inteira." },
+  { id: "neon-onda", name: "Onda Neon", category: "neon", kind: "animated", price: 210, rarity: "epica", description: "Uma onda de luz sobe e desce por trás das letras." },
+  { id: "neon-vertigo", name: "Vertigo Neon", category: "neon", kind: "animated", price: 265, rarity: "epica", description: "Duas linhas opostas que se cruzam em movimento contínuo." },
+
+  /* ---------------- CÓSMICA ---------------- */
+  { id: "galaxia", name: "Galáxia", category: "cosmica", kind: "animated", price: 225, rarity: "rara", description: "Um disco de estrelas girando devagar atrás do nome." },
+  { id: "nebulosa", name: "Nebulosa", category: "cosmica", kind: "animated", price: 245, rarity: "epica", description: "Nuvens de gás que mudam de densidade em cadência lenta." },
+  { id: "estrelas-cadentes", name: "Estrelas Cadentes", category: "cosmica", kind: "animated", price: 195, rarity: "rara", description: "Faíscas atravessam o fundo como chuva de estrelas." },
+  { id: "orbita", name: "Órbita", category: "cosmica", kind: "static", price: 115, rarity: "incomum", description: "Anéis concêntricos de um corpo em rotação." },
+  { id: "eclipse", name: "Eclipse", category: "cosmica", kind: "static", price: 155, rarity: "rara", description: "Um disco escuro com anel dourado de luz na borda." },
+  { id: "universo-profundo", name: "Universo Profundo", category: "cosmica", kind: "static", price: 285, rarity: "epica", description: "Azul-abissal com pontos de luz raros e distantes." },
+
+  /* ---------------- NATUREZA ---------------- */
+  { id: "floresta", name: "Floresta", category: "natureza", kind: "static", price: 105, rarity: "incomum", description: "Verdes empilhados, como copas vistas de baixo." },
+  { id: "orvalho", name: "Orvalho", category: "natureza", kind: "static", price: 85, rarity: "comum", description: "Gotas frias espalhadas sobre fundo de madrugada." },
+  { id: "flores", name: "Flores", category: "natureza", kind: "static", price: 135, rarity: "incomum", description: "Pontos de pétala sobre verde fundo de jardim." },
+  { id: "aurora", name: "Aurora Boreal", category: "natureza", kind: "animated", price: 235, rarity: "rara", description: "Cortinas de luz que se movem como céu do norte." },
+  { id: "correnteza", name: "Correnteza", category: "natureza", kind: "animated", price: 175, rarity: "rara", description: "Listras de água que escorrem sem parar." },
+  { id: "cristal-verde", name: "Cristal Verde", category: "natureza", kind: "static", price: 215, rarity: "rara", description: "Facetas de cristal com brilho duro nas quinas." },
+
+  /* ---------------- MINIMALISTA ---------------- */
+  { id: "contorno-fino", name: "Contorno Fino", category: "minimalista", kind: "static", price: 65, rarity: "comum", description: "Uma linha de 1px em volta do nome. Só isso." },
+  { id: "monocromatico", name: "Monocromático", category: "minimalista", kind: "static", price: 75, rarity: "comum", description: "Um cinza único, sem gradiente e sem brilho." },
+  { id: "cinza-elegante", name: "Cinza Elegante", category: "minimalista", kind: "static", price: 105, rarity: "incomum", description: "Degradê quase invisível entre dois cinzas frios." },
+  { id: "preto-e-branco", name: "Preto e Branco", category: "minimalista", kind: "static", price: 140, rarity: "rara", description: "Fundo claro sobre um corte escuro embaixo." },
+  { id: "transparencia", name: "Transparência", category: "minimalista", kind: "static", price: 125, rarity: "incomum", description: "Vidro fosco: quase sumido, ainda legível." },
+  { id: "linha-dupla", name: "Linha Dupla", category: "minimalista", kind: "static", price: 160, rarity: "rara", description: "Dois filetes paralelos emoldurando a placa." },
+
+  /* ---------------- ARCADE ---------------- */
+  { id: "pixel-art", name: "Pixel Art", category: "arcade", kind: "static", price: 110, rarity: "incomum", description: "Blocos de pixel firmes, sem suavização de borda." },
+  { id: "fliperama", name: "Fliperama Retrô", category: "arcade", kind: "static", price: 130, rarity: "incomum", description: "Moldura de máquina de 1986 com brilho de tubo." },
+  { id: "efeitos-jogo", name: "Efeitos de Jogo", category: "arcade", kind: "animated", price: 185, rarity: "rara", description: "Faixa de energia que corre como barra de vida." },
+  { id: "luzes-rgb", name: "Luzes RGB", category: "arcade", kind: "animated", price: 205, rarity: "rara", description: "Cores trocando em ciclo fechado, como teclado gamer." },
+  { id: "cyberpunk", name: "Cyberpunk", category: "arcade", kind: "static", price: 245, rarity: "epica", description: "Amarelo ácido sobre roxo, com corte diagonal." },
+  { id: "painel-digital", name: "Painel Digital", category: "arcade", kind: "static", price: 165, rarity: "rara", description: "Linhas de leitura de instrumento, com marcas de escala." },
+
+  /* ---------------- ÉPICA ---------------- */
+  { id: "chamas", name: "Chamas", category: "epica", kind: "animated", price: 260, rarity: "epica", description: "Fogo que lambe o fundo em movimento perpétuo." },
+  { id: "energia", name: "Energia Elétrica", category: "epica", kind: "animated", price: 255, rarity: "epica", description: "Descargas que piscam nas duas pontas." },
+  { id: "dragao", name: "Dragão Estilizado", category: "epica", kind: "static", price: 275, rarity: "epica", description: "Escamas em diagonal com espinhos na borda superior." },
+  { id: "cristal-radiante", name: "Cristal Radiante", category: "epica", kind: "static", price: 240, rarity: "epica", description: "Polígonos facetados refletindo luz de dentro." },
+  { id: "runas", name: "Runas", category: "epica", kind: "static", price: 225, rarity: "rara", description: "Marcas gravadas ritmadas como uma inscrição." },
+  { id: "lendario", name: "Efeito Lendário", category: "epica", kind: "animated", price: 330, rarity: "lendaria", description: "Ouro líquido atravessando uma placa pesada." },
+
+  /* ---------------- NEXO EXCLUSIVA ---------------- */
+  { id: "nexo-logo", name: "Marca Nexo", category: "nexo", kind: "static", price: 300, rarity: "nexo", description: "O símbolo do Nexo impresso ao fundo, sem roubar o nome." },
+  { id: "nexo-identidade", name: "Identidade Nexo", category: "nexo", kind: "static", price: 310, rarity: "nexo", description: "Verde e ciano nas cores oficiais, com canto marcado." },
+  { id: "nexo-gradiente", name: "Gradiente Nexo", category: "nexo", kind: "animated", price: 350, rarity: "nexo", description: "O gradiente da marca percorrendo a placa inteira." },
+  { id: "nexo-futurista", name: "Efeito Futurista", category: "nexo", kind: "animated", price: 370, rarity: "nexo", description: "Linhas de dados descendo como se fossem código." },
+  { id: "nexo-animacao", name: "Animação Especial", category: "nexo", kind: "animated", price: 400, rarity: "nexo", description: "Varredura dupla sincronizada com um pulso de borda." },
+  { id: "nexo-raro", name: "Modelo Raro", category: "nexo", kind: "animated", price: 460, rarity: "nexo", description: "A peça mais difícil do catálogo: três camadas em movimento." },
+
   /* ---- Conquistas do Brasil 🇧🇷 (recompensa, nunca à venda) ----
      Desbloqueadas automaticamente quando uma pessoa NOVA entra
      num servidor pelo convite de quem convidou (entrada real

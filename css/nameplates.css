@@ -206,6 +206,473 @@ h3.np {
   transform: translateX(-120%);
 }
 
+/* ============================================================
+   COLEÇÃO AMPLIADA
+   Cada bloco muda contorno, material ou movimento — nunca só
+   a cor. Todas as regras de legibilidade continuam valendo.
+   ============================================================ */
+
+/* ---------------- NEON ---------------- */
+
+/* contorno: duas barras de luz verticais, sem gradiente de fundo */
+.np--neon-ciano {
+  background: rgba(10, 26, 30, 0.5);
+  border-left: 3px solid #22d3ee;
+  border-right: 3px solid #22d3ee;
+  box-shadow: inset 0 0 12px rgba(34, 211, 238, 0.18);
+}
+
+/* movimento: laço horizontal em três paradas de cor */
+.np--neon-roxo {
+  background: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.34),
+    rgba(219, 39, 255, 0.2),
+    rgba(99, 102, 241, 0.34),
+    rgba(168, 85, 247, 0.34)
+  );
+  background-size: 300% 100%;
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: inset 0 0 14px rgba(168, 85, 247, 0.22);
+}
+
+/* material: halo suave nas quinas, fundo rosa quase neutro */
+.np--neon-rosa {
+  background: rgba(46, 12, 30, 0.5);
+  border-color: rgba(244, 114, 182, 0.55);
+  box-shadow: inset 0 0 18px rgba(244, 114, 182, 0.3);
+}
+
+/* contorno: tubo — borda grossa arredondada com brilho interno */
+.np--neon-tubo {
+  background: rgba(8, 20, 26, 0.55);
+  border: 2px solid rgba(34, 211, 238, 0.75);
+  border-radius: 99px;
+  box-shadow:
+    inset 0 0 10px rgba(34, 211, 238, 0.35),
+    0 0 10px rgba(34, 211, 238, 0.2);
+}
+
+/* movimento: faixa que sobe e desce (background-position vertical) */
+.np--neon-onda {
+  background: linear-gradient(
+    180deg,
+    rgba(52, 211, 153, 0.42),
+    rgba(8, 20, 26, 0.5) 40%,
+    rgba(56, 189, 248, 0.42)
+  );
+  background-size: 100% 260%;
+  border-color: rgba(94, 234, 212, 0.45);
+}
+
+/* movimento + contorno: duas linhas que se cruzam em diagonal */
+.np--neon-vertigo {
+  background:
+    repeating-linear-gradient(
+      60deg,
+      rgba(232, 121, 249, 0.22) 0 8px,
+      transparent 8px 18px
+    ),
+    rgba(20, 8, 34, 0.55);
+  background-size: 36px 100%, auto;
+  border-color: rgba(232, 121, 249, 0.5);
+}
+
+/* ---------------- CÓSMICA ---------------- */
+
+/* movimento: disco girando (gradiente cônico animado) */
+.np--galaxia {
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(147, 197, 253, 0.3),
+      rgba(99, 102, 241, 0.12),
+      rgba(196, 181, 253, 0.3),
+      rgba(59, 130, 246, 0.12),
+      rgba(147, 197, 253, 0.3)
+    ),
+    rgba(12, 16, 40, 0.6);
+  background-size: 200% 400%;
+  border-color: rgba(129, 140, 248, 0.45);
+}
+
+/* material: nuvens densas com densidade variável */
+.np--nebulosa {
+  background:
+    radial-gradient(ellipse at 22% 50%, rgba(232, 121, 249, 0.34) 0%, transparent 60%),
+    radial-gradient(ellipse at 72% 40%, rgba(56, 189, 248, 0.3) 0%, transparent 62%),
+    rgba(30, 12, 48, 0.62);
+  background-size: 220% 220%;
+  border-color: rgba(216, 180, 254, 0.42);
+}
+
+/* movimento: riscos diagonais finos atravessando o fundo */
+.np--estrelas-cadentes {
+  background:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.22) 0 2px,
+      transparent 2px 42px
+    ),
+    linear-gradient(160deg, rgba(30, 41, 99, 0.62), rgba(15, 23, 42, 0.7));
+  background-size: 84px 100%, auto;
+  border-color: rgba(148, 163, 218, 0.4);
+}
+
+/* material: anéis concêntricos por radiais repetidos */
+.np--orbita {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, rgba(165, 180, 252, 0.24) 22% 26%, transparent 26%),
+    radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(165, 180, 252, 0.16) 38% 42%, transparent 42%),
+    rgba(18, 22, 48, 0.58);
+  border-color: rgba(129, 140, 248, 0.4);
+}
+
+/* contorno: anel dourado em volta de um disco escuro */
+.np--eclipse {
+  background: radial-gradient(circle at 50% 130%, rgba(10, 12, 24, 0.9) 0 58%, transparent 60%);
+  border-color: rgba(250, 204, 21, 0.5);
+  box-shadow: inset 0 0 16px rgba(250, 204, 21, 0.16);
+}
+
+/* material: profundidade — poça azul com pontos raros */
+.np--universo-profundo {
+  background:
+    radial-gradient(circle at 14% 30%, rgba(255, 255, 255, 0.5) 0 1.1px, transparent 1.8px),
+    radial-gradient(circle at 82% 66%, rgba(255, 255, 255, 0.4) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 58% 20%, rgba(255, 255, 255, 0.34) 0 0.9px, transparent 1.5px),
+    linear-gradient(180deg, rgba(12, 26, 66, 0.72), rgba(4, 10, 30, 0.82));
+  border-color: rgba(96, 132, 220, 0.35);
+}
+
+/* ---------------- NATUREZA ---------------- */
+
+/* material: camadas empilhadas de copa */
+.np--floresta {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(34, 96, 52, 0.42) 0 6px,
+      rgba(16, 52, 30, 0.5) 6px 12px
+    );
+  border-color: rgba(74, 160, 100, 0.4);
+}
+
+/* material: gotas frias espalhadas por radiais */
+.np--orvalho {
+  background:
+    radial-gradient(circle at 24% 38%, rgba(226, 244, 240, 0.4) 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 62% 62%, rgba(226, 244, 240, 0.32) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 84% 32%, rgba(226, 244, 240, 0.36) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 44% 76%, rgba(226, 244, 240, 0.3) 0 1.5px, transparent 2.3px),
+    linear-gradient(170deg, rgba(38, 74, 74, 0.5), rgba(18, 40, 44, 0.58));
+  border-color: rgba(148, 200, 196, 0.35);
+}
+
+/* material: pétalas pontilhadas sobre verde de jardim */
+.np--flores {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(244, 114, 182, 0.42) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 64%, rgba(250, 204, 21, 0.34) 0 1.8px, transparent 2.8px),
+    radial-gradient(circle at 52% 24%, rgba(192, 132, 252, 0.36) 0 1.6px, transparent 2.6px),
+    linear-gradient(140deg, rgba(28, 74, 44, 0.55), rgba(14, 44, 28, 0.6));
+  border-color: rgba(120, 200, 140, 0.38);
+}
+
+/* movimento: cortinas de luz que deslizam em duas direções */
+.np--aurora {
+  background: linear-gradient(
+    100deg,
+    rgba(52, 211, 153, 0.4),
+    rgba(56, 189, 248, 0.28) 35%,
+    rgba(168, 85, 247, 0.3) 70%,
+    rgba(52, 211, 153, 0.4)
+  );
+  background-size: 300% 100%;
+  border-color: rgba(94, 234, 212, 0.42);
+}
+
+/* movimento: listras de água escorrendo (vertical) */
+.np--correnteza {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(94, 234, 212, 0.24) 0 4px,
+      rgba(14, 62, 74, 0.42) 4px 14px
+    );
+  background-size: 28px 100%;
+  border-color: rgba(45, 212, 191, 0.4);
+}
+
+/* contorno: facetas com quinas claras */
+.np--cristal-verde {
+  background:
+    linear-gradient(135deg, rgba(110, 231, 183, 0.32) 0 25%, transparent 25% 50%, rgba(52, 211, 153, 0.24) 50% 75%, transparent 75%),
+    rgba(10, 40, 30, 0.58);
+  background-size: 28px 28px, auto;
+  border-color: rgba(110, 231, 183, 0.48);
+  box-shadow: inset 0 0 12px rgba(110, 231, 183, 0.18);
+}
+
+/* ---------------- MINIMALISTA ---------------- */
+
+/* contorno: filete de 1px, sem sombra e sem halo */
+.np--contorno-fino {
+  background: transparent;
+  border: 1px solid rgba(232, 243, 240, 0.32);
+}
+
+/* material: um cinza chapado, sem gradiente nenhum */
+.np--monocromatico {
+  background: rgba(226, 232, 230, 0.1);
+  border-color: rgba(226, 232, 230, 0.18);
+}
+
+/* material: degradê vertical quase invisível entre dois cinzas */
+.np--cinza-elegante {
+  background: linear-gradient(180deg, rgba(214, 222, 220, 0.14), rgba(120, 130, 128, 0.06));
+  border-color: rgba(200, 210, 208, 0.2);
+}
+
+/* contorno: corte escuro embaixo, fundo claro em cima */
+.np--preto-e-branco {
+  background: rgba(240, 244, 243, 0.12);
+  border-color: rgba(240, 244, 243, 0.28);
+  box-shadow: inset 0 -3px 0 rgba(8, 12, 14, 0.75);
+}
+
+/* material: vidro fosco — opacidade mínima, borda seca */
+.np--transparencia {
+  background: rgba(255, 255, 255, 0.028);
+  border-color: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(2px);
+}
+
+/* contorno: dois filetes paralelos em cima e embaixo */
+.np--linha-dupla {
+  background: transparent;
+  border-top: 2px solid rgba(226, 240, 236, 0.55);
+  border-bottom: 2px solid rgba(226, 240, 236, 0.55);
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+}
+
+/* ---------------- ARCADE ---------------- */
+
+/* material: pixels chapados com borda dura */
+.np--pixel-art {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(74, 222, 128, 0.2) 0 5px,
+      transparent 5px 10px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(56, 189, 248, 0.16) 0 5px,
+      transparent 5px 10px
+    ),
+    rgba(14, 10, 30, 0.62);
+  border: 2px solid rgba(74, 222, 128, 0.45);
+}
+
+/* contorno: moldura dupla de máquina de fliperama */
+.np--fliperama {
+  background: rgba(24, 10, 40, 0.66);
+  border: 3px double rgba(250, 204, 21, 0.55);
+  box-shadow: inset 0 0 14px rgba(250, 204, 21, 0.14);
+}
+
+/* movimento: barra de energia deslizando em blocos */
+.np--efeitos-jogo {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(74, 222, 128, 0.42) 0 10px,
+      rgba(14, 20, 14, 0.5) 10px 16px
+    );
+  background-size: 26px 100%;
+  border-color: rgba(74, 222, 128, 0.5);
+}
+
+/* movimento: ciclo de cores fechado (3 paradas) */
+.np--luzes-rgb {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.32),
+    rgba(34, 197, 94, 0.32),
+    rgba(59, 130, 246, 0.32),
+    rgba(239, 68, 68, 0.32)
+  );
+  background-size: 300% 100%;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* contorno: corte diagonal ácido sobre roxo */
+.np--cyberpunk {
+  background:
+    linear-gradient(115deg, rgba(250, 204, 21, 0.28) 0 34%, transparent 34%),
+    rgba(76, 25, 120, 0.55);
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+/* material: escala de instrumento com marcas de leitura */
+.np--painel-digital {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(74, 222, 128, 0.42) 0 2px,
+      transparent 2px 14px
+    ),
+    rgba(8, 20, 14, 0.66);
+  border-bottom: 2px solid rgba(74, 222, 128, 0.6);
+  border-color: rgba(74, 222, 128, 0.24);
+}
+
+/* ---------------- ÉPICA ---------------- */
+
+/* movimento: chamas subindo em três paradas */
+.np--chamas {
+  background: linear-gradient(
+    0deg,
+    rgba(249, 115, 22, 0.5),
+    rgba(220, 38, 38, 0.34) 45%,
+    rgba(120, 20, 20, 0.42)
+  );
+  background-size: 100% 240%;
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: inset 0 0 14px rgba(249, 115, 22, 0.2);
+}
+
+/* movimento: descargas que piscam nas duas pontas */
+.np--energia {
+  background:
+    radial-gradient(circle at 0% 50%, rgba(125, 211, 252, 0.55) 0 12%, transparent 34%),
+    radial-gradient(circle at 100% 50%, rgba(125, 211, 252, 0.55) 0 12%, transparent 34%),
+    rgba(10, 22, 40, 0.6);
+  border-color: rgba(125, 211, 252, 0.5);
+}
+
+/* material: escamas diagonais com espinhos na borda superior */
+.np--dragao {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(180, 60, 40, 0.4) 0 6px,
+      rgba(70, 20, 16, 0.5) 6px 12px
+    );
+  border-top: 3px solid rgba(248, 113, 113, 0.6);
+  border-color: rgba(180, 60, 40, 0.45);
+}
+
+/* contorno: polígonos facetados com brilho interno */
+.np--cristal-radiante {
+  background:
+    linear-gradient(60deg, rgba(192, 132, 252, 0.34) 0 18%, transparent 18% 40%, rgba(129, 140, 248, 0.28) 40% 58%, transparent 58%),
+    rgba(30, 14, 52, 0.62);
+  background-size: 40px 40px, auto;
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: inset 0 0 16px rgba(192, 132, 252, 0.24);
+}
+
+/* material: marcas gravadas em ritmo fixo */
+.np--runas {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(212, 190, 150, 0.36) 0 3px,
+      transparent 3px 9px,
+      rgba(212, 190, 150, 0.22) 9px 11px,
+      transparent 11px 20px
+    ),
+    rgba(38, 30, 18, 0.6);
+  border-color: rgba(212, 190, 150, 0.4);
+}
+
+/* movimento: ouro líquido cruzando placa pesada */
+.np--lendario {
+  background: linear-gradient(
+    100deg,
+    rgba(120, 84, 0, 0.55),
+    rgba(253, 224, 71, 0.44) 46%,
+    rgba(120, 84, 0, 0.55)
+  );
+  background-size: 280% 100%;
+  border: 2px solid rgba(253, 224, 71, 0.5);
+  box-shadow: inset 0 0 18px rgba(253, 224, 71, 0.22);
+}
+
+/* ---------------- NEXO EXCLUSIVA ---------------- */
+
+/* material: monograma da marca ao fundo, sem competir com o nome */
+.np--nexo-logo {
+  background:
+    radial-gradient(circle at 88% 50%, rgba(53, 224, 168, 0.3) 0 22%, transparent 24%),
+    rgba(8, 34, 28, 0.66);
+  border-color: rgba(53, 224, 168, 0.45);
+}
+
+/* contorno: canto marcado nas cores oficiais */
+.np--nexo-identidade {
+  background: rgba(8, 34, 28, 0.62);
+  border-color: rgba(53, 224, 168, 0.4);
+  box-shadow: inset 4px 0 0 rgba(34, 211, 238, 0.75);
+}
+
+/* movimento: gradiente da marca percorrendo a placa */
+.np--nexo-gradiente {
+  background: linear-gradient(
+    90deg,
+    rgba(53, 224, 168, 0.42),
+    rgba(34, 211, 238, 0.28),
+    rgba(16, 185, 129, 0.42),
+    rgba(53, 224, 168, 0.42)
+  );
+  background-size: 300% 100%;
+  border-color: rgba(53, 224, 168, 0.55);
+}
+
+/* movimento: linhas de dados descendo */
+.np--nexo-futurista {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(34, 211, 238, 0.26) 0 3px,
+      transparent 3px 12px
+    ),
+    rgba(6, 26, 24, 0.68);
+  background-size: 100% 24px, auto;
+  border-color: rgba(34, 211, 238, 0.45);
+}
+
+/* movimento + contorno: varredura dupla com pulso de borda */
+.np--nexo-animacao {
+  background: linear-gradient(180deg, rgba(16, 66, 52, 0.6), rgba(6, 26, 24, 0.72));
+  border-color: rgba(53, 224, 168, 0.5);
+  box-shadow: inset 0 0 16px rgba(53, 224, 168, 0.2);
+}
+
+.np--nexo-animacao::after {
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    rgba(34, 211, 238, 0.4) 50%,
+    transparent 82%
+  );
+  transform: translateX(-120%);
+}
+
+/* movimento: três camadas em deslocamentos diferentes */
+.np--nexo-raro {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(53, 224, 168, 0.28) 0 1.3px, transparent 2px),
+    radial-gradient(circle at 70% 68%, rgba(34, 211, 238, 0.24) 0 1.1px, transparent 1.8px),
+    linear-gradient(120deg, rgba(8, 48, 38, 0.68), rgba(6, 22, 34, 0.72));
+  background-size: 46px 46px, 34px 34px, auto;
+  border-color: rgba(53, 224, 168, 0.6);
+  box-shadow: inset 0 0 18px rgba(34, 211, 238, 0.22);
+}
+
 /* ---------------- COLEÇÃO BRASIL 🇧🇷 (conquistas) ----------------
    Verde, amarelo e azul nas 7 categorias — mesmas regras de
    legibilidade do arquivo (fundos translúcidos + text-shadow). */
@@ -308,6 +775,78 @@ body:not(.nx-motion-off) .np.np--brasil-nexo::after {
   animation: np-sweep 3.4s ease-in-out infinite;
 }
 
+/* ---- animações da coleção ampliada ----
+   Mesma regra: ligadas só quando a pessoa não desativou e o
+   sistema não pede movimento reduzido. */
+
+body:not(.nx-motion-off) .np.np--neon-roxo {
+  animation: np-flow 3.4s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--neon-onda {
+  animation: np-rise 3.6s ease-in-out infinite alternate;
+}
+
+body:not(.nx-motion-off) .np.np--neon-vertigo {
+  animation: np-slide-x 2.8s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--galaxia {
+  animation: np-spin 9s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--nebulosa {
+  animation: np-breathe 5.5s ease-in-out infinite alternate;
+}
+
+body:not(.nx-motion-off) .np.np--estrelas-cadentes {
+  animation: np-slide-x 1.9s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--aurora {
+  animation: np-flow-slow 7s ease-in-out infinite alternate;
+}
+
+body:not(.nx-motion-off) .np.np--correnteza {
+  animation: np-slide-x 2.2s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--efeitos-jogo {
+  animation: np-slide-x 1.6s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--luzes-rgb {
+  animation: np-flow 4.2s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--chamas {
+  animation: np-rise 2.4s ease-in-out infinite alternate;
+}
+
+body:not(.nx-motion-off) .np.np--energia {
+  animation: np-flicker 1.4s steps(2, end) infinite;
+}
+
+body:not(.nx-motion-off) .np.np--lendario {
+  animation: np-flow 3s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--nexo-gradiente {
+  animation: np-flow 3.6s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--nexo-futurista {
+  animation: np-slide-y 2.6s linear infinite;
+}
+
+body:not(.nx-motion-off) .np.np--nexo-animacao::after {
+  animation: np-sweep 3.2s ease-in-out infinite;
+}
+
+body:not(.nx-motion-off) .np.np--nexo-raro {
+  animation: np-drift 8s linear infinite;
+}
+
 /* ============================================================
    ANIMAÇÕES — só ligadas quando a pessoa NÃO desativou
    (body.nx-motion-off) e o sistema não pede movimento reduzido.
@@ -336,6 +875,50 @@ body:not(.nx-motion-off) .np.np--brasil-nexo::after {
 @keyframes np-sweep {
   0% { transform: translateX(-130%); }
   55%, 100% { transform: translateX(130%); }
+}
+
+/* --- novas da coleção ampliada --- */
+
+/* sobe/des fundo de gradiente (chamas, onda) */
+@keyframes np-rise {
+  from { background-position: 50% 0%; }
+  to { background-position: 50% 100%; }
+}
+
+/* desliza na horizontal mantendo a textura presa ao topo */
+@keyframes np-slide-x {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* desliza na vertical (linhas de dados) */
+@keyframes np-slide-y {
+  from { background-position: 50% 0%; }
+  to { background-position: 50% 100%; }
+}
+
+/* gira o gradiente cônico da galáxia */
+@keyframes np-spin {
+  from { background-position: 0% 0%; }
+  to { background-position: 0% 400%; }
+}
+
+/* respira: densidade da nebulosa sobe e desce */
+@keyframes np-breathe {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* pisca em passos, como descarga elétrica */
+@keyframes np-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+
+/* deriva devagar das camadas pontilhadas */
+@keyframes np-drift {
+  from { background-position: 0% 0%, 0% 0%, 0% 50%; }
+  to { background-position: 46px 46px, -34px 34px, 0% 50%; }
 }
 
 body:not(.nx-motion-off) .np.np--pulso-neon {

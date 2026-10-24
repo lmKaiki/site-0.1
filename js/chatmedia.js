@@ -97,7 +97,7 @@ window.NX = window.NX || {};
   function attachPerms() {
     const me = safe(() => S().me(), null);
     const route = NX.app && NX.app.route;
-    if (!me) return { files: false, gifs: false, emojis: false, custom: false, serverId: null };
+    if (!me) return { files: false, gifs: false, emojis: false, custom: false, stickers: false, serverId: null };
     if (route && route.name === "server" && route.channelId) {
       const ch = safe(() => S().channel(route.channelId), null);
       if (ch) {
@@ -108,19 +108,40 @@ window.NX = window.NX || {};
             gifs: !!p.useGifs,
             emojis: !!p.useEmojis,
             custom: !!p.useCustomEmojis,
+            stickers: !!p.useStickers,
             serverId: ch.serverId,
           };
         }
       }
     }
-    return { files: true, gifs: true, emojis: true, custom: true, serverId: route ? route.serverId || null : null };
+    return {
+      files: true,
+      gifs: true,
+      emojis: true,
+      custom: true,
+      stickers: true,
+      serverId: route ? route.serverId || null : null,
+    };
   }
 
   /* =========================================================
      1 · emojify — tokens <:nome:> → <img> do servidor
+     e {{sticker:nome}} → figurinha do servidor
      ========================================================= */
   const TOKEN_ESCAPED = /&lt;:([a-z0-9_\-.]{1,32}):&gt;/gi;
   const TOKEN_RAW = /<:([a-z0-9_\-.]{1,32}):>/gi;
+  /* figurinha: sintaxe própria para não colidir com emoji nem com
+     markdown. O nome é normalizado igual ao do servidor. */
+  const STK_ESCAPED = /\{\{sticker:([a-z0-9_\-.]{1,32})\}\}/gi;
+  const STK_RAW = /\{\{sticker:([a-z0-9_\-.]{1,32})\}\}/gi;
+
+  /* referência que fica salva na mensagem — o cliente resolve na
+     hora de desenhar, então a figurinha continua aparecendo depois
+     de recarregar e em outro aparelho */
+  chat.stickerToken = function (name) {
+    const n = String(name || "").trim().toLowerCase();
+    return n ? "{{sticker:" + n + "}}" : "";
+  };
 
   chat.emojify = function (html, serverId) {
     let out = html == null ? "" : String(html);
@@ -139,6 +160,26 @@ window.NX = window.NX || {};
         ':" draggable="false">'
       );
     };
+    const renderSticker = (raw) => {
+      const name = String(raw || "").toLowerCase();
+      if (!serverId) return null;
+      const s = safe(() => S().stickerByName(serverId, name), null);
+      if (!s || !s.image) return null;
+      const title = s.description ? s.name + " — " + s.description : s.name;
+      return (
+        '<span class="chat-sticker cm-sticker" role="img" aria-label="' +
+        u().h(title) +
+        '" title="' +
+        u().h(title) +
+        '"><img class="cm-sticker__img" src="' +
+        u().h(s.image) +
+        '" alt="' +
+        u().h(":" + s.name + ":") +
+        '" draggable="false" loading="lazy"></span>'
+      );
+    };
+    out = out.replace(STK_ESCAPED, (m, name) => renderSticker(name) || m);
+    out = out.replace(STK_RAW, (m, name) => renderSticker(name) || m);
     out = out.replace(TOKEN_ESCAPED, (m, name) => render(name) || m);
     out = out.replace(TOKEN_RAW, (m, name) => render(name) || m);
     return out;
@@ -1207,6 +1248,12 @@ window.NX = window.NX || {};
 
     /* “Recentes” só aparece depois do primeiro uso; “Favoritos”
        fica sempre visível (com aviso vazio ensinando a estrela) */
+    /* Figurinhas: só existe se o servidor tiver (ou se a busca
+       couber), evitando aba vazia em comunidade sem acervo. */
+    const stickerList = showServer && perms.stickers !== false
+      ? (safe(() => S().serverStickers(serverId), []) || [])
+      : [];
+
     const tabs = []
       .concat(
         emojiLoadList(EMOJI_LS_RECENT).length
@@ -1217,7 +1264,10 @@ window.NX = window.NX || {};
       .concat(
         [{ id: "geral", icon: "smile", label: NX.i18n.get("chat.rostosCategorias", "Populares e categorias") }],
         EMOJI_CATS.slice(1).map((c) => ({ id: c.id, icon: c.icon, label: c.label })),
-        showServer ? [{ id: "server", icon: "star", label: NX.i18n.get("chat.servidor", "Do servidor") }] : []
+        showServer ? [{ id: "server", icon: "star", label: NX.i18n.get("chat.servidor", "Do servidor") }] : [],
+        stickerList.length
+          ? [{ id: "stickers", icon: "image", label: NX.i18n.get("chat.figurinhas", "Figurinhas") }]
+          : []
       );
 
     const tabsHTML = tabs
@@ -1279,6 +1329,19 @@ window.NX = window.NX || {};
       );
     }
 
+    /* figurinha do servidor: entra como bloco de mensagem, não como
+       emoji inline — por isso usa data-sticker e não data-token */
+    function stickerCellHTML(st) {
+      const lbl = st.description ? st.name + " — " + st.description : st.name;
+      return (
+        '<button type="button" class="cm-emj cm-emj--sticker" role="gridcell" data-sticker="' +
+        u().h(chat.stickerToken(st.name)) + '" data-name="' + u().h(lbl) +
+        '" aria-label="' + u().h("Figurinha " + lbl) + '">' +
+        '<img class="cm-emj__img" src="' + u().h(st.image) + '" alt="' + u().h(":" + st.name + ":") + '" loading="lazy">' +
+        "</button>"
+      );
+    }
+
     /* emoji guardado (recente/favorito) que ainda existe no banco */
     function entryOf(emoji) {
       const found = EMOJI_INDEX.filter((e) => e.emoji === emoji)[0];
@@ -1323,6 +1386,15 @@ window.NX = window.NX || {};
             (em) => u().normalize(em.name).indexOf(q) !== -1
           );
           cells += sv.map(serverCellHTML).join("");
+          /* figurinhas entram na mesma busca, com o rótulo junto */
+          if (perms.stickers !== false) {
+            const st = stickerList.filter(
+              (s) =>
+                u().normalize(s.name).indexOf(q) !== -1 ||
+                u().normalize(s.description || "").indexOf(q) !== -1
+            );
+            cells += st.map(stickerCellHTML).join("");
+          }
         }
       } else if (tab === "recentes") {
         const list = emojiLoadList(EMOJI_LS_RECENT);
@@ -1348,6 +1420,14 @@ window.NX = window.NX || {};
             ("<div class=\"cm-empty\">" + NX.i18n.get("chat.nenhumemojipersonalizadonesteservidorainda", "Nenhum emoji personalizado neste servidor ainda.") + "</div>");
           return;
         }
+      } else if (tab === "stickers") {
+        const st = stickerList;
+        cells = st.map(stickerCellHTML).join("");
+        if (!st.length) {
+          grid.innerHTML =
+            ("<div class=\"cm-empty\">" + NX.i18n.get("chat.nenhumafigurinha", "Nenhuma figurinha neste servidor ainda.") + "</div>");
+          return;
+        }
       } else {
         const cat = EMOJI_CATS.filter((c) => c.id === tab)[0] || EMOJI_CATS[0];
         cells = EMOJI_INDEX.filter((e) => e.cat === cat.id).map(cellHTML).join("");
@@ -1358,6 +1438,13 @@ window.NX = window.NX || {};
     grid.addEventListener("click", (e) => {
       const b = e.target.closest(".cm-emj");
       if (!b) return;
+      /* figurinha: bloco de mensagem, entra inteira no campo */
+      const stk = b.getAttribute("data-sticker");
+      if (stk) {
+        NX.ui.closePopout();
+        if (typeof onPick === "function") onPick(stk);
+        return;
+      }
       const token = b.getAttribute("data-token");
       const value = token || b.getAttribute("data-e");
       NX.ui.closePopout();

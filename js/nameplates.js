@@ -56,6 +56,49 @@ window.NX = window.NX || {};
     { id: "onda-arcade", name: "Onda Arcade", category: "arcade", kind: "animated", price: 160, rarity: "rara", description: "Listras que deslizam em ritmo de jogo.", rewardOnly: false },
     { id: "alvorecer", name: "Alvorecer", category: "epica", kind: "animated", price: 220, rarity: "rara", description: "Um céu de amanhecer que muda de cor por trás do nome.", rewardOnly: false },
     { id: "selo-nexo", name: "Selo Nexo", category: "nexo", kind: "animated", price: null, rarity: "lendaria", description: "Recompensa da Jornada Nexo: um brilho que percorre a placa. Não é vendida.", rewardOnly: true },
+    /* ---- coleção ampliada (espelho do server/custom.js) ---- */
+    { id: "neon-ciano", name: "Ciano Neon", category: "neon", kind: "static", price: 90, rarity: "incomum", description: "Barra de luz ciano em cada lateral do nome.", rewardOnly: false },
+    { id: "neon-roxo", name: "Roxo Neon", category: "neon", kind: "animated", price: 165, rarity: "rara", description: "Roxo elétrico que corre em laço pelo fundo.", rewardOnly: false },
+    { id: "neon-rosa", name: "Rosa Neon", category: "neon", kind: "static", price: 95, rarity: "incomum", description: "Brilho rosa estático com halo suave nas bordas.", rewardOnly: false },
+    { id: "neon-tubo", name: "Tubo de Neon", category: "neon", kind: "static", price: 145, rarity: "rara", description: "Um tubo de vidro aceso emoldurando a linha inteira.", rewardOnly: false },
+    { id: "neon-onda", name: "Onda Neon", category: "neon", kind: "animated", price: 210, rarity: "epica", description: "Uma onda de luz sobe e desce por trás das letras.", rewardOnly: false },
+    { id: "neon-vertigo", name: "Vertigo Neon", category: "neon", kind: "animated", price: 265, rarity: "epica", description: "Duas linhas opostas que se cruzam em movimento contínuo.", rewardOnly: false },
+    { id: "galaxia", name: "Galáxia", category: "cosmica", kind: "animated", price: 225, rarity: "rara", description: "Um disco de estrelas girando devagar atrás do nome.", rewardOnly: false },
+    { id: "nebulosa", name: "Nebulosa", category: "cosmica", kind: "animated", price: 245, rarity: "epica", description: "Nuvens de gás que mudam de densidade em cadência lenta.", rewardOnly: false },
+    { id: "estrelas-cadentes", name: "Estrelas Cadentes", category: "cosmica", kind: "animated", price: 195, rarity: "rara", description: "Faíscas atravessam o fundo como chuva de estrelas.", rewardOnly: false },
+    { id: "orbita", name: "Órbita", category: "cosmica", kind: "static", price: 115, rarity: "incomum", description: "Anéis concêntricos de um corpo em rotação.", rewardOnly: false },
+    { id: "eclipse", name: "Eclipse", category: "cosmica", kind: "static", price: 155, rarity: "rara", description: "Um disco escuro com anel dourado de luz na borda.", rewardOnly: false },
+    { id: "universo-profundo", name: "Universo Profundo", category: "cosmica", kind: "static", price: 285, rarity: "epica", description: "Azul-abissal com pontos de luz raros e distantes.", rewardOnly: false },
+    { id: "floresta", name: "Floresta", category: "natureza", kind: "static", price: 105, rarity: "incomum", description: "Verdes empilhados, como copas vistas de baixo.", rewardOnly: false },
+    { id: "orvalho", name: "Orvalho", category: "natureza", kind: "static", price: 85, rarity: "comum", description: "Gotas frias espalhadas sobre fundo de madrugada.", rewardOnly: false },
+    { id: "flores", name: "Flores", category: "natureza", kind: "static", price: 135, rarity: "incomum", description: "Pontos de pétala sobre verde fundo de jardim.", rewardOnly: false },
+    { id: "aurora", name: "Aurora Boreal", category: "natureza", kind: "animated", price: 235, rarity: "rara", description: "Cortinas de luz que se movem como céu do norte.", rewardOnly: false },
+    { id: "correnteza", name: "Correnteza", category: "natureza", kind: "animated", price: 175, rarity: "rara", description: "Listras de água que escorrem sem parar.", rewardOnly: false },
+    { id: "cristal-verde", name: "Cristal Verde", category: "natureza", kind: "static", price: 215, rarity: "rara", description: "Facetas de cristal com brilho duro nas quinas.", rewardOnly: false },
+    { id: "contorno-fino", name: "Contorno Fino", category: "minimalista", kind: "static", price: 65, rarity: "comum", description: "Uma linha de 1px em volta do nome. Só isso.", rewardOnly: false },
+    { id: "monocromatico", name: "Monocromático", category: "minimalista", kind: "static", price: 75, rarity: "comum", description: "Um cinza único, sem gradiente e sem brilho.", rewardOnly: false },
+    { id: "cinza-elegante", name: "Cinza Elegante", category: "minimalista", kind: "static", price: 105, rarity: "incomum", description: "Degradê quase invisível entre dois cinzas frios.", rewardOnly: false },
+    { id: "preto-e-branco", name: "Preto e Branco", category: "minimalista", kind: "static", price: 140, rarity: "rara", description: "Fundo claro sobre um corte escuro embaixo.", rewardOnly: false },
+    { id: "transparencia", name: "Transparência", category: "minimalista", kind: "static", price: 125, rarity: "incomum", description: "Vidro fosco: quase sumido, ainda legível.", rewardOnly: false },
+    { id: "linha-dupla", name: "Linha Dupla", category: "minimalista", kind: "static", price: 160, rarity: "rara", description: "Dois filetes paralelos emoldurando a placa.", rewardOnly: false },
+    { id: "pixel-art", name: "Pixel Art", category: "arcade", kind: "static", price: 110, rarity: "incomum", description: "Blocos de pixel firmes, sem suavização de borda.", rewardOnly: false },
+    { id: "fliperama", name: "Fliperama Retrô", category: "arcade", kind: "static", price: 130, rarity: "incomum", description: "Moldura de máquina de 1986 com brilho de tubo.", rewardOnly: false },
+    { id: "efeitos-jogo", name: "Efeitos de Jogo", category: "arcade", kind: "animated", price: 185, rarity: "rara", description: "Faixa de energia que corre como barra de vida.", rewardOnly: false },
+    { id: "luzes-rgb", name: "Luzes RGB", category: "arcade", kind: "animated", price: 205, rarity: "rara", description: "Cores trocando em ciclo fechado, como teclado gamer.", rewardOnly: false },
+    { id: "cyberpunk", name: "Cyberpunk", category: "arcade", kind: "static", price: 245, rarity: "epica", description: "Amarelo ácido sobre roxo, com corte diagonal.", rewardOnly: false },
+    { id: "painel-digital", name: "Painel Digital", category: "arcade", kind: "static", price: 165, rarity: "rara", description: "Linhas de leitura de instrumento, com marcas de escala.", rewardOnly: false },
+    { id: "chamas", name: "Chamas", category: "epica", kind: "animated", price: 260, rarity: "epica", description: "Fogo que lambe o fundo em movimento perpétuo.", rewardOnly: false },
+    { id: "energia", name: "Energia Elétrica", category: "epica", kind: "animated", price: 255, rarity: "epica", description: "Descargas que piscam nas duas pontas.", rewardOnly: false },
+    { id: "dragao", name: "Dragão Estilizado", category: "epica", kind: "static", price: 275, rarity: "epica", description: "Escamas em diagonal com espinhos na borda superior.", rewardOnly: false },
+    { id: "cristal-radiante", name: "Cristal Radiante", category: "epica", kind: "static", price: 240, rarity: "epica", description: "Polígonos facetados refletindo luz de dentro.", rewardOnly: false },
+    { id: "runas", name: "Runas", category: "epica", kind: "static", price: 225, rarity: "rara", description: "Marcas gravadas ritmadas como uma inscrição.", rewardOnly: false },
+    { id: "lendario", name: "Efeito Lendário", category: "epica", kind: "animated", price: 330, rarity: "lendaria", description: "Ouro líquido atravessando uma placa pesada.", rewardOnly: false },
+    { id: "nexo-logo", name: "Marca Nexo", category: "nexo", kind: "static", price: 300, rarity: "nexo", description: "O símbolo do Nexo impresso ao fundo, sem roubar o nome.", rewardOnly: false },
+    { id: "nexo-identidade", name: "Identidade Nexo", category: "nexo", kind: "static", price: 310, rarity: "nexo", description: "Verde e ciano nas cores oficiais, com canto marcado.", rewardOnly: false },
+    { id: "nexo-gradiente", name: "Gradiente Nexo", category: "nexo", kind: "animated", price: 350, rarity: "nexo", description: "O gradiente da marca percorrendo a placa inteira.", rewardOnly: false },
+    { id: "nexo-futurista", name: "Efeito Futurista", category: "nexo", kind: "animated", price: 370, rarity: "nexo", description: "Linhas de dados descendo como se fossem código.", rewardOnly: false },
+    { id: "nexo-animacao", name: "Animação Especial", category: "nexo", kind: "animated", price: 400, rarity: "nexo", description: "Varredura dupla sincronizada com um pulso de borda.", rewardOnly: false },
+    { id: "nexo-raro", name: "Modelo Raro", category: "nexo", kind: "animated", price: 460, rarity: "nexo", description: "A peça mais difícil do catálogo: três camadas em movimento.", rewardOnly: false },
     /* ---- Conquistas do Brasil 🇧🇷 (recompensa, nunca à venda) ---- */
     { id: "sol-de-neon", name: "Sol de Neon", category: "neon", kind: "animated", price: null, rarity: "incomum", description: "Primeira recompensa da coleção Brasil: um sol neon que percorre o nome. Desbloqueada ao confirmar 1 convite.", rewardOnly: true, brasilGoal: 1 },
     { id: "cruzeiro-do-sul", name: "Cruzeiro do Sul", category: "cosmica", kind: "static", price: null, rarity: "rara", description: "As estrelas do Cruzeiro pontilhando o fundo. Recompensa da coleção Brasil por convites confirmados.", rewardOnly: true, brasilGoal: 3 },
@@ -216,7 +259,31 @@ window.NX = window.NX || {};
     comum: () => t("np.rarity.comum", "Comum"),
     incomum: () => t("np.rarity.incomum", "Incomum"),
     rara: () => t("np.rarity.rara", "Rara"),
+    epica: () => t("np.rarity.epica", "Épica"),
     lendaria: () => t("np.rarity.lendaria", "Lendária"),
+    nexo: () => t("np.rarity.nexo", "Exclusivo Nexo"),
+  };
+  np.RARITY = RARITY;
+
+  /* ---------------- estado da loja (busca + filtros) ----------------
+     Filtros são só VISUAIS: quem decide propriedade, saldo e
+     desbloqueio continua sendo o servidor, em cada ação. */
+  np.q = "";
+  np.rar = "";
+  np.style = "";
+
+  /* aplica os filtros atuais sobre uma lista de itens */
+  np.filterItems = function (list) {
+    const q = String(np.q || "").trim().toLowerCase();
+    const out = (list || []).filter(function (p) {
+      if (!p) return false;
+      if (np.cat && p.category !== np.cat) return false;
+      if (np.rar && p.rarity !== np.rar) return false;
+      if (np.style && p.kind !== np.style) return false;
+      if (q && String(p.name || "").toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+    return out;
   };
 
   np.chipHTML = function (plateId, label) {
