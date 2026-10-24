@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Bancada de teste da mídia do chat do Nexo (emojis, GIFs, anexos, reações e menu de mensagens)." />
+  <title>Nexo · bancada de mídia do chat</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230E1517'/%3E%3Cpath d='M18 45V19l28 26V19' stroke='%2335E0A8' stroke-width='6.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/chatmedia.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/permui.css" />
+  <link rel="stylesheet" href="css/people.css" />
+  <link rel="stylesheet" href="css/extras.css" />
+  <style>
+    /* ===== estilos apenas da bancada (não fazem parte do app) ===== */
+    .cm-bench {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 60;
+      max-height: 62vh;
+      overflow-y: auto;
+      padding: 12px 16px 18px;
+      background: var(--bg-body);
+      background: rgba(7, 11, 13, 0.94);
+      border-top: 1px solid var(--border-strong);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.4);
+    }
+    .cm-bench__head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .cm-bench__head strong {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .cm-bench__status {
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+    .cm-bench__row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+    .cm-bench__cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .cm-bench__card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 10px 12px;
+      min-width: 0;
+    }
+    .cm-bench__label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      margin: 0 0 8px;
+    }
+    .cm-bench__card .msg {
+      padding: 4px 0;
+      background: none;
+      border-radius: 0;
+    }
+    .cm-bench__composer {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+    }
+    .cm-bench__composer .composer__inner {
+      max-width: none;
+    }
+    @media (max-width: 900px) {
+      .cm-bench { max-height: 76vh; }
+      .cm-bench__cols { grid-template-columns: minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Landing page pública (deslogado) -->
+  <section id="screen-landing" class="screen screen--landing" hidden></section>
+
+  <!-- Telas do app -->
+  <section id="screen-auth" class="screen screen--auth" hidden></section>
+  <section id="screen-invite" class="screen screen--invite" hidden></section>
+  <section id="screen-settings" class="screen screen--settings" hidden></section>
+
+  <div id="screen-app" class="app-shell" hidden>
+    <nav id="rail" class="rail" aria-label="Servidores"></nav>
+    <aside id="sidebar" class="sidebar" aria-label="Canais do servidor"></aside>
+    <main id="main" class="main">
+      <header id="channel-header" class="channel-header"></header>
+      <div id="main-content" class="main-content"></div>
+      <footer id="composer" class="composer" hidden></footer>
+    </main>
+    <aside id="members" class="members" aria-label="Membros"></aside>
+    <div id="scrim" class="scrim" hidden></div>
+  </div>
+
+  <!-- Camadas de UI -->
+  <div id="modal-root"></div>
+  <div id="popout-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/landing.js"></script>
+  <script src="js/chatmedia.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/permui.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- ===== preparação (sessão + rota) antes do init do app ===== -->
+  <script>
+    (function () {
+      var qs = new URLSearchParams(location.search);
+      window.__CM_QS = qs;
+      try {
+        NX.store.load();
+        NX.seed();
+        if (!NX.selectors.me()) {
+          var users = Object.values(NX.store.db.users);
+          var demo = users.filter(function (u) { return u.demo; })[0] || users[0];
+          if (demo) NX.session.set(demo.id, true);
+        }
+        var forced = qs.get("ch");
+        if (forced) {
+          location.hash = forced.charAt(0) === "#" ? forced : "#/" + forced;
+        } else {
+          var servers = Object.values(NX.store.db.servers);
+          if (servers.length) {
+            var chs = Object.values(NX.store.db.channels).filter(function (c) {
+              return c.serverId === servers[0].id && c.type === "text";
+            });
+            if (chs.length) location.hash = "#/s/" + servers[0].id + "/" + chs[0].id;
+          }
+        }
+      } catch (e) {
+        console.error("[bench:prime]", e);
+      }
+    })();
+  </script>
+
+  <!-- ===== bancada ===== -->
+  <script>
+    (function () {
+      const u = NX.util;
+      const S = NX.selectors;
+      const qs = window.__CM_QS || new URLSearchParams(location.search);
+
+      function benchMessage() {
+        const all = Object.values(NX.store.db.messages);
+        const withAtt = all.filter(function (m) {
+          return m.attachments && m.attachments.length;
+        });
+        return withAtt[0] || all[all.length - 1] || null;
+      }
+
+      const realMsg = benchMessage();
+      const me = S.me();
+
+      const fileAtt = {
+        type: "file",
+        url: "data:text/plain;charset=utf-8," + encodeURIComponent("proposta-v4.txt\nlinha 2\nlinha 3"),
+        name: "proposta-v4.txt",
+        size: 20480,
+      };
+
+      const fakeMsg = {
+        id: "cm-bench-fake",
+        channelId: realMsg ? realMsg.channelId : "cm",
+        authorId: me ? me.id : "u_x",
+        content: "Cartão de componentes: arquivo + GIF <:nexo:>, reações desabilitadas.",
+        attachments: [fileAtt],
+        reactions: { "👍": ["a", "b"], "🔥": ["a"] },
+        pinned: false,
+        createdAt: Date.now() - 42 * 60000,
+        updatedAt: null,
+      };
+
+      const root = document.createElement("section");
+      root.className = "cm-bench";
+      root.id = "cm-bench";
+      root.setAttribute("aria-label", "Bancada de teste da mídia do chat");
+      root.innerHTML =
+        '<div class="cm-bench__head"><strong>Bancada · mídia do chat</strong>' +
+        '<span class="cm-bench__status" id="cm-bench-status">carregando…</span></div>' +
+        '<div class="cm-bench__row">' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-emoji">😀 Emojis</button>' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-gif">GIFs</button>' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-attach">＋ Anexos</button>' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-react">➕ Reagir</button>' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-reply">↩ Responder</button>' +
+        '<button class="btn btn--soft btn--sm" id="cm-b-pend">＋ 3 pendentes</button>' +
+        '<button class="btn btn--ghost btn--sm" id="cm-b-clear">Limpar pendentes</button>' +
+        "</div>" +
+        '<div class="cm-bench__cols">' +
+        '<div class="cm-bench__card"><p class="cm-bench__label">Mensagem real · anexo + reações + <:nome:></p>' +
+        '<div id="cm-bench-msg"></div></div>' +
+        '<div class="cm-bench__card"><p class="cm-bench__label">Variações · arquivo, GIF e reações desabilitadas</p>' +
+        '<div id="cm-bench-msg2"></div></div>' +
+        "</div>" +
+        '<div class="cm-bench__composer" data-cm-composer>' +
+        '<p class="cm-bench__label">Compositor · faixa de pendentes + barra de resposta</p>' +
+        '<div class="composer__inner">' +
+        '<button class="icon-btn composer__plus" data-action="chat-attach" aria-label="Anexos">' +
+        NX.icon("plus", "", 20) + "</button>" +
+        '<div class="composer__field">' +
+        '<textarea class="composer__input" rows="1" data-composer-input placeholder="Mensagem de teste…"></textarea>' +
+        '<button class="icon-btn composer__gif" data-action="chat-gifs" aria-label="GIF" style="font-size:12px;font-weight:800">GIF</button>' +
+        '<button class="icon-btn composer__emoji" data-action="chat-emoji" aria-label="Emojis">' +
+        NX.icon("smile", "", 19) + "</button></div>" +
+        '<button class="composer__send is-ready" aria-label="Enviar">' + NX.icon("send", "", 19) + "</button>" +
+        "</div></div>";
+      document.body.appendChild(root);
+      /* ?bench=0 remove a bancada: sobra o app real (compositor do views.js) */
+      const benchOff = qs.get("bench") === "0";
+
+      const card1 = document.getElementById("cm-bench-msg");
+      const card2 = document.getElementById("cm-bench-msg2");
+      const status = document.getElementById("cm-bench-status");
+
+      function esc(text) {
+        return u.h(text).replace(/\n/g, "<br>");
+      }
+
+      function serverIdOf(msg) {
+        const ch = msg ? S.channel(msg.channelId) : null;
+        return ch ? ch.serverId : null;
+      }
+
+      function renderCard1() {
+        if (!realMsg) {
+          card1.innerHTML = '<p class="cm-bench__status">Nenhuma mensagem no banco.</p>';
+          return;
+        }
+        const author = S.user(realMsg.authorId) || me;
+        const sid = serverIdOf(realMsg);
+        const ctx = NX.chat.ctxFor(realMsg);
+        const extra = String(realMsg.content).indexOf("<:") === -1
+          ? "\nEmoji do servidor: <:nexo:> <:cafe:>"
+          : "";
+        card1.innerHTML =
+          '<article class="msg" data-id="' + u.h(realMsg.id) + '">' +
+          '<div class="msg__avatar">' + u.avatarHTML(author, "md", true) + "</div>" +
+          '<div class="msg__body">' +
+          '<div class="msg__meta"><span class="msg__author">' + u.h(author.displayName) + "</span>" +
+          '<time class="msg__time">' + u.fmtTime(realMsg.createdAt) + "</time></div>" +
+          '<div class="msg__text">' + NX.chat.emojify(esc(realMsg.content + extra), sid) + "</div>" +
+          NX.chat.attachmentsHTML(realMsg) +
+          NX.chat.reactionsHTML(realMsg, { canReact: ctx.canReact !== false }) +
+          "</div>" +
+          '<div class="msg__actions"><button class="msg__act" data-action="chat-menu" data-id="' +
+          u.h(realMsg.id) + '" title="Mais ações" aria-label="Mais ações">' + NX.icon("more", "", 15) +
+          "</button></div></article>";
+      }
+
+      function renderCard2() {
+        card2.innerHTML =
+          '<article class="msg" data-id="cm-bench-fake">' +
+          '<div class="msg__avatar">' + u.avatarHTML(me, "md", true) + "</div>" +
+          '<div class="msg__body">' +
+          '<div class="msg__meta"><span class="msg__author">' + u.h(me ? me.displayName : "Você") + "</span>" +
+          '<time class="msg__time">' + u.fmtTime(fakeMsg.createdAt) + "</time></div>" +
+          '<div class="msg__text">' + NX.chat.emojify(esc(fakeMsg.content), serverIdOf(realMsg || fakeMsg)) + "</div>" +
+          NX.chat.attachmentsHTML(fakeMsg) +
+          NX.chat.reactionsHTML(fakeMsg, { canReact: false }) +
+          "</div></article>";
+      }
+
+      renderCard1();
+      renderCard2();
+
+      /* GIF do fixture local no cartão de variações */
+      NX.chat.gifProvider.search("esperando").then(function (list) {
+        if (!list.length) return;
+        fakeMsg.attachments.push({
+          type: "gif",
+          url: list[0].url,
+          name: list[0].name + ".svg",
+          size: list[0].size,
+        });
+        renderCard2();
+      });
+
+      /* ---------- botões ---------- */
+      const pick = function (v) {
+        status.textContent = "escolhido: " + String(v).slice(0, 52);
+      };
+
+      document.getElementById("cm-b-emoji").addEventListener("click", function () {
+        NX.chat.openEmojiPicker(this, pick, { serverId: serverIdOf(realMsg || fakeMsg) });
+      });
+      document.getElementById("cm-b-gif").addEventListener("click", function () {
+        NX.chat.openGifPicker(this, function (item) {
+          NX.chat.addPending(item);
+          status.textContent = "GIF na faixa: " + item.name;
+        });
+      });
+      document.getElementById("cm-b-attach").addEventListener("click", function () {
+        NX.chat.openAttachMenu(this, NX.chat.defaultPick, {});
+      });
+      document.getElementById("cm-b-react").addEventListener("click", function () {
+        if (!realMsg) return;
+        NX.chat.openEmojiPicker(
+          this,
+          function (emoji) {
+            NX.api
+              .toggleReaction(realMsg.id, emoji)
+              .then(renderCard1)
+              .catch(function (e) {
+                NX.ui.error(e.message);
+              });
+          },
+          { serverId: serverIdOf(realMsg) }
+        );
+      });
+      document.getElementById("cm-b-reply").addEventListener("click", function () {
+        if (!realMsg) return;
+        if (NX.chat.replyTo) {
+          NX.chat.replyTo = null;
+          NX.chat.renderReplyBar();
+          status.textContent = "resposta cancelada";
+        } else {
+          NX.chat.setReply(realMsg, NX.chat.ctxFor(realMsg));
+          status.textContent = "respondendo…";
+        }
+      });
+      document.getElementById("cm-b-pend").addEventListener("click", function () {
+        NX.chat.gifProvider.search("").then(function (list) {
+          const items = [
+            {
+              type: "image",
+              url:
+                "data:image/svg+xml;utf8," +
+                encodeURIComponent(
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">' +
+                    '<rect width="240" height="160" fill="#16211f"/>' +
+                    '<circle cx="70" cy="70" r="38" fill="#35e0a8"/>' +
+                    '<rect x="120" y="96" width="96" height="14" rx="7" fill="#8f83ff"/></svg>'
+                ),
+              name: "capa.svg",
+              size: 900,
+            },
+            { type: "file", url: fileAtt.url, name: "proposta-v4.txt", size: 20480 },
+            list.length
+              ? { type: "gif", url: list[0].url, name: list[0].name + ".svg", size: list[0].size }
+              : null,
+          ].filter(Boolean);
+          items.forEach(function (it) {
+            NX.chat.addPending(it);
+          });
+          status.textContent = "pendentes: " + NX.chat.pending.length;
+        });
+      });
+      document.getElementById("cm-b-clear").addEventListener("click", function () {
+        NX.chat.pending.length = 0;
+        NX.chat.renderPendingStrip();
+        status.textContent = "pendentes zeradas";
+      });
+
+      /* ---------- cenário aberto na captura ---------- */
+      window.addEventListener("load", function () {
+        /* compositor real do app: semeia pendentes/resposta sem a bancada */
+        if (benchOff) {
+          try {
+            if (qs.get("pend")) {
+              NX.chat.addPending({
+                type: "image",
+                url:
+                  "data:image/svg+xml;utf8," +
+                  encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">' +
+                      '<rect width="240" height="160" fill="#16211f"/>' +
+                      '<circle cx="70" cy="70" r="38" fill="#35e0a8"/>' +
+                      '<rect x="120" y="96" width="96" height="14" rx="7" fill="#8f83ff"/></svg>'
+                  ),
+                name: "capa.svg",
+                size: 900,
+              });
+              NX.chat.addPending({ type: "file", url: fileAtt.url, name: "proposta-v4.txt", size: 20480 });
+            }
+            if (qs.get("reply") && realMsg) {
+              NX.chat.setReply(realMsg, NX.chat.ctxFor(realMsg));
+            }
+          } catch (e) {
+            console.error("[bench:seeds]", e);
+          }
+        }
+        const open = benchOff ? "none" : qs.get("open") || "emoji";
+        if (open === "none") {
+          status.textContent = benchOff ? "app real (sem bancada)" : "pronto (nada aberto)";
+          return;
+        }
+        setTimeout(function () {
+          try {
+            const bench = document.getElementById("cm-bench");
+            if (bench) bench.scrollTop = 0;
+            window.scrollTo(0, 0);
+            const sid = serverIdOf(realMsg || fakeMsg);
+            if (open === "emoji") {
+              NX.chat.openEmojiPicker(document.getElementById("cm-b-emoji"), pick, { serverId: sid });
+              status.textContent = "painel de emojis aberto · " + NX.chat.emojiCount + " emojis";
+            } else if (open === "gif") {
+              NX.chat.openGifPicker(document.getElementById("cm-b-gif"), function (item) {
+                NX.chat.addPending(item);
+              });
+              status.textContent = "painel de GIFs aberto";
+            } else if (open === "attach") {
+              NX.chat.openAttachMenu(document.getElementById("cm-b-attach"), NX.chat.defaultPick, {});
+              status.textContent = "menu de anexos aberto";
+            } else if (open === "menu") {
+              const btn = card1.querySelector('[data-action="chat-menu"]');
+              if (btn && realMsg) {
+                NX.chat.messageMenu(btn, realMsg, NX.chat.ctxFor(realMsg));
+                status.textContent = "menu da mensagem aberto";
+              }
+            } else if (open === "react") {
+              NX.chat.openEmojiPicker(
+                document.getElementById("cm-b-react"),
+                function (emoji) {
+                  if (realMsg) NX.api.toggleReaction(realMsg.id, emoji).then(renderCard1);
+                },
+                { serverId: sid }
+              );
+              status.textContent = "seletor de reação aberto";
+            }
+            if (open === "emoji" || open === "preset") {
+              document.getElementById("cm-b-pend").click();
+              document.getElementById("cm-b-reply").click();
+            }
+            /* diagnóstico de largura (bancada) — depois do clique assíncrono */
+            setTimeout(function () {
+              var pop = document.querySelector("#popout-root .popout");
+              var rowEl = document.querySelector(".cm-bench__row");
+              var benchEl = document.getElementById("cm-bench");
+              status.textContent +=
+                " · pop=" + (pop ? pop.offsetWidth : 0) +
+                " row=" + (rowEl ? rowEl.scrollWidth + "/" + rowEl.clientWidth : "-") +
+                " bench=" + (benchEl ? benchEl.scrollWidth + "/" + benchEl.clientWidth : "-") +
+                " vw=" + window.innerWidth;
+            }, 400);
+          } catch (e) {
+            console.error("[bench:open]", e);
+          }
+        }, 240);
+      });
+
+      NX.bus.on("db:change", function () {
+        try {
+          renderCard1();
+        } catch (e) {
+          console.error("[bench:render]", e);
+        }
+      });
+
+      /* removida só no fim: todos os getElementById acima precisam dela */
+      if (benchOff) root.remove();
+    })();
+  </script>
+</body>
+</html>

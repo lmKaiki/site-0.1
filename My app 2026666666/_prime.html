@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8" /><title>Nexo · prime</title></head>
+<body>
+<pre id="out">primando…</pre>
+<script src="js/core.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/store.js"></script>
+<script src="js/seed.js"></script>
+<script>
+  try {
+    NX.store.load();
+    NX.seed();
+    const users = Object.values(NX.store.db.users);
+    const demo = users.find((u) => u.demo) || users[0];
+    NX.session.set(demo.id, true);
+    document.getElementById("out").textContent =
+      "PRIMED:" + demo.id + " users=" + users.length +
+      " servers=" + Object.keys(NX.store.db.servers).length;
+    document.title = "PRIMED";
+  } catch (e) {
+    document.getElementById("out").textContent = "ERR:" + e.message + "\n" + e.stack;
+    document.title = "PRIME-ERR";
+  }
+</script>
+</body>
+</html>

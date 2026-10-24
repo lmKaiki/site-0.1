@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Nexo — crie seu servidor, organize categorias e canais, convide pessoas e converse. Comunidades com identidade própria." />
+  <title>Nexo · comunidades em órbita</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230E1517'/%3E%3Cpath d='M18 45V19l28 26V19' stroke='%2335E0A8' stroke-width='6.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/chatmedia.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/permui.css" />
+  <link rel="stylesheet" href="css/people.css" />
+  <link rel="stylesheet" href="css/extras.css" />
+  <link rel="stylesheet" href="css/social.css" />
+</head>
+<body>
+  <!-- Landing page pública (deslogado) -->
+  <section id="screen-landing" class="screen screen--landing" hidden></section>
+
+  <!-- Tela inicial / autenticação -->
+  <section id="screen-auth" class="screen screen--auth" hidden></section>
+
+  <!-- Página de convite -->
+  <section id="screen-invite" class="screen screen--invite" hidden></section>
+
+  <!-- Configurações do usuário (camada sobre o app) -->
+  <section id="screen-settings" class="screen screen--settings" hidden></section>
+
+  <!-- Aplicação principal -->
+  <div id="screen-app" class="app-shell" hidden>
+    <nav id="rail" class="rail" aria-label="Servidores" data-i18n-attr="aria-label:ex.servidores"></nav>
+    <aside id="sidebar" class="sidebar" aria-label="Canais do servidor" data-i18n-attr="aria-label:adm.canais2"></aside>
+    <main id="main" class="main">
+      <header id="channel-header" class="channel-header"></header>
+      <div id="main-content" class="main-content"></div>
+      <footer id="composer" class="composer" hidden></footer>
+    </main>
+    <aside id="members" class="members" aria-label="Membros" data-i18n-attr="aria-label:adm.membros"></aside>
+    <div id="scrim" class="scrim" hidden></div>
+  </div>
+
+  <!-- Camadas de UI -->
+  <div id="modal-root"></div>
+  <div id="popout-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <script src="js/i18n/index.js"></script>
+  <script src="js/i18n/pt-BR.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/region.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/modals.js"></script>
+  <!-- módulos auto-contidos (registram ações com prefixo próprio) -->
+  <script src="js/landing.js"></script>
+  <script src="js/chatmedia.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/permui.js"></script>
+  <script src="js/social.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/remote.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

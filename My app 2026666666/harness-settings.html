@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Harness de teste da tela de Configurações do Nexo (seção Privacidade / rede social)." />
+  <title>Nexo · Configurações (harness)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230E1517'/%3E%3Cpath d='M18 45V19l28 26V19' stroke='%2335E0A8' stroke-width='6.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <!-- captura erros desde o 1º script (inclusive erros de sintaxe) -->
+  <script>
+    window.__sxErr = [];
+    window.addEventListener("error", function (e) {
+      window.__sxErr.push(
+        (e.message || "?") + " @ " + (e.filename || "?") + ":" + e.lineno + ":" + e.colno
+      );
+    }, true);
+  </script>
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/chatmedia.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/permui.css" />
+  <link rel="stylesheet" href="css/people.css" />
+  <link rel="stylesheet" href="css/extras.css" />
+  <style>
+    /* ---- estilos só do harness (não fazem parte do protótipo) ---- */    .sx-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 240;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 7px 14px;
+      background: var(--bg-sidebar, var(--bg-panel));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sx-brand {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-weight: 800;
+      color: var(--text-strong);
+      letter-spacing: -0.02em;
+      font-size: 14px;
+    }
+
+    .sx-brand span {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0;
+    }
+
+    .sx-bar select {
+      max-width: 230px;
+      padding: 6px 9px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-input);
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .sx-bar .btn {
+      padding: 6px 11px;
+      font-size: 12.5px;
+    }
+
+    .sx-status {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      max-width: 42vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sx-status.is-err {
+      color: var(--danger);
+    }
+
+    /* a tela de configurações fica inteira visível abaixo da barra */
+    #screen-settings {
+      top: 45px;
+    }
+
+    .sx-audit {
+      position: fixed;
+      right: 6px;
+      bottom: 6px;
+      z-index: 235;
+      margin: 0;
+      max-width: 62vw;
+      max-height: 40vh;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.84);
+      color: #7cffd4;
+      font: 600 11.5px/1.45 ui-monospace, Consolas, monospace;
+      padding: 8px 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      pointer-events: none;
+    }
+
+    @media (max-width: 760px) {
+      .sx-bar {
+        padding: 6px 10px;
+      }
+
+      .sx-status {
+        max-width: 100%;
+        margin-left: 0;
+        flex: 1 1 100%;
+      }
+
+      #screen-settings {
+        top: 78px;
+      }
+
+      .sx-audit {
+        max-width: 94vw;
+        font-size: 10.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- telas do protótipo (mesmo DOM do index.html) -->
+  <section id="screen-landing" class="screen screen--landing" hidden></section>
+  <section id="screen-auth" class="screen screen--auth" hidden></section>
+  <section id="screen-invite" class="screen screen--invite" hidden></section>
+  <section id="screen-settings" class="screen screen--settings" hidden></section>
+
+  <div id="screen-app" class="app-shell" hidden>
+    <nav id="rail" class="rail" aria-label="Servidores"></nav>
+    <aside id="sidebar" class="sidebar" aria-label="Canais do servidor"></aside>
+    <main id="main" class="main">
+      <header id="channel-header" class="channel-header"></header>
+      <div id="main-content" class="main-content"></div>
+      <footer id="composer" class="composer" hidden></footer>
+    </main>
+    <aside id="members" class="members" aria-label="Membros"></aside>
+    <div id="scrim" class="scrim" hidden></div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="popout-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <!-- barra do harness -->
+  <header class="sx-bar">
+    <div class="sx-brand">Nexo · Configurações <span>harness da tela de settings</span></div>
+    <label for="sx-sec" style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)">Seção</label>
+    <select id="sx-sec" aria-label="Seção de configurações"></select>
+    <button type="button" class="btn btn--soft" id="sx-audit">Rodar auditoria</button>
+    <button type="button" class="btn btn--soft" id="sx-theme">Alternar tema</button>
+    <button type="button" class="btn btn--soft" id="sx-sim">Simular falha de API</button>
+    <span class="sx-status" id="sx-status">…</span>
+  </header>
+
+  <pre id="sx-auditbox" class="sx-audit"></pre>
+
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/landing.js"></script>
+  <script src="js/chatmedia.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/permui.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var NX = window.NX;
+      var SX = { errors: [], run: "", note: "" };
+
+      /* rota padrão: abre a seção nova pela rota real do produto */
+      if (!location.hash || location.hash === "#" || location.hash.indexOf("#/") !== 0) {
+        location.hash = "#/config/privacy-social";
+      }
+
+      /* sessão demo antes do bootstrap do app */
+      try {
+        NX.store.load();
+        NX.seed();
+        if (!NX.selectors.me()) {
+          var demo = Object.values(NX.store.db.users).filter(function (x) { return x.demo; })[0];
+          if (demo) NX.session.set(demo.id, true);
+        }
+      } catch (e) {
+        console.error("[harness:prime]", e);
+      }
+
+      /* cenário de teste pedido na URL (?run=...) — aplicado antes de renderizar */
+      var RUN = "";
+      try {
+        RUN = (new URLSearchParams(location.search).get("run") || "").toLowerCase();
+      } catch (e) {}
+      if (RUN === "light") {
+        try { NX.applyTheme("light"); } catch (e) {}
+      }
+
+      /* ?hide=1 → some a caixa de auditoria; ?hide=2 → some também a barra */
+      var HIDE = 0;
+      try { HIDE = parseInt(new URLSearchParams(location.search).get("hide") || "0", 10) || 0; } catch (e) {}
+
+      /* ?box=360 → obriga a tela de settings a largura de 360px
+         (o viewport do Edge headless não desce abaixo de ~500px) */
+      var BOX = 0;
+      try { BOX = parseInt(new URLSearchParams(location.search).get("box") || "0", 10) || 0; } catch (e) {}
+      if (BOX > 0) {
+        var _ss = document.getElementById("screen-settings");
+        if (_ss) {
+          _ss.style.width = BOX + "px";
+          _ss.style.right = "auto";
+        }
+      }
+      if (HIDE >= 2) {
+        var _bar = document.querySelector(".sx-bar");
+        if (_bar) _bar.hidden = true;
+        var _ss2 = document.getElementById("screen-settings");
+        if (_ss2) _ss2.style.top = "0px";
+      }
+      /* com a caixa forçada, a auditoria fica dentro dela (cabe no screenshot) */
+      if (BOX > 0) {
+        var _ax = document.getElementById("sx-auditbox");
+        if (_ax) {
+          _ax.style.left = "0px";
+          _ax.style.right = "auto";
+          _ax.style.width = BOX + "px";
+        }
+      }
+
+      function setStatus(msg, isErr) {
+        var el = document.getElementById("sx-status");
+        if (!el) return;
+        el.textContent = msg;
+        el.className = "sx-status" + (isErr ? " is-err" : "");
+      }
+
+      function statusErr(msg) {
+        SX.errors.push(msg);
+        setStatus("ERRO: " + msg, true);
+      }
+
+      window.addEventListener("error", function (e) {
+        statusErr(e.message || "desconhecido");
+      });
+      window.addEventListener("unhandledrejection", function (e) {
+        var m = (e.reason && e.reason.message) || String(e.reason);
+        SX.errors.push("rejection: " + m);
+      });
+
+      function me() { try { return NX.selectors.me(); } catch (e) { return null; } }
+      function priv() { var m = me(); return (m && m.privacy) || {}; }
+      function privStr() { try { return JSON.stringify(priv()); } catch (e) { return "?"; } }
+
+      function toastList() {
+        return Array.prototype.map.call(document.querySelectorAll(".toast"), function (t) {
+          return (t.textContent || "").trim().slice(0, 60);
+        });
+      }
+
+      function hints() {
+        var out = [];
+        Array.prototype.forEach.call(document.querySelectorAll("[data-priv-hint]"), function (el) {
+          var wrap = el.closest("[data-priv-group]");
+          var g = wrap ? wrap.getAttribute("data-priv-group") : "?";
+          out.push(g + "=" + (el.textContent || "").trim().slice(0, 34));
+        });
+        return out;
+      }
+
+      function checkedMap() {
+        var out = [];
+        Array.prototype.forEach.call(document.querySelectorAll("[data-priv-group]"), function (wrap) {
+          var g = wrap.getAttribute("data-priv-group");
+          var on = wrap.querySelector(".set-seg__btn.is-on");
+          out.push(g + "=" + (on ? on.getAttribute("data-seg-opt") : "-"));
+        });
+        return out;
+      }
+
+      function audit() {
+        var out = [];
+        out.push("search=" + location.search + " BOX=" + BOX + " HIDE=" + HIDE);
+        out.push("rota=" + (location.hash || "(base)"));
+        out.push("secao=" + (NX.settings && NX.settings.section ? NX.settings.section : "-"));
+        out.push("privacidadeAPI=" + privStr());
+        out.push("telaMostra=" + checkedMap().join(","));
+        out.push("dicas=" + hints().join(" | "));
+        out.push("grupos=" + document.querySelectorAll(".set-priv").length +
+          " segmentados=" + document.querySelectorAll(".set-seg--sp").length);
+        out.push("overflowX=" + (document.documentElement.scrollWidth - document.documentElement.clientWidth));
+        var _card = document.querySelector(".set-card");
+        var _bar = document.querySelector(".sx-bar");
+        out.push("vw=" + window.innerWidth + " vh=" + window.innerHeight +
+          " cardW=" + (_card ? Math.round(_card.getBoundingClientRect().width) : "-") +
+          " barW=" + (_bar ? Math.round(_bar.getBoundingClientRect().width) : "-"));
+        var _ss = document.getElementById("screen-settings");
+        if (BOX > 0 && _ss) {
+          var _b = _ss.getBoundingClientRect();
+          var _cut = Array.prototype.filter.call(
+            document.querySelectorAll(".set-content__inner *"),
+            function (el) {
+              var r = el.getBoundingClientRect();
+              return r.width > 0 && (r.right > _b.right + 1 || r.left < _b.left - 1);
+            }
+          );
+          out.push("caixa=" + BOX + " scrollInterno=" + (_ss.scrollWidth - _ss.clientWidth) +
+            " cardsCortados=" + _cut.length);
+          /* larguras-chave (diagnóstico de estouro em 360) */
+          var _geo = [];
+          var _pc = document.querySelector('.set-card[data-focus-card="privacy-social"]');
+          var _walk = _pc;
+          for (var _d = 0; _walk && _d < 6; _d++) {
+            var _rw = _walk.getBoundingClientRect();
+            _geo.push((_walk.id || _walk.className || _walk.tagName).toString().split(" ").slice(0, 2).join(".") + "=" + Math.round(_rw.width));
+            _walk = _walk.parentElement;
+          }
+          out.push("alcance=" + _geo.join(" > "));
+          ["#screen-settings", ".set-content", ".set-content__inner", ".set-card",
+            ".set-priv", ".set-seg--sp"].forEach(function (s) {
+            var el = document.querySelector(s);
+            if (!el) return;
+            var rr = el.getBoundingClientRect();
+            _geo.push(s.replace(/^\./, "") + "=" + Math.round(rr.width));
+          });
+          out.push("larguras=" + _geo.join(" "));
+          /* quem exatamente está estourando a caixa (até 4) */
+          if (_cut.length) {
+            var _seen = {};
+            var _who = [];
+            for (var _i = 0; _i < _cut.length && _who.length < 4; _i++) {
+              var _r = _cut[_i].getBoundingClientRect();
+              var _k = (_cut[_i].className || _cut[_i].tagName) + "";
+              if (_seen[_k]) continue;
+              _seen[_k] = 1;
+              _who.push(_k.split(" ").slice(0, 2).join(".") + "@right" + Math.round(_r.right));
+            }
+            out.push("estouram=" + _who.join(" , "));
+          }
+        }
+        out.push("tema=" + (document.documentElement.getAttribute("data-theme") || "?") +
+          " temaStore=" + (NX.storage ? NX.storage.get("nexo.theme", "?") : "?") +
+          " modo=" + (NX.storage ? NX.storage.get("nexo.themeMode", "?") : "?"));
+        out.push("errosJS=" + SX.errors.length + (SX.errors.length ? " (" + SX.errors.slice(0, 3).join(" | ") + ")" : ""));
+        out.push("errosCedo=" + ((window.__sxErr && window.__sxErr.length) || 0) +
+          (window.__sxErr && window.__sxErr.length ? " (" + window.__sxErr.slice(0, 2).join(" | ") + ")" : ""));
+        out.push("toasts=" + (toastList().join(" | ") || "nenhum"));
+        if (SX.note) out.push("nota=" + SX.note);
+        if (SX.run) out.push("run=" + SX.run);
+        var box = document.getElementById("sx-auditbox");
+        if (box) {
+          box.textContent = out.join("\n");
+          if (HIDE >= 1) box.hidden = true;
+        }
+        return out.join(" ;; ");
+      }
+
+      /* percorre TODAS as seções registradas e verifica que renderizam */
+      function auditSections() {
+        var root = document.getElementById("screen-settings");
+        var ids = (NX.settings.sections || []).slice();
+        var themeBefore = document.documentElement.getAttribute("data-theme") || "dark";
+        var modeBefore = null;
+        try { modeBefore = NX.storage ? NX.storage.get("nexo.themeMode", null) : null; } catch (e) {}
+        var ok = 0;
+        var bad = [];
+        ids.forEach(function (id) {
+          try {
+            NX.settings.render(root, id);
+            var inner = root.querySelector(".set-content__inner");
+            var txt = inner ? (inner.textContent || "").trim() : "";
+            if (txt.length > 20) ok++;
+            else bad.push(id + "=vazio");
+          } catch (e) {
+            bad.push(id + "=" + e.message);
+          }
+        });
+        try { NX.applyTheme(themeBefore); } catch (e) {}
+        try {
+          if (modeBefore !== null && NX.storage) NX.storage.set("nexo.themeMode", modeBefore);
+        } catch (e) {}
+        try {
+          NX.settings.render(root, "privacy-social");
+          root.hidden = false;
+        } catch (e) { bad.push("volta=" + e.message); }
+        setStatus("seções: " + ok + "/" + ids.length, bad.length > 0);
+        return "secoes=" + ok + "/" + ids.length + (bad.length ? " ;; falhas: " + bad.join(" | ") : " ;; todasOk");
+      }
+
+      /* falha simulada na API: o controle precisa voltar ao valor anterior */
+      function simulateApiFailure() {
+        return new Promise(function (resolve) {
+          var wrap = document.querySelector('[data-priv-group="dm"]');
+          if (!wrap) { resolve("semGrupo=dm"); return; }
+          var before = priv().dm;
+          var target = wrap.querySelector('[data-seg-opt="none"] input') ||
+            wrap.querySelector('[data-seg-opt="approved"] input') ||
+            wrap.querySelector("input:not(:checked)");
+          if (!target) { resolve("semOpcao"); return; }
+
+          var real = NX.api.updateSocialPrivacy;
+          NX.api.updateSocialPrivacy = function () {
+            return Promise.reject(new Error("Falha simulada do servidor."));
+          };
+          target.click();
+
+          setTimeout(function () {
+            NX.api.updateSocialPrivacy = real;
+            var on = wrap.querySelector(".set-seg__btn.is-on");
+            var after = priv().dm;
+            var res =
+              "antes=" + before +
+              " clicado=" + target.value +
+              " tela=" + (on ? on.getAttribute("data-seg-opt") : "-") +
+              " estado=" + after +
+              " revertido=" + ((on && on.getAttribute("data-seg-opt") === before && after === before) ? "SIM" : "NAO") +
+              " toast=" + (toastList().join(" | ") || "nenhum");
+            SX.run = res;
+            setStatus("falha simulada: " + ((on && on.getAttribute("data-seg-opt") === before) ? "revertido" : "NÃO revertido"),
+              !(on && on.getAttribute("data-seg-opt") === before));
+            resolve(res);
+          }, 700);
+        });
+      }
+
+      /* valor inválido direto na API: precisa ser recusado */
+      function checkInvalid() {
+        return NX.api.updateSocialPrivacy({ follow: "banana" }).then(
+          function () {
+            SX.run = "invalido=ACEITO (erro!)";
+            return "invalido=ACEITO";
+          },
+          function (er) {
+            SX.run = "invalidoRecusado=" + ((er && er.message) || "?") + " ;; privacy=" + privStr();
+            return "invalidoRecusado";
+          }
+        );
+      }
+
+      /* persistência: grava em uma carga e confere na carga seguinte */
+      function persistWrite() {
+        return NX.api.updateSocialPrivacy({ followers: "self" }).then(function () {
+          SX.run = "gravou=followers:" + priv().followers;
+          return SX.run;
+        }, function (er) {
+          SX.run = "falhou=" + ((er && er.message) || "?");
+          return SX.run;
+        });
+      }
+
+      function persistCheck() {
+        SX.run = "aposReload followers=" + priv().followers +
+          (priv().followers === "self" ? " ;; PERSISTIU" : " ;; NAO persistiu");
+        return SX.run;
+      }
+
+      function restoreDefaults() {
+        try { NX.applyTheme("dark"); } catch (e) {}
+        try { if (NX.storage) NX.storage.set("nexo.themeMode", "dark"); } catch (e) {}
+        return NX.api.updateSocialPrivacy({ follow: "all", dm: "all", followers: "all", posts: "public" }).then(function () {
+          SX.run = "restaurado=" + privStr();
+          return SX.run;
+        }, function (er) {
+          SX.run = "restaurarFalhou=" + ((er && er.message) || "?");
+          return SX.run;
+        });
+      }
+
+      function fillSelect() {
+        var sel = document.getElementById("sx-sec");
+        if (!sel) return;
+        var LABELS = {
+          account: "Perfil", password: "Senha",
+          "theme-dark": "Tema escuro", "theme-light": "Tema claro", "theme-auto": "Tema automático",
+          "ui-size": "Tamanho da interface",
+          "notif-messages": "Notificações · Mensagens", "notif-mentions": "Notificações · Menções",
+          "notif-sounds": "Notificações · Sons",
+          "privacy-social": "★ Privacidade (nova)", "privacy-dms": "Mensagens privadas",
+          "privacy-invites": "Convites", "privacy-blocks": "Bloqueios",
+          "security-sessions": "Sessões", "security-devices": "Dispositivos",
+          logout: "Sair"
+        };
+        sel.innerHTML = "";
+        (NX.settings.sections || []).forEach(function (id) {
+          var o = document.createElement("option");
+          o.value = id;
+          o.textContent = LABELS[id] || id;
+          sel.appendChild(o);
+        });
+        sel.value = NX.settings.section || "privacy-social";
+        sel.addEventListener("change", function () {
+          location.hash = "#/config/" + sel.value;
+        });
+      }
+
+      function syncSelect() {
+        var sel = document.getElementById("sx-sec");
+        if (sel && NX.settings.section) sel.value = NX.settings.section;
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        try {
+          fillSelect();
+
+          document.getElementById("sx-audit").addEventListener("click", function () {
+            SX.run = auditSections();
+            audit();
+          });
+          document.getElementById("sx-theme").addEventListener("click", function () {
+            var now = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+            NX.applyTheme(now);
+            setStatus("tema=" + now);
+            setTimeout(audit, 120);
+          });
+          document.getElementById("sx-sim").addEventListener("click", function () {
+            setStatus("simulando falha…");
+            simulateApiFailure().then(function (r) { SX.run = r; audit(); });
+          });
+
+          window.addEventListener("hashchange", function () { setTimeout(function () { syncSelect(); audit(); }, 60); });
+          setStatus("ok · " + (me() ? me().username : "sem sessão"));
+
+          var chain = Promise.resolve();
+          if (RUN === "audit") {
+            chain = chain.then(function () {
+              return new Promise(function (r) { setTimeout(r, 400); });
+            }).then(function () { SX.run = auditSections(); });
+          } else if (RUN === "error") {
+            chain = chain.then(function () {
+              return new Promise(function (r) { setTimeout(r, 400); });
+            }).then(simulateApiFailure).then(function (r) { SX.run = r; });
+          } else if (RUN === "invalid") {
+            chain = chain.then(checkInvalid);
+          } else if (RUN === "persist") {
+            chain = chain.then(persistWrite);
+          } else if (RUN === "check") {
+            chain = chain.then(persistCheck);
+          } else if (RUN === "restore") {
+            chain = chain.then(restoreDefaults);
+          }
+
+          chain.then(function () {
+            setTimeout(audit, 240);
+          }).catch(function (e) {
+            statusErr("run: " + e.message);
+            setTimeout(audit, 120);
+          });
+        } catch (e) {
+          console.error("[harness]", e);
+          statusErr(e.message);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
